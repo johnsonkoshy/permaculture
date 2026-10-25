@@ -72,7 +72,7 @@ if (window.EBPG_GAS) {
   // event <-> rows
   const split = s => String(s || '').split(',').map(x => x.trim()).filter(Boolean);
   const payload = ev => {
-    const { tasks, log, posts, isNew, ...data } = ev, pl = ev.plan;
+    const { tasks, log, posts, isNew, created, ...data } = ev, pl = ev.plan; // created goes with a save, not in the plan
     return {
       id: ev.id, data,
       cols: { label: ev.label || '', title: ev.title, date: ev.date, start: ev.start, end: ev.end, place: ev.place, address: ev.address || '', host: hostOf(pl), cohosts: cohostsOf(pl).join(', '),
@@ -106,8 +106,10 @@ if (window.EBPG_GAS) {
     Object.assign(ev, { id: c.id, label: c.label, title: c.title, date: c.date, start: c.start, end: c.end, place: c.place, address: c.address, about: c.about, bring: c.bring,
       status: c.status == null || c.status === '' ? 'published' : EV_STATUS[c.status] ? c.status : 'draft', rsvp: safeUrl(c.rsvp) }); // as the Sheet reads it: blank is published
     if (split(c.tags).join(',') !== ev.tags.join(',')) ev.tags = split(c.tags);
-    // hand edits in the Sheet win; untouched cells keep the richer saved plan
-    if (c.host !== hostOf(pl) || c.cohosts !== cohostsOf(pl).join(', ')) pl.roles = [['Host', c.host ? [c.host] : []], ['Co-hosts', split(c.cohosts).filter(n => n !== c.host)]];
+    // hand edits in the Sheet win; untouched cells keep the richer saved plan. The co-hosts cell may still say what pages
+    // before the plan's other roles were kept apart wrote there (everyone in every role), which isn't a hand edit.
+    // A hand edit changes the Host and Co-hosts roles only; the other roles stay.
+    if (c.host !== hostOf(pl) || (c.cohosts !== cohostsOf(pl).join(', ') && c.cohosts !== everyoneBut(pl).join(', '))) pl.roles = withHosting(pl, c.host, split(c.cohosts));
     if (c.notes !== (pl.notes || []).join('\n')) pl.notes = lns(c.notes);
     if (c.timeline !== PT.timeline(pl)) pl.timeline = parseTimeline(c.timeline);
     ev.host = hostOf(pl) || ev.host || '';
@@ -157,6 +159,7 @@ if (window.EBPG_GAS) {
   function loadPublic(st) {
     if (!st || !Array.isArray(st.events)) return false;
     EVENTS.length = 0; st.events.forEach(e => EVENTS.push(fromPublic(e)));
+    CANCELLED.clear(); (Array.isArray(st.cancelled) ? st.cancelled : []).forEach(id => CANCELLED.add(String(id).slice(0, 40)));
     TEAM.splice(0, TEAM.length, ...namesOnly(st.team));
     if (st.gardens?.length) GARDENS.splice(0, GARDENS.length, ...st.gardens);
     pubSettings(st.settings);
@@ -209,18 +212,41 @@ if (window.EBPG_GAS) {
     if (s === saved[k]) { q.failed = false; return; }
     if (stale) { q.failed = true; return; } // kept here until signed in with the new code
     q.busy = true; touched[k] = Date.now();
-    const g = gen;
-    run(k === 'team' ? 'saveTeam' : 'saveEvent', code, JSON.parse(s))
-      .then(() => { if (g !== gen) return; saved[k] = s; q.failed = false; q.err = null; mine.add(k); },
+    const g = gen, ev = k === 'team' ? null : EVENTS.find(e => keyOf(e) === k), body = JSON.parse(s);
+    if (ev && ev.created) body.created = true; // new: the Sheet adds its row (only then, so nothing it lost comes back)
+    run(k === 'team' ? 'saveTeam' : 'saveEvent', code, body)
+      .then(() => { if (g !== gen) return; saved[k] = s; q.failed = false; q.err = null; mine.add(k); if (ev) delete ev.created; },
         er => { if (g !== gen) return; q.failed = true; q.err = er; })
       .then(() => {
         if (g !== gen) return;
         q.busy = false; touched[k] = Date.now();
+        if (q.failed && removed(q.err)) {
+          waits = []; // its "Saved" won't come
+          dropRemoved(k); status();
+          if (chipState === 'saved') chip('idle'); // not "All changes saved" right after one that couldn't be
+          return;
+        }
         if (q.failed) { if (codeGone(q.err)) staleCode(); else if (!stale) { retryLater(); noteFailure(q.err); } }
         else if (!timer && dirty(k)) send(k); // changes made while it was out
         status();
       });
   }
+  /* An event someone took out of the Sheet (its row deleted, its id cleared, or deleted from another tab): the Sheet
+     turns down saving it, so it goes from this page too, with a note saying so. Returns the note. */
+  const removed = er => !!er && !er.net && /removed from the Sheet/.test(er.message);
+  function forget(k) { delete Q[k]; delete saved[k]; delete base[k]; delete touched[k]; mine.delete(k); }
+  function dropRemoved(k) {
+    forget(k);
+    const i = EVENTS.findIndex(e => keyOf(e) === k), ev = i >= 0 ? EVENTS.splice(i, 1)[0] : null;
+    const msg = `${(ev && (ev.label || ev.title)) || 'This event'} was removed from the Guild Sheet, so your change wasn't saved and it's gone from this page.`;
+    if (!ev) return msg;
+    if (S.sel === ev.id) { leaveEvent(); S.sel = nextEvent()?.id; }
+    render(); renderMaterials();
+    toast(msg, 'alert-triangle');
+    return msg;
+  }
+  // a save of this key on its way: wait for it (up to 30 seconds), so a call after it has the last word
+  const settled = k => new Promise(ok => { const t0 = Date.now(), go = () => !busy(k) || Date.now() - t0 > 30000 ? ok() : setTimeout(go, 50); go(); });
   function flush() {
     clearTimeout(timer); timer = 0;
     if (!live) return;
@@ -312,7 +338,7 @@ if (window.EBPG_GAS) {
   // closing the tab: send what's left; if anything still isn't saved, the browser asks first
   window.addEventListener('beforeunload', e => {
     if (!live) return;
-    leaving = true; flush(); leaving = false;
+    leaving = true; commitDeletes(true); flush(); leaving = false; // a draft deleted in the last 10 seconds goes now
     if (keys().some(k => busy(k) || dirty(k)) || failedKeys().length) { e.preventDefault(); e.returnValue = 'Some changes are not saved yet.'; }
   });
 
@@ -323,7 +349,7 @@ if (window.EBPG_GAS) {
   // the starter drafts were written before the page knew its address, so they're written again with each event's link
   EVENTS.forEach(ev => CHANNELS.forEach(c => { const q = ev.posts[c.id]; if (q && !q.edited) q.text = draft(c.id, ev); }));
   // the first sign-in fills an empty Sheet with this: the Guild's real plans, the team with contacts still blank, and no volunteers
-  const SEED = { events: EVENTS.map(payload), team: JSON.parse(JSON.stringify(TEAM)), vols: [], gardens: GARDENS.slice() };
+  const SEED = { events: EVENTS.map(e => ({ ...payload(e), created: true })), team: JSON.parse(JSON.stringify(TEAM)), vols: [], gardens: GARDENS.slice() };
   // ...and nothing else uses them: every page shows only what the Sheet sends
   EVENTS.length = 0; TEAM.length = 0; S.sel = undefined;
   pubState = 'loading'; pubAnswered = false; // an event's page waits for the Sheet before it says an event isn't there
@@ -378,7 +404,7 @@ if (window.EBPG_GAS) {
     st.events.forEach(r => {
       const id = r.cols.id, k = 'e:' + id, raw = JSON.stringify(r);
       seen.add(id);
-      if (base[k] === raw) return;
+      if (base[k] === raw || DELETING.has(id)) return; // a draft deleted here, waiting for Undo, stays out
       const i = EVENTS.findIndex(e => e.id === id), cur = EVENTS[i];
       if (cur && (cur.isNew || held(k) || editing(cur))) return;
       const fresh = fromRows(r), s = snapEv(fresh), ours = mine.delete(k);
@@ -425,7 +451,7 @@ if (window.EBPG_GAS) {
   setInterval(() => refresh(true), 120000);
   document.addEventListener('visibilitychange', () => {
     if (!live || stale) return;
-    if (document.hidden) { leaving = true; flush(); leaving = false; } // a phone may close the page without warning
+    if (document.hidden) { leaving = true; commitDeletes(true); flush(); leaving = false; } // a phone may close the page without warning
     else { if (failedKeys().length) retryNow(false); refresh(); } // back on the tab: try failed saves again now
   });
 
@@ -542,15 +568,18 @@ if (window.EBPG_GAS) {
       const k = keyOf(ev), pl = payload(ev), sent = JSON.stringify(pl), n0 = (ev.log || []).length;
       const mineP = pl.posts.find(x => x.channel === ch);
       if (mineP && opts.text != null) mineP.text = opts.text;
+      if (ev.created) pl.created = true; // never saved yet: postTo saves it first, as a new row
       touched[k] = Date.now(); // a read of the Sheet that started before this is older than what's coming
       const g = gen;
       let out;
       try { out = await run('postTo', code, pl, ch, { by: ME, force: !!opts.force }); }
       catch (er) {
         if (codeGone(er)) { staleCode(); throw new Error(STALE); }
+        if (removed(er)) throw new Error(dropRemoved(k));
         throw er.net ? new Error("The Guild Sheet didn't answer, so we can't tell if it went out. Check the Sheet before posting again.") : er;
       } finally { touched[k] = Date.now(); }
       const cur = EVENTS.find(e => e.id === ev.id) || ev, fresh = out && out.event && fromRows(out.event);
+      if (fresh && g === gen) delete cur.created; // the Sheet has its row now
       if (fresh && g === gen) { // not when signed out meanwhile
         // nothing else changed while it went out: the Sheet now has exactly this event, so there's nothing left to save
         const same = !busy(k) && snapEv(cur) === sent;
@@ -564,6 +593,46 @@ if (window.EBPG_GAS) {
       }
       return (out && out.message) || 'Posted.';
     },
+    /* Cancel event: this page's changes to it reach the Sheet first, then the Sheet cancels it (cancelEvent) and answers
+       with its Posts rows and Activity as they now are: the notices to approve, and who cancelled it. Resolves with what
+       the Sheet said happened. */
+    cancel: async (ev, reason) => {
+      if (stale) throw new Error(STALE);
+      const k = keyOf(ev);
+      flush(); await settled(k);
+      if (stale) throw new Error(STALE);
+      if (ev.created) throw new Error("This event hasn't reached the Guild Sheet yet. Try again once the chip says All changes saved.");
+      const before = snapEv(ev), n0 = (ev.log || []).length, g = gen;
+      touched[k] = Date.now();
+      let out;
+      try { out = await run('cancelEvent', code, ev.id, reason, ME); }
+      catch (er) {
+        if (codeGone(er)) { staleCode(); throw new Error(STALE); }
+        if (removed(er)) throw new Error(dropRemoved(k));
+        throw er.net ? new Error("The Guild Sheet didn't answer, so we can't tell if it was cancelled. Check the Sheet before trying again.") : er;
+      } finally { touched[k] = Date.now(); }
+      const cur = EVENTS.find(e => e.id === ev.id), fresh = out && out.event && fromRows(out.event);
+      if (cur && fresh && g === gen) {
+        // nothing changed here while it went: the Sheet now has exactly this, so there's nothing left to save
+        const same = !busy(k) && saved[k] === before && snapEv(cur) === before;
+        cur.status = 'cancelled';
+        CHANNELS.forEach(c => { cur.posts[c.id] = fresh.posts[c.id]; });
+        cur.log = fresh.log.concat((cur.log || []).slice(n0));
+        if (same) { saved[k] = snapEv(cur); mine.add(k); }
+      }
+      return (out && out.message) || 'Cancelled.';
+    },
+    /* Delete draft, once its 10 seconds to undo are over: a save of it already on its way lands first, so the Sheet's
+       tombstone is the last word. now: the page is closing, so the call goes out at once. */
+    del: (ev, now) => {
+      const k = keyOf(ev), c = code;
+      const go = () => run('deleteEvent', c, ev.id).then(() => { forget(k); }, er => {
+        if (codeGone(er)) { staleCode(); throw new Error(STALE); }
+        throw er.net ? new Error("The Guild Sheet didn't answer, so it's still there. Try again in a minute.") : er;
+      });
+      if (stale) return Promise.reject(new Error(STALE));
+      return now || !busy(k) ? go() : settled(k).then(go);
+    },
     /* the volunteer form: resolves once the Sheet has the sign-up. A failure is thrown, for the form to show with Try again. */
     join: async v => {
       try { return await run('addVolunteer', { ...v, help: v.help.map(k => Object.fromEntries(HELP)[k] || k) }); }
@@ -576,6 +645,7 @@ if (window.EBPG_GAS) {
   // signing out with changes the Sheet doesn't have yet asks first
   leaveOk = () => {
     if (!live) return true;
+    commitDeletes(true); // a draft deleted in the last 10 seconds goes before signing out
     flush();
     if (failedKeys().length && !confirm("Some changes haven't reached the Guild Sheet yet. Sign out anyway and lose them?")) return false;
     live = false; code = ''; sheetUrl = ''; problems = []; store.clear(); reset(); testBar(null); applyChannels([]);

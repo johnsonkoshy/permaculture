@@ -117,7 +117,8 @@ function moved_(to) {
 
 /* JSON API for the Netlify page: POST {"fn": "saveEvent", "args": [...]} as text/plain.
    Only these functions can be called; each one checks the organizer code itself. */
-const API = { getPublic: getPublic, signIn: signIn, seed: seed, saveEvent: saveEvent, saveTeam: saveTeam, addVolunteer: addVolunteer, postTo: postTo };
+const API = { getPublic: getPublic, signIn: signIn, seed: seed, saveEvent: saveEvent, saveTeam: saveTeam, addVolunteer: addVolunteer, postTo: postTo,
+  cancelEvent: cancelEvent, deleteEvent: deleteEvent };
 function doPost(e) {
   let out;
   try {
@@ -168,9 +169,10 @@ function resetStarterData() {
 
 /* ---------- calls from the page ---------- */
 /* The public page's data, for anyone (no organizer code). An allow-list: published events from today on, each with
-   only the fields a visitor needs; the organizers' names and roles; the gardens; and four settings. Nothing from the
-   plan's notes, tasks, posts, activity or permissions. It reads only the Events, Team, Gardens and Settings tabs, and
-   keeps its answer in the script cache for 5 minutes; every organizer save drops that copy (see writing_). */
+   only the fields a visitor needs; the ids (only the ids) of events cancelled in the last 30 days or later, so an old
+   link can say the event was cancelled; the organizers' names and roles; the gardens; and four settings. Nothing from
+   the plan's notes, tasks, posts, activity or permissions. It reads only the Events, Team, Gardens and Settings tabs,
+   and keeps its answer in the script cache for 5 minutes; every organizer save drops that copy (see writing_). */
 const PUBLIC_KEY = 'public:v1', PUBLIC_GEN = 'public:gen', PUBLIC_MAX = 90 * 1024;
 function getPublic() {
   const cache = CacheService.getScriptCache(), hit = cache.get(PUBLIC_KEY);
@@ -185,10 +187,12 @@ function getPublic() {
 function publicView_() {
   const today = today_(), set = {};
   rows_('Settings').forEach(r => { if (!Object.prototype.hasOwnProperty.call(set, r[0])) set[r[0]] = String(r[1]).trim(); });
-  const when = c => c.date + ' ' + c.start;
+  const when = c => c.date + ' ' + c.start, all = readEvents_();
+  const since = Utilities.formatDate(new Date(Date.now() - 30 * 864e5), Session.getScriptTimeZone(), 'yyyy-MM-dd');
   return {
-    events: readEvents_().filter(e => e.cols.status === 'published' && e.cols.date >= today)
+    events: all.filter(e => e.cols.status === 'published' && e.cols.date >= today)
       .sort((a, b) => when(a.cols) < when(b.cols) ? -1 : when(a.cols) > when(b.cols) ? 1 : 0).map(pubEvent_),
+    cancelled: all.filter(e => e.cols.status === 'cancelled' && e.cols.date >= since).map(e => e.cols.id).slice(0, 100),
     team: readTeam_().filter(t => t.role !== 'vol').map(t => ({ name: t.name, role: t.role })),
     gardens: readGardens_(),
     // four settings only: the organizer code and the switches never leave the Sheet
@@ -270,7 +274,7 @@ function seed(code, st) {
   return writing_(() => {
     if (on_('SEEDED') || rows_('Events').length) return readAll_();
     st = st || {};
-    (st.events || []).forEach(saveEvent_);
+    (st.events || []).forEach(e => saveEvent_(Object.assign({}, e, { created: true }))); // new rows, so they may be added
     if (!readTeam_().length) writeTeam_(st.team || []);
     if (!rows_('Volunteers').length) write_('Volunteers', (st.vols || []).map(volRow_));
     if (!rows_('Gardens').length) write_('Gardens', (st.gardens || []).map(g => [g.name, g.addr, g.what, g.lat, g.lng]));
@@ -283,6 +287,93 @@ function seed(code, st) {
 function saveEvent(code, ev) {
   check_(code);
   return writing_(() => { saveEvent_(ev); return true; });
+}
+
+/* Cancel event: the event is off the public page and gets no reminders, and the people already told hear about it.
+   The status turns cancelled; the Calendar entry, if one was posted, is deleted (a [TEST] one from the owner's calendar);
+   each other channel already posted gets a cancellation notice as a draft, for an organizer to approve and post, and
+   the drafts nobody posted yet go, since there's nothing to announce. One line in Activity says who and why.
+   by: who pressed it. reason: optional, in the notices and Activity. Pressed again, it changes nothing.
+   Returns { message, event }: the event as signIn reads it. */
+function cancelEvent(code, id, reason, by) {
+  check_(code);
+  id = String(id == null ? '' : id);
+  if (!ID_RE.test(id)) throw new Error('This event was removed from the Sheet.');
+  reason = short_(String(reason == null ? '' : reason).replace(/\s+/g, ' '), 300);
+  by = short_(by, 60);
+  return writing_(() => {
+    const all = rows_('Events', true), i = all.findIndex(r => r[0] === id), ST = TABS.Events.indexOf('status');
+    if (i < 0 || evStatus_(all[i][ST]) === 'deleted') throw new Error('This event was removed from the Sheet.');
+    const e = readEvents_().find(r => r.cols.id === id);
+    if (!e) throw new Error("The Sheet can't read this event's date. Fix it on the Events tab, then cancel it.");
+    const current = () => readAll_().events.find(r => r.cols.id === id);
+    if (e.cols.status === 'cancelled') return { message: 'This event was already cancelled.', event: current() };
+    const row = []; row[ST] = 'cancelled';
+    put_('Events', i + 2, [row], [ST]);
+    const postRows = rows_('Posts'), names = {}, kept = [], told = [];
+    readChannels_().forEach(c => { names[c.id] = c.name; });
+    let cal = '';
+    postRows.filter(r => r[0] === id).forEach(r => {
+      const ch = r[1], status = String(r[PCOL.status] || '');
+      if (SENT.indexOf(status) < 0) return; // a draft nobody posted: nothing to take back
+      if (ch === 'calendar') {
+        // the entry comes off the calendar it went on; the row stays as the record that it was posted
+        const out = r.slice(), test = status === 'test';
+        let gone = true;
+        try { const ce = calEvent_(calendar_(test), r[PCOL['calendar id']]); if (ce) ce.deleteEvent(); } catch (er) { gone = false; }
+        out[PCOL.stale] = gone ? '' : 'yes'; // yes: it's still there, and the page says to delete it by hand
+        if (gone) out[PCOL['calendar id']] = '';
+        cal = gone ? (test ? "Took the [TEST] entry off the Sheet owner's calendar" : 'Took it off the Calendar') : "Couldn't take it off the Calendar. Delete it there by hand.";
+        kept.push(out);
+        return;
+      }
+      // the notice is marked edited, so nothing in the page writes the announcement back over it
+      kept.push([id, ch, 'review', '', cancelText_(ch, e.cols, reason), 'yes', '', '', '', '', '', '']);
+      told.push(names[ch] || ch);
+    });
+    replaceFor_('Posts', id, kept, postRows);
+    const lines = [(by || 'An organizer') + ' cancelled the event' + (reason ? ': ' + reason : '')];
+    if (cal) lines.push(cal);
+    if (told.length) lines.push('Drafted a cancellation notice for ' + told.join(', '));
+    append_('Activity', lines.map(l => [id, stamp_(), l]));
+    const message = "Cancelled. It's off the public site" + (cal && !/^Couldn't/.test(cal) ? ' and the calendar' : '') + '.' +
+      (told.length ? ' ' + (told.length === 1 ? 'A cancellation notice is' : told.length + ' cancellation notices are') + ' waiting for review in Outreach.' : '') +
+      (/^Couldn't/.test(cal) ? ' ' + cal : '');
+    return { message: message, event: current() };
+  });
+}
+/* A cancellation notice: "Cancelled: <title> on <date>. <reason>", and for the Google Group with a subject line.
+   The page has the same words in cancelText, for when it runs without the Sheet. */
+function cancelText_(ch, c, reason) {
+  const why = reason ? ' ' + reason + (/[.!?]$/.test(reason) ? '' : '.') : '';
+  const line = 'Cancelled: ' + c.title + ' on ' + niceDate_(c.date) + '.' + why + ' Sorry for the change. We hope to see you at the next one.';
+  return ch === 'ggroup' ? 'Subject: Cancelled: ' + c.title + ' on ' + niceDate_(c.date) + '\n\nHi all,\n\n' + line + '\n\nThe East Bay Permaculture Guild' : line;
+}
+
+/* Delete draft: for an event made by mistake. Only a draft that was never published and has nothing posted can go; any
+   other event is cancelled instead, so its link can say so. The Events row stays as a tombstone (status deleted, which
+   every read skips and no save can bring back); its Bringing, Posts and Activity rows go. An id the Sheet doesn't have
+   (never saved, or deleted already) is fine: there's nothing to delete. Returns true. */
+function deleteEvent(code, id) {
+  check_(code);
+  id = String(id == null ? '' : id);
+  if (!ID_RE.test(id)) return true;
+  return writing_(() => {
+    const all = rows_('Events', true), i = all.findIndex(r => r[0] === id), ST = TABS.Events.indexOf('status');
+    if (i < 0) return true;
+    const status = evStatus_(all[i][ST]);
+    if (status === 'deleted') return true;
+    let data = {};
+    try { data = JSON.parse(all[i][TABS.Events.indexOf(DATA_HEAD)] || '{}') || {}; } catch (e) { data = {}; }
+    const published = status === 'published' || data.wasPublished === true ||
+      rows_('Activity').some(r => r[0] === id && /\bpublished the event\b/.test(r[2]));
+    if (status !== 'draft' || published) throw new Error("This event has been on the public site, so it can't be deleted. Cancel it instead.");
+    if (rows_('Posts').some(r => r[0] === id && SENT.indexOf(r[PCOL.status]) >= 0)) throw new Error('Something about this event was already posted, so it can\'t be deleted. Cancel it instead.');
+    const row = []; row[ST] = 'deleted';
+    put_('Events', i + 2, [row], [ST]);
+    ['Bringing', 'Posts', 'Activity'].forEach(name => replaceFor_(name, id, []));
+    return true;
+  });
 }
 
 function saveTeam(code, team) {
@@ -422,7 +513,8 @@ function eventLink_(id) {
 }
 
 /* The Post button for the Google Group and the Calendar. ev is the event as the page has it: it's saved first,
-   under the lock, so the post always uses the current title, date and place, even for an event never saved before.
+   under the lock, so the post always uses the current title, date and place, even for an event never saved before
+   (the page sends created: true for one, as it does to saveEvent).
    The Posts row says it went out only once it did, so a second press says so instead of sending it twice.
    opts.by: who pressed it. opts.force: post again (Update calendar, or a test sent before going live).
    Returns { message, event }: the event as signIn reads it, with the Posts row and Activity line just written. */
@@ -435,6 +527,8 @@ function postTo(code, ev, channel, opts) {
     const id = String(ev.id || (ev.cols || {}).id);
     const e = readEvents_().find(r => r.cols.id === id);
     if (!e) throw new Error('Give the event a date first, then post.');
+    // the Group can still get a cancellation notice; the Calendar entry came off when it was cancelled
+    if (channel === 'calendar' && e.cols.status === 'cancelled') throw new Error('This event is cancelled, so it stays off the calendar.');
     const all = rows_('Posts', true), i = all.findIndex(r => r[0] === id && r[1] === channel);
     const row = i >= 0 ? all[i] : [], status = String(row[PCOL.status] || ''), sent = SENT.indexOf(status) >= 0, test = on_('TEST_MODE');
     // force on the Group is Post for real: only a test send, now that test mode is off. Pressed from a second tab,
@@ -805,11 +899,13 @@ function niceTime_(t) {
 
 const EV_COLS = ['id', 'label', 'title', 'date', 'start', 'end', 'place', 'address', 'host', 'cohosts', 'about', 'bring', 'tags', 'notes', 'timeline'];
 /* An event's status, in the Events tab's status column. Draft: only organizers see it. Published: on the public page.
-   Cancelled: shown as cancelled, and no reminders. A blank cell is published, so rows from before the column keep
+   Cancelled: shown as cancelled, and no reminders. Deleted: a draft deleted from the page; the row stays so no open
+   page can bring it back, and every read skips it. A blank cell is published, so rows from before the column keep
    showing; a word the app doesn't know is a draft, so a typo never puts an event on the public page. */
 function evStatus_(v) {
   const s = key_(v);
   if (!s || s === 'published') return 'published';
+  if (s === 'deleted') return 'deleted';
   return s === 'cancelled' || s === 'canceled' ? 'cancelled' : 'draft';
 }
 /* An event row whose date can't be read is left out, and said so in `problems` (when given) so an organizer can fix it. */
@@ -823,8 +919,9 @@ function readEvents_(problems) {
       if (problems) problems.push({ tab: 'Events', row: i + 2, what: 'the id can only use letters, numbers, - and _ (40 at most)' });
       return;
     }
-    cols.date = normDate_(cols.date); cols.start = normTime_(cols.start); cols.end = normTime_(cols.end);
     cols.status = evStatus_(r[TABS.Events.indexOf('status')]);
+    if (cols.status === 'deleted') return; // a deleted draft's tombstone
+    cols.date = normDate_(cols.date); cols.start = normTime_(cols.start); cols.end = normTime_(cols.end);
     cols.rsvp = postUrl_(r[TABS.Events.indexOf('rsvp link')]); // a link typed by hand that isn't https:// is left out
     if (!isDate_(cols.date)) {
       const typed = cols.date.length > 40 ? cols.date.slice(0, 40) + '\u2026' : cols.date;
@@ -843,6 +940,11 @@ function upcoming_() {
   return readEvents_().map(r => r.cols).filter(c => c.date >= t && c.status === 'published').sort((a, b) => a.date < b.date ? -1 : 1);
 }
 
+/* Save one event as the page has it. A new row is added only when the page says the event is new (created: true,
+   sent until its first save gets through; seed sends it too). Any other save of an id the Events tab doesn't have
+   (its row deleted by hand, or its id cleared), or of a deleted draft, is refused, so a tab left open never brings
+   back an event someone took out of the Sheet. A cancelled event stays cancelled: only a hand edit in the Sheet
+   un-cancels it. */
 function saveEvent_(p) {
   p = p || {};
   const c = Object.assign({}, p.cols || {}), id = String(p.id || c.id || '');
@@ -862,14 +964,26 @@ function saveEvent_(p) {
     if (typeof data[k] === 'string') data[k] = data[k].slice(0, MAX_LEN[k]);
   });
   const all = rows_('Events', true), i = all.findIndex(r => r[0] === id), prev = i >= 0 ? all[i] : null;
-  const ST = TABS.Events.indexOf('status'), RSVP = TABS.Events.indexOf('rsvp link');
+  const ST = TABS.Events.indexOf('status'), RSVP = TABS.Events.indexOf('rsvp link'), DAT = TABS.Events.indexOf(DATA_HEAD);
+  const had = prev ? evStatus_(prev[ST]) : '';
+  if ((!prev && p.created !== true) || had === 'deleted') throw new Error('This event was removed from the Sheet.');
   // status and RSVP link come from the page (in cols, or in the plan from an older page). A page that sends neither
   // leaves the Sheet's as they are, so a tab from before these columns can't publish a draft; a new event is a draft.
+  // Deleted comes only from deleteEvent, and a cancelled event stays cancelled.
   const typed = v => v != null && String(v).trim() !== '';
-  const status = typed(c.status) ? evStatus_(c.status) : typed(data.status) ? evStatus_(data.status) : prev ? prev[ST] : 'draft';
+  const asked = typed(c.status) ? evStatus_(c.status) : typed(data.status) ? evStatus_(data.status) : '';
+  const status = had === 'cancelled' ? 'cancelled' : asked && asked !== 'deleted' ? asked : prev ? prev[ST] : 'draft';
+  // a tab that hasn't seen the cancel yet: its edits are saved, but not its posts or activity, so the cancellation
+  // notices and the line saying who cancelled it stay, and an old announcement can't come back to be posted
+  const unaware = had === 'cancelled' && asked !== 'cancelled';
   const rsvp = c.rsvp !== undefined ? postUrl_(c.rsvp) : data.rsvp !== undefined ? postUrl_(data.rsvp) : prev ? prev[RSVP] : '';
   if (data.status !== undefined) data.status = evStatus_(status);
   if (data.rsvp !== undefined) data.rsvp = rsvp;
+  // once on the public site, always known to have been (Delete draft is only for events nobody outside has seen)
+  let before = {};
+  try { before = prev ? JSON.parse(prev[DAT] || '{}') || {} : {}; } catch (e) { before = {}; }
+  if (evStatus_(status) === 'published' || had === 'published' || before.wasPublished === true) data.wasPublished = true;
+  else delete data.wasPublished;
   // a cell holds 50,000 characters; never cut the plan short, since a cut-off plan can't be read back
   const json = JSON.stringify(data);
   if (json.length > 45000) throw new Error("This event's plan is too long to save. Shorten the notes.");
@@ -879,6 +993,7 @@ function saveEvent_(p) {
   if (i >= 0) put_('Events', i + 2, [row]);
   else append_('Events', [row]);
   replaceFor_('Bringing', id, (p.tasks || []).map(t => [id, t.what, t.who || '', t.status || '', t.id || '', t.last || '']));
+  if (unaware) return;
   const postRows = rows_('Posts'), was = {}; // this event's Posts rows in the Sheet now, by channel
   postRows.forEach(r => { if (r[0] === id) was[r[1]] = r; });
   const posts = (p.posts || []).map(x => postRow_(id, x, was[x.channel]));

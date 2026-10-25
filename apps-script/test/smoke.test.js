@@ -433,7 +433,8 @@ test('the Netlify and Google-hosted pages use the same error script', () => {
 /* ---------- icons and the event pop-up ---------- */
 const ICONS = ['x', 'arrow-left', 'arrow-right', 'arrow-down', 'log-in', 'log-out', 'calendar', 'calendar-plus', 'clock', 'map-pin', 'users', 'user-plus', 'user-minus', 'user-check',
   'pencil', 'send', 'link', 'copy', 'share', 'file-text', 'list-ordered', 'package', 'lightbulb', 'alert-triangle', 'heart', 'sprout', 'shovel', 'handshake', 'image',
-  'lock', 'mail', 'phone', 'message-circle', 'history', 'eye', 'rotate-ccw', 'printer', 'help-circle', 'download', 'plus', 'check', 'out', 'wand', 'puzzle'];
+  'lock', 'mail', 'phone', 'message-circle', 'history', 'eye', 'rotate-ccw', 'printer', 'help-circle', 'download', 'plus', 'check', 'out', 'wand', 'puzzle',
+  'calendar-x', 'trash'];
 const GLYPHS = /[↗←×↓✓]/;
 /* every icon on screen points at a symbol in the sprite and is hidden from screen readers */
 function checkIcons(p, where) {
@@ -3697,5 +3698,342 @@ test('the Volunteer list shows each answer, escaped', async t => {
   assert.match(cells[4], /^Coming to OPC Garden Work Party.*Heard about us: A flyer.*Line one\nLine <b>two<\/b>$/s);
   assert.ok(!row.querySelector('b b'), 'the note is text');
   checkIcons(p, 'the Volunteer list');
+  p.noErrors();
+});
+
+/* ---------- new events: type and defaults, copies, hosts; Cancel event; Delete draft; events taken out of the Sheet ---------- */
+const evRow = (p, id) => { const [head, ...rows] = p.g.tab('Events'), r = rows.find(x => x[0] === id); return r && Object.fromEntries(head.map((h, i) => [h, r[i]])); };
+const formVals = p => ['ed-date', 'ed-start', 'ed-end', 'ed-ls', 'ed-le', 'ed-bring'].map(id => p.$('#' + id).value);
+const ticked = (p, name) => p.$$(`#editf input[name=${name}]:checked`).map(i => i.value);
+const hostRows = p => p.$$('#host-body .hrow').map(r => [r.querySelector('.hl').textContent, [...r.querySelectorAll('.pp')].map(x => x.lastChild.textContent)]);
+// the 10 seconds to undo Delete draft, made short so a test needn't wait them out
+const quickUndo = w => { const st = w.setTimeout; w.setTimeout = (f, ms, ...a) => st.call(w, f, ms === 10000 ? 300 : ms, ...a); };
+const TEAM_NAMES = ['Jessie', 'Phil', 'Kalynn', 'Sky', 'Karen', 'Meena', 'Ajay', 'Marissa', 'Rob', 'Lauren'];
+
+test('the 4th Sunday after a date: 2026-10-25 gives 2026-11-22, and 2026-11-22 gives 2026-12-27', () => {
+  const src = fs.readFileSync(ARTIFACT, 'utf8');
+  const helpers = ['iso', 'D', 'addDays'].map(n => src.match(new RegExp(`\\nconst ${n} = [^\\n]*`))[0]).join('');
+  const fourthSundayAfter = new Function(helpers + '\n' + src.match(/\nfunction fourthSundayAfter\(s\) \{[\s\S]*?\n\}/)[0] + '\nreturn fourthSundayAfter;')();
+  assert.equal(fourthSundayAfter('2026-10-25'), '2026-11-22');
+  assert.equal(fourthSundayAfter('2026-11-22'), '2026-12-27');
+  assert.equal(fourthSundayAfter('2026-10-24'), '2026-10-25', 'the day before one');
+  assert.equal(fourthSundayAfter('2026-12-27'), '2027-01-24', 'into the next year');
+});
+
+test('New event: a work day on the next 4th Sunday from 10 to 2, labeled Workday #8; the Type changes the label and the defaults nobody changed', async t => {
+  const p = await openPage(t);
+  await signIn(p, 'Jessie');
+  p.$('#new-ev').click();
+  await waitFor(() => p.$('#editf #ed-type'), 2000, 'the new event form');
+  assert.deepEqual(p.$$('#ed-type option').map(o => [o.value, o.textContent]), [['workday', 'Work day'], ['meeting', 'Community meeting'], ['other', 'Other']]);
+  assert.equal(p.$('#ed-type').value, 'workday');
+  assert.equal(p.$('#ed-label').textContent, 'Label: Workday #8');
+  assert.deepEqual(formVals(p), ['2026-11-22', '10:00', '14:00', '09:00', '14:30', 'water bottle, gloves if you have them'], 'the Sunday after Workday #7');
+  assert.deepEqual(ticked(p, 'ed-tag'), ['beginner', 'tools']);
+  // the host and co-hosts are picked from the team, and the host can't be a co-host too
+  assert.equal(p.$('#ed-host').value, 'Jessie');
+  assert.deepEqual(p.$$('#ed-cos input[name=ed-co]').map(i => i.value), TEAM_NAMES);
+  assert.deepEqual([ticked(p, 'ed-co'), p.$('#ed-cos input[value="Jessie"]').disabled], [[], true]);
+  p.set('#ed-host', 'Phil');
+  assert.deepEqual([p.$('#ed-cos input[value="Jessie"]').disabled, p.$('#ed-cos input[value="Phil"]').disabled], [false, true]);
+  p.set('#ed-host', 'Jessie');
+  // a community meeting: four weeks after Community Meeting #2 (Nov 12), 6 to 8
+  p.set('#ed-type', 'meeting');
+  assert.equal(p.$('#ed-label').textContent, 'Label: Community Meeting #3');
+  assert.deepEqual(formVals(p), ['2026-12-10', '18:00', '20:00', '', '', 'yourself, and a dish to share if you like']);
+  assert.deepEqual(ticked(p, 'ed-tag'), ['beginner', 'potluck']);
+  // Other: a week from today with no number, and a time typed by hand stays
+  p.set('#ed-start', '09:30');
+  p.set('#ed-type', 'other');
+  assert.equal(p.$('#ed-label').textContent, 'No number for this type');
+  assert.deepEqual(formVals(p).slice(0, 3), ['2026-10-31', '09:30', '12:00']);
+  p.set('#ed-start', '10:00');
+  p.set('#ed-type', 'workday');
+  assert.deepEqual([p.$('#ed-label').textContent, ...formVals(p).slice(0, 3)], ['Label: Workday #8', '2026-11-22', '10:00', '14:00']);
+  checkIcons(p, 'the new event form');
+  p.set('#ed-title', 'OPC Garden Work Party');
+  p.$('#editf button[type=submit]').click();
+  await waitFor(() => p.api.toasts.includes('Event created as a draft. Only organizers can see it.'), 3000, 'the new event to be saved');
+  const first = p.api.sent.find(c => c.fn === 'saveEvent'), id = first.args[1].id;
+  assert.equal(first.args[1].created, true, 'its first save says it is new, so the Sheet adds it');
+  assert.equal(first.args[1].data.created, undefined, 'and that is not kept in the plan');
+  const row = evRow(p, id);
+  assert.deepEqual([row.label, row.title, row.date, row.start, row.end, row.status, row.host], ['Workday #8', 'OPC Garden Work Party', '2026-11-22', '10:00', '14:00', 'draft', 'Jessie']);
+  assert.deepEqual([JSON.parse(row["data (don't edit)"]).series, JSON.parse(row["data (don't edit)"]).num], ['workday', 8]);
+  // the saves after it leave created out
+  p.$('#edit-ev').click();
+  await waitFor(() => p.$('#editf #ed-title'), 2000, 'the edit form');
+  assert.ok(!p.$('#ed-type'), 'the Type is picked when the event is made');
+  p.set('#ed-title', 'Fall Work Party');
+  p.$('#editf button[type=submit]').click();
+  await waitFor(() => evRow(p, id).title === 'Fall Work Party' && p.idle(), 3000, 'the edit in the Sheet');
+  assert.equal(p.api.sent.filter(c => c.fn === 'saveEvent' && c.args[1].id === id).at(-1).args[1].created, undefined);
+  assert.equal(p.g.tab('Events').filter(r => r[0] === id).length, 1);
+  p.$('#m-x').click();
+  // the next work day after Workday #8 (Nov 22) is Dec 27, Workday #9
+  p.$('#new-ev').click();
+  await waitFor(() => p.$('#editf #ed-type'), 2000, 'the new event form again');
+  assert.deepEqual([p.$('#ed-label').textContent, p.$('#ed-date').value], ['Label: Workday #9', '2026-12-27']);
+  p.$('#editf [data-cancel]').click();
+  await waitFor(p.idle, 2000, 'calls to finish');
+  p.noErrors();
+});
+
+test("Start from: a copy is a draft with the copied event's channels, its tasks open with who did them last time, and the next number", async t => {
+  const p = await openPage(t);
+  await signIn(p, 'Jessie');
+  p.$('#new-ev').click();
+  await waitFor(() => p.$('#editf #ed-from'), 2000, 'the new event form');
+  p.set('#ed-from', 'w7');
+  await waitFor(() => p.$('#ed-from').value === 'w7' && p.$('#ed-title').value === 'OPC Garden Work Party', 2000, 'the copy of Workday #7');
+  assert.equal(p.d.activeElement, p.$('#ed-from'), 'focus stays on Start from');
+  assert.deepEqual([p.$('#ed-type').value, p.$('#ed-label').textContent, ...formVals(p).slice(0, 3)], ['workday', 'Label: Workday #8', '2026-11-22', '10:00', '14:00']);
+  assert.deepEqual(p.$$('#editf input[name=ed-status]').map(r => r.checked), [true, false], 'a draft');
+  assert.deepEqual([p.$('#ed-host').value, ticked(p, 'ed-co')], ['Jessie', ['Phil']], "Workday #7's host and co-host");
+  p.$('#editf button[type=submit]').click();
+  await waitFor(() => p.api.toasts.includes('Event created as a draft. Only organizers can see it.'), 3000, 'the copy to be saved');
+  const id = p.api.sent.find(c => c.fn === 'saveEvent' && c.args[1].created).args[1].id;
+  await waitFor(() => p.g.tab('Posts').some(r => r[0] === id) && p.idle(), 3000, 'its Posts rows');
+  assert.deepEqual(p.g.tab('Posts').filter(r => r[0] === id).map(r => [r[1], r[2]]), [['partiful', 'review'], ['ggroup', 'review'], ['calendar', 'review'], ['instagram', 'review'], ['chats', 'review']],
+    "Workday #7's channels (no Facebook, which new events start with), as drafts");
+  assert.deepEqual(p.g.tab('Bringing').filter(r => r[0] === id).map(r => [r[1], r[2], r[3], r[5]]), [
+    ['Bring plates, cups, napkins, utensils', '', 'open', 'Phil'], ['Snacks and water station', '', 'open', 'Karen'], ['Nametags and sign-in sheet', '', 'open', 'Meena'], ['Make a parking sign', '', 'open', '']],
+  'every task, open again, with who did it last time');
+  assert.deepEqual(p.$$('#tasks-body .last').map(x => x.textContent), ['Last time: Phil', 'Last time: Karen', 'Last time: Meena']);
+  assert.deepEqual([evRow(p, id).label, evRow(p, id).status], ['Workday #8', 'draft']);
+  p.$('#m-x').click();
+  // a copy of an event with nothing posted on record gets the channels new events start with; a meeting's copy is a meeting
+  p.$('#new-ev').click();
+  await waitFor(() => p.$('#editf #ed-from'), 2000, 'the new event form again');
+  p.set('#ed-from', 'm1');
+  await waitFor(() => p.$('#ed-title').value === 'OPC Community Meeting', 2000, 'the copy of Community Meeting #1');
+  assert.deepEqual([p.$('#ed-type').value, p.$('#ed-label').textContent, ...formVals(p).slice(0, 3)], ['meeting', 'Label: Community Meeting #3', '2026-12-10', '18:00', '20:00']);
+  p.set('#ed-from', 'w6');
+  await waitFor(() => p.$('#ed-type').value === 'workday', 2000, 'the copy of Workday #6');
+  assert.deepEqual([p.$('#ed-label').textContent, p.$('#ed-date').value], ['Label: Workday #9', '2026-12-27'], 'after Workday #8');
+  // back to a blank event of the type last picked
+  p.set('#ed-from', '');
+  await waitFor(() => p.$('#ed-title').value === '', 2000, 'a blank event');
+  assert.deepEqual([p.$('#ed-type').value, p.$('#ed-label').textContent, p.$('#ed-date').value], ['workday', 'Label: Workday #9', '2026-12-27']);
+  p.set('#ed-from', 'w6');
+  await waitFor(() => p.$('#ed-title').value === 'OPC Garden Work Party', 2000, 'Workday #6 again');
+  p.$('#editf button[type=submit]').click();
+  const id2 = await waitFor(() => (p.api.sent.find(c => c.fn === 'saveEvent' && c.args[1].created && c.args[1].id !== id) || {}).args?.[1].id, 3000, 'the second copy');
+  await waitFor(() => p.g.tab('Posts').some(r => r[0] === id2) && p.idle(), 3000, 'its Posts rows');
+  assert.deepEqual(p.g.tab('Posts').filter(r => r[0] === id2).map(r => r[1]), ['partiful', 'ggroup', 'calendar', 'facebook', 'instagram', 'chats']);
+  p.noErrors();
+});
+
+test("Edit event: the host and co-hosts are picked from the team, and saving changes only those roles, keeping the plan's others", async t => {
+  const p = await openPage(t);
+  await signIn(p, 'Jessie');
+  p.$('[data-when="past"]').click();
+  p.$('#tiles [data-open="w2"]').click();
+  await waitFor(() => p.$('#detail #edit-ev'), 2000, 'Workday #2 to open');
+  assert.deepEqual(hostRows(p), [['Host', ['Jessie']], ['Co-hosts', ['Kalynn', 'Phil']], ['Neighborhood outreach', ['Marissa']]], "Marissa's outreach is its own role");
+  p.$('#edit-ev').click();
+  await waitFor(() => p.$('#editf #ed-host'), 2000, 'the edit form');
+  assert.deepEqual([p.$('#ed-host').value, ticked(p, 'ed-co')], ['Jessie', ['Phil', 'Kalynn']]);
+  p.$('#ed-cos input[value="Sky"]').click();
+  p.$('#editf button[type=submit]').click();
+  await waitFor(() => evRow(p, 'w2')['co-hosts'] === 'Phil, Kalynn, Sky' && p.idle(), 3000, 'the co-hosts in the Sheet');
+  assert.deepEqual(JSON.parse(evRow(p, 'w2')["data (don't edit)"]).plan.roles, [['Host', ['Jessie']], ['Co-hosts', ['Phil', 'Kalynn', 'Sky']], ['Neighborhood outreach', ['Marissa']]]);
+  assert.deepEqual(hostRows(p), [['Host', ['Jessie']], ['Co-hosts', ['Phil', 'Kalynn', 'Sky']], ['Neighborhood outreach', ['Marissa']]]);
+  // a co-host typed into the Sheet by hand: the other roles stay, and the name is a choice in the form
+  setEvCell(p.g, 'w2', 'co-hosts', 'Phil, Dana');
+  await readAgain(p);
+  assert.deepEqual(hostRows(p), [['Host', ['Jessie']], ['Co-hosts', ['Phil', 'Dana']], ['Neighborhood outreach', ['Marissa']]]);
+  p.$('#edit-ev').click();
+  await waitFor(() => p.$('#editf #ed-host'), 2000, 'the edit form');
+  assert.deepEqual(ticked(p, 'ed-co'), ['Phil', 'Dana']);
+  p.$('#editf [data-cancel]').click();
+  await waitFor(p.idle, 2000, 'calls to finish');
+  p.noErrors();
+});
+
+test('Cancel event: Workday #7 leaves the landing, its calendar entry is deleted, its tile goes under Past, and its link says it was cancelled', async t => {
+  const sheet = await seededSheet(t);
+  const p = await openPage(t, null, sheet);
+  await signIn(p, 'Jessie');
+  await outreach(p, 'w7');
+  for (const ch of ['calendar', 'ggroup']) {
+    p.$(`#dp-out [data-act=approve][data-ch=${ch}]`).click();
+    p.$(`#dp-out [data-act=post][data-ch=${ch}]`).click();
+    await waitFor(() => pill(p, ch) === TEST_SENT, 3000, ch + ' to be sent');
+  }
+  assert.equal(p.g.calendar.length, 1, 'on the mock calendar');
+  p.$('#detail [data-dtab="plan"]').click();
+  assert.ok(p.$('#detail #cancel-ev') && !p.$('#detail #delete-ev'), 'a published event is cancelled, not deleted');
+  p.$('#cancel-ev').click();
+  await waitFor(() => p.$('#dconfirm #dc-why'), 2000, 'the question');
+  assert.equal(p.d.activeElement, p.$('#dc-why'));
+  assert.equal(p.$('#cancel-ev').getAttribute('aria-expanded'), 'true');
+  assert.equal(p.$('#dc-h').textContent, 'Cancel Workday #7? It comes off the public site, comes off the Guild calendar and gets no more reminders. A cancellation notice for Google Group email will wait in Outreach for you to approve and post.');
+  checkIcons(p, 'the cancel question');
+  // Keep it, or Escape, puts it away
+  p.$('#dc-no').click();
+  assert.ok(!p.$('#dconfirm') && p.d.activeElement === p.$('#cancel-ev'));
+  p.$('#cancel-ev').click();
+  p.$('#dc-why').dispatchEvent(new p.w.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+  assert.ok(!p.$('#dconfirm') && !p.$('#modal').hidden, 'the question closes, the pop-up stays');
+  p.$('#cancel-ev').click();
+  p.set('#dc-why', 'Heavy rain is forecast');
+  p.api.latency = 100;
+  p.$('#dconfirm button[type=submit]').click();
+  const busy = p.$('#dconfirm button[type=submit]');
+  assert.deepEqual([busy.disabled, busy.textContent, busy.getAttribute('aria-busy')], [true, 'Cancelling…', 'true']);
+  await waitFor(() => p.api.toasts.includes("Cancelled. It's off the public site and the calendar. A cancellation notice is waiting for review in Outreach."), 4000, 'the toast');
+  p.api.latency = 0;
+  const call = p.api.sent.find(c => c.fn === 'cancelEvent');
+  assert.deepEqual(call.args.slice(1), ['w7', 'Heavy rain is forecast', 'Jessie']);
+  assert.equal(evRow(p, 'w7').status, 'cancelled');
+  assert.deepEqual(p.g.calendar, [], 'the mock calendar entry is deleted');
+  assert.ok(!p.$('#dconfirm') && !p.$('#cancel-ev') && !p.$('#publish-ev'), 'nothing more to cancel');
+  assert.equal(p.$('#detail .dh .evs').textContent, 'Cancelled');
+  assert.equal(p.d.activeElement, p.$('#edit-ev'));
+  // Outreach: the Group's notice to approve and post; the Calendar says it came off
+  p.$('#detail [data-dtab="outreach"]').click();
+  assert.deepEqual([pill(p, 'calendar'), acts(p, 'calendar')], ['Taken off the calendar', []]);
+  assert.deepEqual([pill(p, 'ggroup'), acts(p, 'ggroup')], ['Draft · needs review', ['Approve']]);
+  p.$('#dp-out [data-row=ggroup] [data-act=toggle]').click();
+  assert.equal(p.$('#dp-out [data-row=ggroup] textarea').value, 'Subject: Cancelled: OPC Garden Work Party on Sunday, October 25\n\nHi all,\n\nCancelled: OPC Garden Work Party on Sunday, October 25. Heavy rain is forecast. Sorry for the change. We hope to see you at the next one.\n\nThe East Bay Permaculture Guild');
+  assert.ok(!p.$('#add-ch'), 'nothing new to announce');
+  assert.deepEqual(p.$$('#log-body li span:last-child').slice(0, 3).map(s => s.textContent), ['Drafted a cancellation notice for Google Group email', "Took the [TEST] entry off the Sheet owner's calendar", 'Jessie cancelled the event: Heavy rain is forecast']);
+  assert.equal(p.$('#attn .grow').textContent, '6 drafts to review · 0 approved, ready to post', "the notice, and Community Meeting #2's five drafts");
+  checkIcons(p, "a cancelled event's outreach");
+  p.$('#m-x').click();
+  // its tile: under Past, with a Cancelled badge
+  assert.ok(!p.$('#tiles [data-open="w7"]'), 'not under Upcoming');
+  p.$('[data-when="past"]').click();
+  const tile = p.$('#tiles [data-open="w7"]');
+  assert.ok(tile.classList.contains('past'));
+  assert.equal(tile.querySelector('.tstat').textContent, 'Cancelled');
+  assert.match(tile.getAttribute('aria-label'), /\. Cancelled$/);
+  // nothing saved afterwards undoes it
+  await sleep(1000);
+  await waitFor(p.idle, 2000, 'calls to finish');
+  assert.deepEqual(p.api.sent.slice(p.api.sent.indexOf(call) + 1).filter(c => c.fn === 'saveEvent'), [], 'the page already has what the Sheet has');
+  // the landing no longer shows it, and its link says it was cancelled
+  const q = await openPage(t, null, sheet);
+  assert.deepEqual([q.$$('#nextup a.nxcard').length, q.$('#nextup').textContent], [0, "Next dates coming soon. Join the list and we'll tell you."]);
+  const e = await eventPage(t, 'w7', null, sheet);
+  assert.equal(e.$('.pe-gone h1').textContent, 'This event was cancelled');
+  assert.deepEqual(e.$$('.pe-gone > p').map(x => x.textContent), ['Sorry to miss you.', "Next dates coming soon. Join the list and we'll tell you."]);
+  assert.ok(!e.$('#p-pubevent').innerHTML.includes('Heavy rain'), 'nothing from the plan');
+  checkIcons(e, "a cancelled event's page");
+  p.noErrors(); q.noErrors(); e.noErrors();
+});
+
+test('Delete draft: gone at once with 10 seconds to Undo, which brings it back; after them the Sheet keeps a deleted tombstone', async t => {
+  const p = await openPage(t, quickUndo);
+  await signIn(p, 'Jessie');
+  // a draft made by mistake
+  p.$('#new-ev').click();
+  await waitFor(() => p.$('#editf #ed-title'), 2000, 'the new event form');
+  p.set('#ed-title', 'Oops');
+  p.$('#editf button[type=submit]').click();
+  await waitFor(() => p.api.toasts.includes('Event created as a draft. Only organizers can see it.'), 3000, 'the draft to be saved');
+  const id = p.api.sent.find(c => c.fn === 'saveEvent' && c.args[1].created).args[1].id;
+  assert.ok(p.$('#detail #delete-ev') && !p.$('#detail #cancel-ev'), 'a draft nobody has seen is deleted, not cancelled');
+  p.$('#delete-ev').click();
+  assert.equal(p.d.activeElement, p.$('#dc-no'), 'focus on the safe choice');
+  assert.equal(p.$('#dc-h').textContent, 'Delete this draft? It was never on the public site, so only organizers have seen it. Its tasks, post drafts and activity go too. You can undo it for 10 seconds.');
+  p.$('#dc-del').click();
+  assert.ok(p.$('#modal').hidden, 'the pop-up closes');
+  assert.ok(!p.$(`#tiles [data-open="${id}"]`), 'its tile goes at once');
+  assert.ok(!p.$('#undobar').hidden);
+  assert.equal(p.$('#undo-msg').textContent, 'Deleted Workday #8.');
+  assert.equal(p.d.activeElement, p.$('#undo-btn'), 'Undo has keyboard focus');
+  checkIcons(p, 'the Undo bar');
+  assert.ok(!p.api.calls.includes('deleteEvent'), 'the Sheet is not told yet');
+  p.$('#undo-btn').click();
+  assert.ok(p.$('#undobar').hidden);
+  assert.equal(p.d.activeElement, p.$(`#tiles [data-open="${id}"]`), 'back, with focus on its tile');
+  await waitFor(() => p.api.toasts.includes('Workday #8 is back.'), 2000, 'the toast');
+  await sleep(500);
+  assert.ok(!p.api.calls.includes('deleteEvent'), 'after Undo the Sheet never hears of it');
+  assert.equal(evRow(p, id).status, 'draft');
+  // Community Meeting #2, a starter draft: a read of the Sheet during the 10 seconds doesn't bring it back
+  for (const t0 of ['m2']) {
+    p.$(`#tiles [data-open="${t0}"]`).click();
+    (await waitFor(() => p.$('#detail #delete-ev'), 2000, 'its Delete draft')).click();
+    p.$('#dc-del').click();
+  }
+  assert.equal(p.$('#undo-msg').textContent, 'Deleted Community Meeting #2.');
+  await readAgain(p);
+  assert.ok(!p.$('#tiles [data-open="m2"]'), 'not back from the Sheet meanwhile');
+  await waitFor(() => p.api.done.some(c => c.fn === 'deleteEvent'), 3000, 'the Sheet to be told');
+  assert.deepEqual(p.api.sent.filter(c => c.fn === 'deleteEvent').map(c => c.args[1]), ['m2']);
+  assert.ok(p.$('#undobar').hidden);
+  assert.equal(p.d.activeElement, p.$('#new-ev'), 'focus moves on from the Undo bar');
+  assert.equal(evRow(p, 'm2').status, 'deleted');
+  assert.equal(evRow(p, 'm2').title, 'OPC Community Meeting', 'the row is still there to read');
+  assert.deepEqual(['Bringing', 'Posts', 'Activity'].map(tab => p.g.tab(tab).filter(r => r[0] === 'm2').length), [0, 0, 0]);
+  assert.ok(!p.g.ctx.signIn(p.code()).events.some(e => e.cols.id === 'm2'), 'the next read of the Sheet leaves it out');
+  // signing out while one waits sends it at once
+  p.$(`#tiles [data-open="${id}"]`).click();
+  (await waitFor(() => p.$('#detail #delete-ev'), 2000, 'its Delete draft')).click();
+  p.$('#dc-del').click();
+  p.$('#signout').click();
+  assert.ok(p.$('#undobar').hidden && p.shown('#p-landing'));
+  assert.deepEqual(p.api.sent.filter(c => c.fn === 'deleteEvent').map(c => c.args[1]), ['m2', id], 'sent before signing out');
+  await waitFor(() => p.api.done.filter(c => c.fn === 'deleteEvent').length === 2 && p.idle(), 3000, 'the second delete');
+  assert.equal(evRow(p, id).status, 'deleted');
+  p.noErrors();
+});
+
+test("an event taken out of the Sheet by hand: editing it in an open tab says so, and the Sheet doesn't get it back", async t => {
+  const p = await openPage(t);
+  await signIn(p, 'Jessie');
+  p.$('#tiles [data-open="m2"]').click();
+  await waitFor(() => p.$('#detail #edit-ev'), 2000, 'the event to open');
+  // its row's id cleared in the Sheet, as /_set does on the dev server
+  p.g.sheets.get('Events').set(p.g.tab('Events').findIndex(r => r[0] === 'm2') + 1, 1, '');
+  const rows = p.g.tab('Events').length;
+  p.$('#edit-ev').click();
+  await waitFor(() => p.$('#editf #ed-title'), 2000, 'the edit form');
+  p.set('#ed-title', 'Winter planning potluck');
+  p.$('#editf button[type=submit]').click();
+  const note = "Community Meeting #2 was removed from the Guild Sheet, so your change wasn't saved and it's gone from this page.";
+  await waitFor(() => p.api.toasts.includes(note), 3000, 'the note');
+  assert.ok(p.$('#modal').hidden, 'its pop-up closes');
+  assert.ok(!p.$('#tiles [data-open="m2"]'), 'its tile is gone');
+  await sleep(2500); // past the first retry
+  assert.equal(p.api.sent.filter(c => c.fn === 'saveEvent').length, 1, 'not tried again');
+  assert.equal(p.g.tab('Events').length, rows, 'no row added');
+  assert.ok(!p.g.tab('Events').some(r => r[0] === 'm2' || r[2] === 'Winter planning potluck'), 'not added back');
+  assert.ok(!p.api.toasts.includes('Saved'), 'never said Saved');
+  assert.equal(p.$('#savest').dataset.state, 'idle');
+  p.noErrors();
+});
+
+test('the prototype artifact cancels and deletes without a server', async t => {
+  const p = loadPage(t, ARTIFACT, 'http://localhost/artifact', quickUndo);
+  await waitFor(() => p.shown('#p-landing'), 2000, 'the artifact landing page');
+  p.$('#signin-top').click();
+  p.$('#si-google').click();
+  p.$('#new-ev').click();
+  assert.deepEqual([p.$('#ed-label').textContent, p.$('#ed-date').value], ['Label: Workday #8', '2026-11-22']);
+  p.$('#editf [data-cancel]').click();
+  p.$('#tiles [data-open="w7"]').click();
+  p.$('#cancel-ev').click();
+  p.set('#dc-why', 'Rain');
+  p.$('#dconfirm button[type=submit]').click();
+  await waitFor(() => p.api.toasts.includes("Cancelled. It's off the public site."), 2000, 'the toast');
+  assert.equal(p.$('#detail .dh .evs').textContent, 'Cancelled');
+  p.$('#detail [data-dtab="outreach"]').click();
+  assert.equal(p.$('#dp-out .osum').textContent.trim(), 'No outreach recorded for this event.', 'its drafts nobody posted are gone');
+  p.$('#m-x').click();
+  assert.ok(!p.$('#tiles [data-open="w7"]'), 'under Past now');
+  p.$('#tiles [data-open="m2"]').click();
+  p.$('#delete-ev').click();
+  p.$('#dc-del').click();
+  assert.equal(p.$('#undo-msg').textContent, 'Deleted Community Meeting #2.');
+  await waitFor(() => p.$('#undobar').hidden, 2000, 'the 10 seconds to pass');
+  assert.ok(!p.$('#tiles [data-open="m2"]'));
+  // signed out, the landing has no Workday #7
+  p.$('#signout').click();
+  assert.ok(p.shown('#p-landing') && !p.$$('#nextup a.nxcard').some(a => a.dataset.ev === 'w7'));
+  assert.deepEqual(p.api.calls, [], 'the artifact calls no server');
   p.noErrors();
 });

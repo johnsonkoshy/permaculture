@@ -283,6 +283,20 @@ legend { font-size: 13px; font-weight: 700; color: var(--ink-2); margin-bottom: 
 .segopts input:focus-visible + span { outline: 2.5px solid var(--lemon); outline-offset: 2px; }
 @media (max-width: 560px) { .segopts { display: grid; grid-auto-flow: row; } }
 .stnote { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--ink-2); }
+/* Cancel event and Delete draft: the question under the event's header, before anything happens */
+.dconfirm { flex: 1 1 100%; display: grid; gap: 10px; margin-top: 4px; padding: 14px; border: 1px solid var(--flag); border-radius: 12px; background: var(--flag-soft); color: var(--ink); }
+.dconfirm > p { margin: 0; display: flex; gap: 8px; align-items: flex-start; }
+.dconfirm > p > .ic { flex: none; margin-top: 3px; color: var(--flag); }
+.dconfirm .fld .hint { font-weight: 400; }
+.dconfirm .btn[aria-busy="true"] { cursor: progress; }
+.dconfirm .btn[aria-busy="true"] .ic { animation: spin 1s linear infinite; }
+.btn.warn { background: var(--flag); color: var(--paper); }
+.btn.warn:hover { filter: brightness(1.08); }
+.picks input:disabled + span { opacity: .45; cursor: not-allowed; }
+.editdoc legend .fl { display: inline-flex; align-items: center; gap: 6px; }
+.editdoc legend .fl .ic { width: 14px; height: 14px; color: var(--ink-3); }
+.typelbl { align-self: end; display: flex; align-items: center; gap: 6px; min-height: 40px; margin: 0; font-size: 14px; color: var(--ink-2); }
+.typelbl .ic { width: 15px; height: 15px; color: var(--ink-3); flex: none; }
 .err { color: var(--flag); font-weight: 700; font-size: 14px; display: flex; gap: 8px; align-items: flex-start; }
 .err::before { content: ""; flex: none; width: 16px; height: 16px; margin-top: 2px; background: currentColor; -webkit-mask: var(--i-alert) center / contain no-repeat; mask: var(--i-alert) center / contain no-repeat; }
 .hint { font-size: 13px; color: var(--ink-3); }
@@ -1152,6 +1166,13 @@ td code, .code code { font: 400 13px/1.5 var(--mono); }
 .toast { position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%) translateY(16px); background: var(--ink); color: var(--paper); padding: 10px 16px; border-radius: 999px; font-weight: 700; font-size: 14px; opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; z-index: 60; max-width: calc(100% - 32px); text-align: center; }
 .toast.on { opacity: 1; transform: translateX(-50%) translateY(0); }
 .toast .ic { margin-right: 6px; }
+/* the 10 seconds to undo Delete draft, where the toast shows (a toast moves up above it meanwhile) */
+.undobar { position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); z-index: 61; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px 12px; width: max-content; max-width: calc(100% - 32px); padding: 8px 8px 8px 16px; border-radius: 22px; background: var(--ink); color: var(--paper); font-weight: 700; font-size: 14px; box-shadow: var(--shadow); }
+.undobar > .ic { flex: none; }
+.undobar > span { min-width: 0; overflow-wrap: anywhere; }
+.undobar .btn { background: var(--lemon); color: #2A2208; }
+.undobar .btn:focus-visible { outline: 2.5px solid var(--lemon); outline-offset: 2px; }
+.undobar:not([hidden]) ~ .toast { bottom: calc(84px + env(safe-area-inset-bottom, 0px)); }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 /* phones: small buttons and inline action links are at least 44px tall, so they're easy to tap */
 @media (max-width: 600px) {
@@ -1228,6 +1249,8 @@ td code, .code code { font: 400 13px/1.5 var(--mono); }
   <symbol id="i-signpost" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 13v8"/><path d="M12 3v3"/><path d="M18 6a2 2 0 0 1 1.387.56l2.307 2.22a1 1 0 0 1 0 1.44l-2.307 2.22A2 2 0 0 1 18 13H6a2 2 0 0 1-1.387-.56l-2.306-2.22a1 1 0 0 1 0-1.44l2.306-2.22A2 2 0 0 1 6 6z"/></g></symbol>
   <symbol id="i-wand" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.64 3.64-1.28-1.28a1.21 1.21 0 0 0-1.72 0L2.36 18.64a1.21 1.21 0 0 0 0 1.72l1.28 1.28a1.2 1.2 0 0 0 1.72 0L21.64 5.36a1.2 1.2 0 0 0 0-1.72"/><path d="m14 7 3 3"/><path d="M5 6v4"/><path d="M19 14v4"/><path d="M10 2v2"/><path d="M7 8H3"/><path d="M21 16h-4"/><path d="M11 3H9"/></g></symbol>
   <symbol id="i-puzzle" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15.39 4.39a1 1 0 0 0 1.68-.474 2.5 2.5 0 1 1 3.014 3.015 1 1 0 0 0-.474 1.68l1.683 1.682a2.414 2.414 0 0 1 0 3.414L19.61 15.39a1 1 0 0 1-1.68-.474 2.5 2.5 0 1 0-3.014 3.015 1 1 0 0 1 .474 1.68l-1.683 1.682a2.414 2.414 0 0 1-3.414 0L8.61 19.61a1 1 0 0 0-1.68.474 2.5 2.5 0 1 1-3.014-3.015 1 1 0 0 0 .474-1.68l-1.683-1.682a2.414 2.414 0 0 1 0-3.414L4.39 8.61a1 1 0 0 1 1.68.474 2.5 2.5 0 1 0 3.014-3.015 1 1 0 0 1-.474-1.68l1.683-1.682a2.414 2.414 0 0 1 3.414 0z"/></g></symbol>
+  <symbol id="i-calendar-x" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="m14 14-4 4"/><path d="m10 14 4 4"/></g></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><path d="M10 11v6"/><path d="M14 11v6"/></g></symbol>
 </defs></svg>
 
 <header class="top">
@@ -1813,11 +1836,12 @@ await supabase.from('volunteers').insert({
       </section>
       <section aria-labelledby="hp-edit">
         <h2 id="hp-edit">Fixing things in the Sheet</h2>
-        <p>You can change an event's title, date, times, place, host, co-hosts, description, notes or timeline, or who's bringing what, right in the Sheet. Your change shows up here within two minutes, or as soon as you come back to this tab. An event with changes here that haven't been saved yet keeps those until they are. Leave the hidden Events column, "data (don't edit)", as it is.</p>
+        <p>You can change an event's title, date, times, place, host, co-hosts, description, notes or timeline, or who's bringing what, right in the Sheet. Your change shows up here within two minutes, or as soon as you come back to this tab. An event with changes here that haven't been saved yet keeps those until they are. Leave the hidden Events column, "data (don't edit)", as it is. To take an event out, use Cancel event or Delete draft here: they tell the people who need to know, and keep the row with what happened. If a row is deleted by hand anyway, a page still showing that event says so and doesn't add it back.</p>
       </section>
       <section aria-labelledby="hp-pub">
         <h2 id="hp-pub">Drafts and the public page</h2>
-        <p>A new event starts as a <b>Draft</b>: only organizers see it, so you can plan it before anyone else does. When it's ready, click <b>Publish</b> at the top of the event, or pick <b>Published</b> in Edit event. Published events show on the public page from today on, with the RSVP link if you add one. In the Sheet, the Events tab's <code>status</code> column says <code>draft</code>, <code>published</code> or <code>cancelled</code>; a blank one counts as published. A change typed into the Sheet by hand can take up to 5 minutes to reach the public page.</p>
+        <p>A new event starts as a <b>Draft</b>: only organizers see it, so you can plan it before anyone else does. When it's ready, click <b>Publish</b> at the top of the event, or pick <b>Published</b> in Edit event. Published events show on the public page from today on, with the RSVP link if you add one. In the Sheet, the Events tab's <code>status</code> column says <code>draft</code>, <code>published</code>, <code>cancelled</code> or <code>deleted</code>; a blank one counts as published. A change typed into the Sheet by hand can take up to 5 minutes to reach the public page.</p>
+        <p>When plans change, <b>Cancel event</b> at the top of the event takes it off the public page and the Guild calendar and stops its reminders. You can add a reason. Every channel it was already posted to gets a cancellation notice in Outreach, to approve and post like any other. The event moves under <b>Past</b>, and its link says it was cancelled. A draft made by mistake, never published and with nothing posted, can go with <b>Delete draft</b> instead; you have 10 seconds to undo it.</p>
         <p>Each published event has its own page for newcomers: when and where, directions, what to bring, how the day goes and who to look for, with buttons to sign up, add it to a calendar and share it. <b>Copy link</b> at the top of an event copies its link for posts and flyers; a draft's link works once it's published. Organizers who open the link while signed in get the plan.</p>
       </section>
       <section aria-labelledby="hp-lead">
@@ -1834,6 +1858,7 @@ await supabase.from('volunteers').insert({
   <div class="mbody" id="m-body"></div>
 </div></div>
 <div id="drawer"></div>
+<div class="undobar" id="undobar" hidden></div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div id="print-sheet" aria-hidden="true"></div>
 
@@ -1974,15 +1999,70 @@ const TASKS = {
 };
 let taskSeq = 0;
 const mkTask = (type, text, who, status, rems) => ({ id: 't' + (++taskSeq), type, text, who, status, rems: rems || defaultRems(type), assignedOn: who ? TODAY : '', open: false });
-const HOSTS = { map: f => organizers().map(t => t.name).map(f) };
 const PHOTOS = [['trellis', 'Garden work'], ['moat', 'Before the dig'], ['pantry', 'Building'], ['none', 'Illustration']];
 const STATUS = { off: 'Not used', review: 'Draft · needs review', approved: 'Approved', posted: 'Posted', test: 'Test sent' };
 // it went out: posted, or (the Google Group and the Calendar, in test mode) sent only to the Sheet owner
 const isSent = p => p.status === 'posted' || p.status === 'test';
-// an event's status: a draft is for organizers only; a published event is on the public page from today on.
-// Cancelled is only shown for now (the Events tab's status column can say it).
+// an event's status: a draft is for organizers only; a published event is on the public page from today on; a cancelled
+// one (Cancel event) is off it, with no reminders, and its tile sits under Past.
 const EV_STATUS = { draft: 'Draft', published: 'Published', cancelled: 'Cancelled' };
 const onSite = ev => ev.status === 'published';
+const isPast = ev => ev.date < TODAY || ev.status === 'cancelled';
+// Delete draft is for an event made by mistake: a draft that was never on the public site and has nothing posted.
+// Anything else is cancelled instead, so its link can say so. (deleteEvent in Code.js checks the same.)
+const deletable = ev => !ev.isNew && ev.status === 'draft' && !ev.wasPublished && !CHANNELS.some(c => isSent(ev.posts[c.id] || {}))
+  && !(ev.log || []).some(l => /\bpublished the event\b/.test(l[1]));
+const cancellable = ev => !ev.isNew && ev.status !== 'cancelled' && ev.date >= TODAY && !deletable(ev);
+// the events the Sheet says were cancelled (the live build fills it from the public data), for their links' pages
+const CANCELLED = new Set();
+const wasCancelled = id => CANCELLED.has(id) || EVENTS.some(e => e.id === id && e.status === 'cancelled');
+// drafts deleted in the last 10 seconds, waiting for Undo: id -> { ev, i (its place in EVENTS), timer }
+const DELETING = new Map();
+/* The types the edit form offers, kept as the event's series. Work days and community meetings are numbered. */
+const TYPES = [['workday', 'Work day'], ['meeting', 'Community meeting'], ['other', 'Other']];
+const SERIES_LABEL = { workday: 'Workday #', meeting: 'Community Meeting #' };
+const typeOf = ev => TYPES.some(t => t[0] === ev.series) ? ev.series : 'other';
+const addDays = (s, n) => { const d = D(s); d.setDate(d.getDate() + n); return iso(d); };
+/* Work days are on 4th Sundays: the first 4th Sunday after day s (yyyy-mm-dd), so 2026-10-25 gives 2026-11-22 */
+function fourthSundayAfter(s) {
+  const d = D(s);
+  for (let m = 0; m < 3; m++) {
+    const first = new Date(d.getFullYear(), d.getMonth() + m, 1, 12);
+    const day = iso(new Date(first.getFullYear(), first.getMonth(), 1 + (7 - first.getDay()) % 7 + 21, 12));
+    if (day > s) return day;
+  }
+  return addDays(s, 28);
+}
+// an event's number in its series: the one it keeps, else the one in its label ("Workday #6 · Part Deux")
+const numOf = e => Number(e.num) || Number((String(e.label || '').match(/#\s*(\d+)/) || [])[1]) || 0;
+const inSeries = (series, not) => EVENTS.filter(e => e !== not && !e.isNew && e.series === series);
+// the type, and its label: 'Workday #8' or 'Community Meeting #3' with the next number in that series, none for Other
+function setSeries(ev, series) {
+  ev.series = series;
+  ev.num = SERIES_LABEL[series] ? Math.max(0, ...inSeries(series, ev).map(numOf)) + 1 : 0;
+  ev.label = SERIES_LABEL[series] ? SERIES_LABEL[series] + ev.num : '';
+}
+/* What a new event of each type starts with. A work day: 10 to 2 on the next 4th Sunday after the last work day and
+   after today. A community meeting: 6 to 8, four weeks after the last one (two weeks from today when there's none).
+   Other: a week from today. */
+function typeDefaults(series, not) {
+  const last = inSeries(series, not).map(e => e.date).filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d)).sort().pop() || '';
+  if (series === 'workday') return { date: fourthSundayAfter(last > TODAY ? last : TODAY), start: '10:00', end: '14:00', leadStart: '09:00', leadEnd: '14:30',
+    bring: 'water bottle, gloves if you have them', tags: ['beginner', 'tools'], photo: 'trellis' };
+  if (series === 'meeting') {
+    let date = last ? addDays(last, 28) : addDays(TODAY, 14);
+    while (date <= TODAY) date = addDays(date, 28); // the last one was long ago: the same weekday, still four weeks apart
+    return { date, start: '18:00', end: '20:00', leadStart: '', leadEnd: '', bring: 'yourself, and a dish to share if you like', tags: ['beginner', 'potluck'], photo: 'none' };
+  }
+  return { date: addDays(TODAY, 7), start: '10:00', end: '12:00', leadStart: '', leadEnd: '', bring: '', tags: ['beginner'], photo: 'trellis' };
+}
+// a new event takes its type's label, date, times and starting details
+function applyType(ev, series) {
+  setSeries(ev, series);
+  const d = typeDefaults(series, ev);
+  Object.assign(ev, { date: d.date, start: d.start, end: d.end, bring: d.bring, tags: d.tags.slice(), photo: d.photo });
+  ev.plan.leadStart = d.leadStart; ev.plan.leadEnd = d.leadEnd;
+}
 const evPill = ev => ev.status === 'draft' ? `<span class="pill evs ev-draft">${ic('lock')}Draft<span class="vh">, only organizers see it</span></span>`
   : ev.status === 'cancelled' ? `<span class="pill evs ev-cancelled">${ic('x')}Cancelled</span>` : '';
 // what makes the Calendar entry and the Group email out of date once they've gone out
@@ -2072,7 +2152,8 @@ const RSVP_CH = ['partiful', 'luma', 'meetup'];
 /* materials */
 // the photo's class comes from the Sheet, so only the four known photos get through
 const photo = ph => { const k = PHOTOS.some(p => p[0] === ph) ? ph : 'none'; return `<div class="photo ph-${k}">${k === 'none' ? '<svg><use href="#mark"/></svg>' : ''}</div>`; };
-const kindOf = ev => ev.series === 'meeting' ? 'Community meeting' : ev.series === 'workday' ? 'Work party' : /potluck/i.test(ev.title) ? 'Potluck' : /swap|share/i.test(ev.title) ? 'Skill share' : /dig|restor/i.test(ev.title) ? 'Dig day' : 'Work day';
+// the kind of event on flyers and cards; Other says what its title suggests, else Gathering
+const kindOf = ev => ev.series === 'meeting' ? 'Community meeting' : ev.series === 'workday' ? 'Work party' : /potluck/i.test(ev.title) ? 'Potluck' : /swap|share/i.test(ev.title) ? 'Skill share' : /dig|restor/i.test(ev.title) ? 'Dig day' : ev.series === 'other' ? 'Gathering' : 'Work day';
 // a tag typed into the Sheet that isn't one of TAGS shows as typed
 const tagName = t => (TAGS.find(x => x[0] === t) || [t, String(t)])[1];
 const tagLabels = ev => ev.tags.filter(t => t !== 'outdoor').map(t => ([['beginner', 'No experience needed'], ['tools', 'Tools provided'], ['kids', 'Kids welcome'], ['potluck', 'Potluck']].find(x => x[0] === t) || [t, tagName(t)])[1]);
@@ -2291,16 +2372,17 @@ function copyPlan(pl) {
   c.debrief = [];
   return c;
 }
-// tasks carried into a new event start open; 'last' remembers who did it last time
-const copyTasks = src => (src.tasks || []).filter(t => t.who || t.last).map(t => Object.assign(mkTask(t.type, t.text, '', 'open', t.rems.slice()), { last: t.who || t.last }));
+// tasks carried into a new event all start open; 'last' remembers who did it last time (the "Last time:" hint)
+const copyTasks = src => (src.tasks || []).map(t => Object.assign(mkTask(t.type, t.text, '', 'open', t.rems && t.rems.slice()), t.who || t.last ? { last: t.who || t.last } : {}));
 function seriesIdeas(ev) {
   return EVENTS.filter(e => e.series === ev.series && e.date < ev.date).flatMap(e => e.plan.debrief.filter(d => !d.used).map(d => ({ d, from: e })));
 }
 function planNext(src, date, fallback) {
-  const same = EVENTS.filter(e => e.series === src.series);
-  const num = Math.max(...same.map(e => e.num)) + 1;
-  if (!date) { const d = D(src.date); d.setDate(d.getDate() + 28); date = d.toISOString().slice(0, 10); }
-  const ev = { ...JSON.parse(JSON.stringify({ ...src, posts: null, log: null, tasks: null })), id: src.series[0] + num + '-' + Date.now() % 10000, num, label: (src.series === 'workday' ? 'Workday #' : 'Community Meeting #') + num, date, status: 'draft', rsvp: '' };
+  const ev = { ...JSON.parse(JSON.stringify({ ...src, posts: null, log: null, tasks: null })), status: 'draft', rsvp: '' };
+  delete ev.wasPublished;
+  setSeries(ev, typeOf(src));
+  ev.id = ev.series[0] + (ev.num || '') + '-' + Date.now() % 10000;
+  ev.date = date || (ev.series === 'other' ? addDays(src.date, 28) : typeDefaults(ev.series, ev).date);
   ev.plan = copyPlan(src.plan);
   const used = srcChannels(src);
   ev.posts = makePosts(ev, used.length ? used : fallback || newChannels(), 'review');
@@ -2321,10 +2403,11 @@ CHANNELS.forEach(c => { m2.posts[c.id].text = draft(c.id, m2); });
 m2.plan.notes = ['Greenhouse is up (9/26–27)', 'Seed library by November', 'Storm crew for El Niño?'];
 m2.tasks.push(mkTask('notes', 'Notetaker', '', 'open'), mkTask('cleanup', 'Clean-up crew', '', 'open'), mkTask('other', 'Timekeeper', '', 'open'));
 
-const nextEvent = () => EVENTS.filter(e => !e.isNew && e.date >= TODAY).sort((a, b) => a.date.localeCompare(b.date))[0] || EVENTS[0];
+const nextEvent = () => EVENTS.filter(e => !e.isNew && !isPast(e)).sort((a, b) => a.date.localeCompare(b.date))[0] || EVENTS[0];
 const S = { dtab: (() => { try { return sessionStorage.getItem('ebpg-dtab') || 'plan'; } catch { return 'plan'; } })(), when: 'up', sel: nextEvent()?.id, fold: { mats: false, chs: false, tasks: false, log: true, run: false, areas: false, sups: false, talk: false, ideas: false } };
 try { Object.assign(S.fold, JSON.parse(localStorage.getItem('ebpg-fold') || '{}')); } catch {}
-const visible = () => EVENTS.filter(e => !e.isNew).filter(e => S.when === 'up' ? e.date >= TODAY : e.date < TODAY).sort((a, b) => S.when === 'up' ? a.date.localeCompare(b.date) : b.date.localeCompare(a.date));
+// Upcoming or Past: a cancelled event is under Past, whatever its date
+const visible = () => EVENTS.filter(e => !e.isNew).filter(e => S.when === 'up' ? !isPast(e) : isPast(e)).sort((a, b) => S.when === 'up' ? a.date.localeCompare(b.date) : b.date.localeCompare(a.date));
 // how many of the channels an event shows are drafts, approved, posted, ... (a channel the Guild doesn't use isn't counted)
 const counts = ev => { const c = { off: 0, review: 0, approved: 0, posted: 0, test: 0 }; chList(ev).forEach(ch => { const st = ev.posts[ch.id].status; if (st in c) c[st]++; }); return c; };
 
@@ -2345,7 +2428,7 @@ function applyPerms() {
   const d = $('#detail');
   $('#new-ev').disabled = !can('create'); $('#new-ev').title = can('create') ? '' : NOPE.create;
   if (!d) return;
-  gate('#edit-ev, #publish-ev, #ph-pick, #add-ch, [data-act=rsvp-yes], [data-act=rsvp-no]', 'edit', d);
+  gate('#edit-ev, #publish-ev, #cancel-ev, #delete-ev, #dconfirm button:not(#dc-no), #ph-pick, #add-ch, [data-act=rsvp-yes], [data-act=rsvp-no]', 'edit', d);
   gate('#appr-all, [data-act=approve], [data-act=post], [data-act=update], [data-act=again], [data-act=redraft], [data-act=copy], [data-act=mark], [data-act=undo], [data-mark] input, [data-mark] button', 'approve', d);
   gate('#nt-text, #nt-who, #nt-add, [data-tdel]', 'tasks', d);
   gate('#plan-next', 'create', d);
@@ -2449,7 +2532,7 @@ function renderTiles() {
   const list = visible();
   $('#tiles').innerHTML = list.length ? list.map(e => {
     const d = D(e.date), c = counts(e), open = (e.tasks || []).filter(t => !t.who || t.status === 'cant').length;
-    return `<article class="tile ${e.date < TODAY ? 'past' : ''} ${unsaved(e.id) ? 'unsaved' : ''}" tabindex="0" role="button" data-open="${esc(e.id)}" aria-label="${esc(tileLabel(e))}">
+    return `<article class="tile ${isPast(e) ? 'past' : ''} ${unsaved(e.id) ? 'unsaved' : ''}" tabindex="0" role="button" data-open="${esc(e.id)}" aria-label="${esc(tileLabel(e))}">
       <span class="nsave" aria-hidden="true"><i></i>Not saved</span>
       ${EV_STATUS[e.status] && !onSite(e) ? `<span class="tstat ev-${esc(e.status)}" aria-hidden="true">${ic(e.status === 'draft' ? 'lock' : 'x')}${esc(EV_STATUS[e.status])}</span>` : ''}
       <div class="cover" aria-hidden="true">${igArt(e)}${flyerArt(e)}${storyArt(e)}</div>
@@ -2468,7 +2551,7 @@ const DETAIL = Object.assign(document.createElement('div'), { id: 'detail', clas
 // while the event pop-up is open, the page behind it can't be reached by Tab, a click or a screen reader
 const pageBehind = on => ['main', 'header.top'].forEach(sel => $(sel)?.toggleAttribute('inert', on));
 function openEvent(id, mode) {
-  S.sel = id; S.mode = mode;
+  S.sel = id; S.mode = mode; S.confirm = null;
   const ev = EVENTS.find(e => e.id === id);
   if (mode === 'page') {
     $('#modal').hidden = true; document.body.style.overflow = ''; pageBehind(false);
@@ -2480,19 +2563,25 @@ function openEvent(id, mode) {
     $('#modal').scrollTop = 0;
     $('#m-title').textContent = ev.label || 'Event';
     const tab = $('#m-tab'), lk = evLink(id); tab.hidden = !lk; tab.href = lk || '#'; $('#m-copy').hidden = !lk;
-    setTimeout(() => $('#m-x').focus(), 20);
+    setTimeout(() => { if (!$('#modal').hidden) $('#m-x').focus(); }, 20); // unless it closed meanwhile
   }
   renderDetail();
 }
 function closeEvent() {
   const cur = EVENTS.find(e => e.id === S.sel);
   if (cur?.isNew) EVENTS.splice(EVENTS.indexOf(cur), 1);
-  S.editing = false;
+  S.editing = false; S.confirm = null;
   $('#modal').hidden = true; document.body.style.overflow = ''; pageBehind(false);
   DETAIL.remove(); S.mode = null;
   // back to what opened it; tiles and the attention bar are redrawn often, so fall back to this event's tile
   const back = [S.back, S.lastTile, $$('#tiles [data-open]').find(t => t.dataset.open === cur?.id), $('#new-ev')].find(el => el && el !== document.body && el.isConnected && !el.disabled);
   S.back = null; back?.focus();
+}
+// the open event is gone (deleted here, or taken out of the Sheet): its pop-up closes, or its page goes back to Events
+function leaveEvent() {
+  S.editing = false; S.confirm = null;
+  if (!$('#modal').hidden) closeEvent();
+  else if (S.mode === 'page') { DETAIL.remove(); S.mode = null; showTab('events'); history.replaceState(null, '', '#events'); }
 }
 $('#m-x').addEventListener('click', closeEvent);
 $('#modal').addEventListener('click', e => { if (e.target.id === 'modal') closeEvent(); });
@@ -2525,10 +2614,15 @@ function renderDetail() {
   if (S.mode === 'modal') $('#m-title').textContent = ev.isNew ? 'New event' : ev.label || 'Event';
   const c = counts(ev), past = ev.date < TODAY, chs = chList(ev);
   const open = (ev.tasks || []).filter(t => !t.who || t.status === 'cant').length;
+  // Cancel event or Delete draft asked about under the header (gone once it no longer applies, e.g. after a read of the Sheet)
+  const ask = !S.editing && S.confirm && S.confirm.id === ev.id && (S.confirm.kind === 'cancel' ? cancellable(ev) || cancelling.has(ev.id) : deletable(ev)) ? S.confirm.kind : '';
   $('#detail').innerHTML = `
     <div class="hstrip" aria-label="Flyers and posts for this event">${MATS.map(([k, name, use, fn, icon]) => `<div class="hfig"><figure>${fn(ev)}<figcaption>${ic(icon)}<b>${name}</b> · ${use}</figcaption></figure>${outBtns(k, name, ev)}</div>`).join('')}</div>
     <div class="dh"><div><div class="dk"><span class="eyebrow">${past ? 'Past event' : 'Upcoming'}</span>${evPill(ev)}</div><h2>${esc(ev.title)}</h2><div class="meta"><span class="fact">${ic('calendar')}${esc(longDate(ev.date))}</span><span class="fact">${ic('clock')}${t12(ev.start)}–${t12(ev.end)}</span><span class="fact">${ic('map-pin')}${esc(ev.place)}${safeUrl(ev.map) ? ` · <a href="${esc(safeUrl(ev.map))}" target="_blank" rel="noopener">Map${ic('out', 'out')}</a>` : ''}</span></div></div>
-      <div class="actions">${S.editing ? '' : `${ev.status === 'draft' ? `<button class="btn primary sm" type="button" id="publish-ev" title="Put it on the public site">${ic('eye')}Publish</button>` : ''}<button class="btn ghost sm" type="button" id="edit-ev">${ic('pencil')}Edit event</button>`}</div></div>
+      <div class="actions">${S.editing ? '' : `${ev.status === 'draft' ? `<button class="btn primary sm" type="button" id="publish-ev" title="Put it on the public site">${ic('eye')}Publish</button>` : ''}<button class="btn ghost sm" type="button" id="edit-ev">${ic('pencil')}Edit event</button>`
+        + (cancellable(ev) ? `<button class="btn ghost sm" type="button" id="cancel-ev" aria-expanded="${ask === 'cancel'}">${ic('calendar-x')}Cancel event</button>` : '')
+        + (deletable(ev) ? `<button class="btn ghost sm" type="button" id="delete-ev" aria-expanded="${ask === 'delete'}">${ic('trash')}Delete draft</button>` : '')}</div>
+      ${ask ? confirmHTML(ev, ask) : ''}</div>
     <div class="dtabs" role="tablist" aria-label="Event sections">
       <button type="button" role="tab" id="dt-plan" aria-selected="${S.dtab === 'plan'}" aria-controls="dp-plan" data-dtab="plan">${ic('file-text')}Event plan${open ? `<span class="n">${open} open</span>` : ''}</button>
       <button type="button" role="tab" id="dt-out" aria-selected="${S.dtab === 'outreach'}" aria-controls="dp-out" data-dtab="outreach">${ic('send')}Outreach${c.review + c.approved ? `<span class="n">${c.review + c.approved} to post</span>` : ''}</button>
@@ -2538,7 +2632,7 @@ function renderDetail() {
       <div class="osum"><span>${c.off === chs.length ? 'No outreach recorded for this event.' : c.review + c.approved ? `${ic('send')}<b>${drafts(c.review)}</b> · ${c.approved} approved, ready to post · ${outCount(c)}` : c.test ? `${ic('check')}Everything has gone out · ${outCount(c)} (${c.test === 1 ? 'the test went' : 'the tests went'} only to the Sheet owner)` : `${ic('check')}Everything is posted · ${outCount(c)}`}</span>${c.review >= 2 ? `<button class="btn ghost sm" type="button" id="appr-all">${ic('check')}Approve all drafts</button>` : ''}</div>
       ${c.off < chs.length ? `<ul class="olist">${chs.filter(ch => ev.posts[ch.id].status !== 'off').map(ch => chRow(ev, ch)).join('')}</ul>` : ''}
       ${helperSpot(ev, chs)}
-      ${c.off && !past ? `<label class="addch"><span class="hint">${ic('plus')}Also post to</span><select id="add-ch" aria-label="Add a channel"><option value="">Choose a channel</option>${chs.filter(ch => ev.posts[ch.id].status === 'off').map(ch => `<option value="${esc(ch.id)}">${esc(ch.name)}</option>`).join('')}</select></label>` : ''}
+      ${c.off && !past && ev.status !== 'cancelled' ? `<label class="addch"><span class="hint">${ic('plus')}Also post to</span><select id="add-ch" aria-label="Add a channel"><option value="">Choose a channel</option>${chs.filter(ch => ev.posts[ch.id].status === 'off').map(ch => `<option value="${esc(ch.id)}">${esc(ch.name)}</option>`).join('')}</select></label>` : ''}
       <div class="chs"><div class="chs-h">${fold('log', 'Activity', ev.log.length, 'history')}</div><ul class="log" id="log-body" ${hid('log')}>${ev.log.slice().reverse().map(([t, w]) => `<li><span>${esc(t)}</span><span>${esc(w)}</span></li>`).join('')}</ul></div>
     </div>`;
   $$('[data-dtab]').forEach(b => b.addEventListener('click', () => { S.dtab = b.dataset.dtab; try { sessionStorage.setItem('ebpg-dtab', S.dtab); } catch {} renderDetail(); }));
@@ -2560,14 +2654,27 @@ const fold = (k, label, cnt, icon) => `<button class="fold" type="button" data-f
 const hid = k => S.fold[k] ? 'hidden' : '';
 const ord = n => n + (n % 10 === 1 && n !== 11 ? 'st' : n % 10 === 2 && n !== 12 ? 'nd' : n % 10 === 3 && n !== 13 ? 'rd' : 'th');
 const range = (a, b) => { const A = t12(a), B = t12(b); return A.slice(-2) === B.slice(-2) ? A.slice(0, -3) + '–' + B : A + '–' + B; };
-const hostOf = pl => (pl.roles.find(([, ns]) => ns.length) || [, []])[1][0] || '';
-const cohostsOf = pl => [...new Set(pl.roles.flatMap(([, ns]) => ns))].filter(n => n && n !== hostOf(pl));
+/* The plan's roles: the Host and Co-hosts ones the edit form sets, and any others ("Neighborhood outreach: Marissa"),
+   which saving the form keeps. A plan from before Host and Co-hosts uses its first role (Event leads, Facilitators). */
+const HOSTING = /^(host|co-?hosts?)$/i;
+const hostingRoles = pl => { const named = pl.roles.filter(([l]) => HOSTING.test(String(l).trim())); return named.length ? named : pl.roles.slice(0, 1); };
+const hostOf = pl => (hostingRoles(pl).find(([, ns]) => ns.length) || pl.roles.find(([, ns]) => ns.length) || [, []])[1][0] || '';
+const cohostsOf = pl => [...new Set(hostingRoles(pl).flatMap(([, ns]) => ns))].filter(n => n && n !== hostOf(pl));
+// everyone in every role but the host: what the Sheet's co-hosts column said before the other roles were kept apart
+const everyoneBut = pl => [...new Set(pl.roles.flatMap(([, ns]) => ns))].filter(n => n && n !== hostOf(pl));
+// new Host and Co-hosts roles, in place of the ones they stand for; the other roles stay as they are
+const withHosting = (pl, host, cos) => {
+  const was = hostingRoles(pl);
+  return [['Host', host ? [host] : []], ['Co-hosts', [...new Set(cos)].filter(n => n && n !== host)], ...pl.roles.filter(r => !was.includes(r))];
+};
 function hostingHTML(pl) {
-  const h = hostOf(pl), cos = cohostsOf(pl);
+  const h = hostOf(pl), cos = cohostsOf(pl), was = hostingRoles(pl), rest = pl.roles.filter(r => !was.includes(r));
+  const people = ns => `<span class="ppl">${ns.map(n => `<span class="pp">${avatar(n)}${esc(n)}</span>`).join('')}</span>`;
   return `<section class="doc-sec">${fold('host', 'Hosting', h ? `${esc(h)}${cos.length ? ` + ${cos.length} co-host${cos.length > 1 ? 's' : ''}` : ''}` : 'no host yet', 'users')}
     <div class="hosting" id="host-body" ${hid('host')}>
       <div class="hrow"><span class="hl">Host</span>${h ? `<span class="pp">${avatar(h)}${esc(h)}</span>` : `<span class="pp open">${ic('user-plus')}Needs a host</span>`}</div>
-      <div class="hrow"><span class="hl">Co-hosts</span><span class="ppl">${cos.length ? cos.map(n => `<span class="pp">${avatar(n)}${esc(n)}</span>`).join('') : '<span class="hint">None yet</span>'}</span></div>
+      <div class="hrow"><span class="hl">Co-hosts</span>${cos.length ? people(cos) : '<span class="ppl"><span class="hint">None yet</span></span>'}</div>
+      ${rest.map(([l, ns]) => `<div class="hrow"><span class="hl">${esc(l)}</span>${ns.length ? people(ns) : `<span class="pp open">${ic('user-plus')}Needs someone</span>`}</div>`).join('')}
     </div></section>`;
 }
 function docHTML(ev) {
@@ -2594,28 +2701,77 @@ function docHTML(ev) {
         <form class="mini" id="adddeb"><input id="ad-x" placeholder="Add an idea from the debrief" aria-label="Debrief idea"><button class="btn ghost sm" type="submit">${ic('plus')}Add</button></form></div></section>` : ''}
   </article>`;
 }
+/* Cancel event and Delete draft ask first, under the event's header. Cancel says what happens, with an optional reason
+   for the notices; Delete says it can be undone for 10 seconds. */
+const cancelling = new Map(); // event id -> the reason, while the Sheet cancels it
+function confirmHTML(ev, kind) {
+  const no = `<button class="btn ghost sm" type="button" id="dc-no">${ic('x')}Keep it</button>`;
+  if (kind === 'delete') return `<div class="dconfirm" id="dconfirm" role="group" aria-labelledby="dc-h">
+      <p id="dc-h">${ic('alert-triangle')}<span><b>Delete this draft?</b> It was never on the public site, so only organizers have seen it. Its tasks, post drafts and activity go too. You can undo it for 10 seconds.</span></p>
+      <div class="omark-b"><button class="btn warn sm" type="button" id="dc-del">${ic('trash')}Delete draft</button>${no}</div></div>`;
+  const told = chList(ev).filter(c => c.id !== 'calendar' && isSent(ev.posts[c.id])).map(c => c.name);
+  const what = [onSite(ev) && 'comes off the public site', isSent(ev.posts.calendar || {}) && 'comes off the Guild calendar', 'gets no more reminders'].filter(Boolean);
+  const busy = cancelling.has(ev.id);
+  return `<form class="dconfirm" id="dconfirm" novalidate aria-labelledby="dc-h">
+      <p id="dc-h">${ic('alert-triangle')}<span><b>Cancel ${esc(ev.label || ev.title || 'this event')}?</b> It ${andList(what)}.${told.length ? ` A cancellation notice for ${esc(andList(told))} will wait in Outreach for you to approve and post.` : ''}</span></p>
+      <label class="fld" for="dc-why">Reason <span class="hint">(optional, it goes in the notices)</span><input id="dc-why" maxlength="300" autocomplete="off" placeholder="e.g. Heavy rain is forecast" value="${esc(busy ? cancelling.get(ev.id) : '')}" ${busy ? 'readonly' : ''}></label>
+      <p class="err" id="dc-err" role="alert" hidden></p>
+      <div class="omark-b">${busy ? `<button class="btn warn sm" type="submit" disabled aria-busy="true">${ic('loader')}Cancelling…</button>` : `<button class="btn warn sm" type="submit">${ic('calendar-x')}Cancel event</button>`}${no}</div></form>`;
+}
+/*PROTO*/
+/* The prototype artifact has no Sheet, so it cancels here the way cancelEvent does in Code.js: each channel already
+   posted gets a notice (in the same words) to approve, the Calendar entry comes off, and the drafts nobody posted go. */
+const cancelText = (ch, ev, reason) => {
+  const why = reason ? ' ' + reason + (/[.!?]$/.test(reason) ? '' : '.') : '';
+  const line = `Cancelled: ${ev.title} on ${longDate(ev.date)}.${why} Sorry for the change. We hope to see you at the next one.`;
+  return ch === 'ggroup' ? `Subject: Cancelled: ${ev.title} on ${longDate(ev.date)}\n\nHi all,\n\n${line}\n\nThe East Bay Permaculture Guild` : line;
+};
+function cancelHere(ev, reason) {
+  const told = [];
+  let cal = false;
+  ev.status = 'cancelled';
+  CHANNELS.forEach(c => {
+    const q = ev.posts[c.id];
+    if (!isSent(q)) { if (q.status !== 'off') Object.assign(q, NO_TRAIL, { status: 'off', text: draft(c.id, ev), edited: false, open: false, marking: false }); return; }
+    if (c.id === 'calendar') { cal = true; q.stale = false; return; }
+    Object.assign(q, NO_TRAIL, { status: 'review', text: cancelText(c.id, ev, reason), edited: true, open: false, marking: false });
+    delete q.redo; told.push(c.name);
+  });
+  ev.log.push([nowStamp(), `${ME} cancelled the event${reason ? ': ' + reason : ''}`]);
+  if (cal) ev.log.push([nowStamp(), 'Took it off the Calendar']);
+  if (told.length) ev.log.push([nowStamp(), 'Drafted a cancellation notice for ' + told.join(', ')]);
+  return `Cancelled. It's off the public site${cal ? ' and the calendar' : ''}.` + (told.length ? ` ${told.length === 1 ? 'A cancellation notice is' : told.length + ' cancellation notices are'} waiting for review in Outreach.` : '');
+}
+/*/PROTO*/
 const MAXLEN = { 'ed-title': 200, 'ed-about': 4000, 'ed-bring': 500 };
+// the label a new event gets, beside its Type
+const labelLine = ev => ev.label ? `${ic('list-ordered')}<span>Label: <b>${esc(ev.label)}</b></span>` : `${ic('list-ordered')}<span>No number for this type</span>`;
 function editHTML(ev) {
   const pl = ev.plan;
+  // the host and co-hosts are picked from the team; a name typed into the Sheet that isn't on it stays a choice
+  const host = hostOf(pl), cos = cohostsOf(pl);
+  const hosts = [...new Set([...(host && !person(host) ? [host] : []), ...TEAM.map(t => t.name)])], coPicks = [...new Set([...TEAM.map(t => t.name), ...cos])];
   const lab = (label, icon) => icon ? `<span class="fl">${ic(icon)}${label}</span>` : label;
   const max = id => MAXLEN[id] ? ` maxlength="${MAXLEN[id]}"` : ''; // the Sheet keeps this much
   const f = (id, label, val, type = 'text', icon) => `<label class="fld">${lab(label, icon)}<input id="${id}" type="${type}" value="${esc(val || '')}"${max(id)}></label>`;
   const ta = (id, label, val, hint, rows = 4, icon) => `<label class="fld">${lab(label, icon)}${hint ? ` <span class="hint" style="font-weight:400">${hint}</span>` : ''}<textarea id="${id}" rows="${rows}"${max(id)}>${esc(val || '')}</textarea></label>`;
-  // Status: a cancelled event only says so here (there's no way to cancel or un-cancel from the page yet)
+  // Status: a cancelled event only says so here (Cancel event at the top of the event cancels it; only the Sheet un-cancels)
   const status = ev.status === 'cancelled' ? `<p class="stnote">${evPill(ev)}<span>This event is cancelled, so it isn't on the public site.</span></p>`
     : `<fieldset><legend>Status</legend><div class="segopts">${[['draft', 'lock', 'Draft', 'only organizers see it'], ['published', 'eye', 'Published', 'on the public site']].map(([k, icon, name, what]) =>
       `<label><input type="radio" name="ed-status" value="${k}" ${(EV_STATUS[ev.status] ? ev.status : 'draft') === k ? 'checked' : ''}><span>${ic(icon)}<em><b>${name}:</b> ${what}</em></span></label>`).join('')}</div></fieldset>`;
   const btns = `<div class="grp"><button class="btn ghost sm" type="button" data-cancel>${ic('x')}Cancel</button><button class="btn primary sm" type="submit">${ev.isNew ? `${ic('plus')}Create event` : `${ic('check')}Save`}</button></div>`;
   return `<form class="doc editdoc" id="editf" novalidate>
     <div class="edit-h"><div class="doc-title">${ev.isNew ? 'New event' : 'Edit event'}</div>${btns}</div>
-    ${ev.isNew ? `<label class="fld">${lab('Start from', 'copy')}<select id="ed-from"><option value="">Blank event</option>${EVENTS.filter(x => !x.isNew && x.plan).sort((a, b) => b.date.localeCompare(a.date)).map(x => `<option value="${esc(x.id)}" ${x.id === ev.copiedFrom ? 'selected' : ''}>Copy ${esc(x.label || x.title)} (${shortDate(x.date)})</option>`).join('')}</select></label>` : ''}
+    ${ev.isNew ? `<label class="fld">${lab('Start from', 'copy')}<select id="ed-from"><option value="">Blank event</option>${EVENTS.filter(x => !x.isNew && x.plan).sort((a, b) => b.date.localeCompare(a.date)).map(x => `<option value="${esc(x.id)}" ${x.id === ev.copiedFrom ? 'selected' : ''}>Copy ${esc(x.label || x.title)} (${shortDate(x.date)})</option>`).join('')}</select></label>
+    <div class="r2"><label class="fld">${lab('Type', 'calendar')}<select id="ed-type">${TYPES.map(([k, l]) => `<option value="${k}" ${k === typeOf(ev) ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
+      <p class="typelbl" id="ed-label" aria-live="polite">${labelLine(ev)}</p></div>` : ''}
     ${status}
     ${f('ed-title', 'Event name', ev.title)}
     <div class="r3">${f('ed-date', 'Date', ev.date, 'date', 'calendar')}${f('ed-start', 'Start', ev.start, 'time', 'clock')}${f('ed-end', 'End', ev.end, 'time', 'clock')}</div>
     <div class="r2">${f('ed-place', 'Venue', ev.place, 'text', 'map-pin')}${f('ed-address', 'Address', ev.address)}</div>
     <div class="r2">${f('ed-ls', 'Leads arrive', pl.leadStart, 'time')}${f('ed-le', 'Leads leave', pl.leadEnd, 'time')}</div>
-    <div class="r2"><label class="fld">${lab('Host', 'user')}<select id="ed-host">${TEAM.map(t => `<option ${t.name === hostOf(pl) ? 'selected' : ''}>${esc(t.name)}</option>`).join('')}</select></label>
-      <label class="fld">${lab('Co-hosts', 'users')} <span class="hint" style="font-weight:400">comma separated</span><input id="ed-cos" value="${esc(cohostsOf(pl).join(', '))}"></label></div>
+    <label class="fld">${lab('Host', 'user')}<select id="ed-host">${host ? '' : '<option value="" selected>No host yet</option>'}${hosts.map(n => `<option ${n === host ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select></label>
+    <fieldset><legend>${lab('Co-hosts', 'users')}</legend><div class="picks" id="ed-cos">${coPicks.map(n => `<label><input type="checkbox" name="ed-co" value="${esc(n)}" ${cos.includes(n) ? 'checked' : ''} ${n === host ? 'disabled' : ''}><span>${esc(n)}</span></label>`).join('')}</div></fieldset>
     ${ta('p-tl', 'Timeline', PT.timeline(pl), 'one per line, e.g. "10:15 AM Intro"', 6, 'list-ordered')}
     ${ta('p-notes', 'Notes', PT.list(pl.notes), 'one per line', 4)}
     ${ta('ed-about', 'Description', ev.about, 'shown in Details and used in posts', 3)}
@@ -2633,17 +2789,45 @@ function bindEdit(ev) {
     if (ev.isNew) { closeEvent(); render(); return; }
     renderDetail();
   }));
+  // Type: the label follows it, and the date, times and details that are still the old type's own starting ones change too
+  $('#ed-type')?.addEventListener('change', x => {
+    const was = typeDefaults(typeOf(ev), ev);
+    setSeries(ev, x.target.value);
+    const now = typeDefaults(ev.series, ev);
+    const swap = (id, a, b) => { const el = $('#' + id, form); if (el && el.value === (a || '')) el.value = b || ''; };
+    swap('ed-date', was.date, now.date); swap('ed-start', was.start, now.start); swap('ed-end', was.end, now.end);
+    swap('ed-ls', was.leadStart, now.leadStart); swap('ed-le', was.leadEnd, now.leadEnd); swap('ed-bring', was.bring, now.bring);
+    const tags = $$('input[name=ed-tag]', form), same = (a, b) => a.slice().sort().join() === b.slice().sort().join();
+    if (same(tags.filter(i => i.checked).map(i => i.value), was.tags)) tags.forEach(i => { i.checked = now.tags.includes(i.value); });
+    if (ev.photo === was.photo) ev.photo = now.photo;
+    $('#ed-label').innerHTML = labelLine(ev);
+  });
+  // Start from: a copy of another event, as a draft, with its channels, and its tasks open again with who did them last time
   $('#ed-from')?.addEventListener('change', x => {
-    const src = EVENTS.find(e => e.id === x.target.value); if (!src) return;
-    const date = $('#ed-date').value;
-    Object.assign(ev, { title: src.title, start: src.start, end: src.end, place: src.place, address: src.address, map: src.map, about: src.about, bring: src.bring, tags: src.tags.slice(), photo: src.photo, series: src.series, copiedFrom: src.id, date });
-    ev.num = Math.max(0, ...EVENTS.filter(e => e.series === src.series && e !== ev).map(e => e.num || 0)) + 1;
-    ev.label = (src.series === 'workday' ? 'Workday #' : 'Community Meeting #') + ev.num;
-    ev.plan = copyPlan(src.plan);
-    ev.tasks = copyTasks(src);
-    const chs = srcChannels(src); // a copy posts where the event it's copied from did
-    if (chs.length) ev.posts = makePosts(ev, chs, 'review');
+    const src = EVENTS.find(e => e.id === x.target.value), typed = $('#ed-date').value, old = typeDefaults(typeOf(ev), ev);
+    const keep = typed && typed !== old.date ? typed : ''; // a date picked by hand stays
+    if (!src) { // back to a blank event of the type picked
+      delete ev.copiedFrom;
+      Object.assign(ev, { title: '', ...OPC, about: '', status: 'draft', rsvp: '' });
+      ev.plan = blankPlan();
+      applyType(ev, typeOf(ev));
+      ev.tasks = [];
+    } else {
+      setSeries(ev, typeOf(src));
+      Object.assign(ev, { title: src.title, start: src.start, end: src.end, place: src.place, address: src.address, map: src.map, about: src.about, bring: src.bring,
+        tags: src.tags.slice(), photo: src.photo, copiedFrom: src.id, status: 'draft', rsvp: '', date: typeDefaults(ev.series, ev).date });
+      ev.plan = copyPlan(src.plan);
+      ev.tasks = copyTasks(src);
+    }
+    if (keep) ev.date = keep;
+    const chs = src ? srcChannels(src) : []; // a copy posts where the event it's copied from did
+    ev.posts = makePosts(ev, chs.length ? chs : newChannels(), 'review');
     renderDetail();
+    $('#ed-from')?.focus();
+  });
+  // the host isn't one of the co-hosts too
+  $('#ed-host')?.addEventListener('change', x => {
+    $$('input[name=ed-co]', form).forEach(i => { const me = i.value === x.target.value; i.disabled = me; if (me) i.checked = false; });
   });
   form.addEventListener('submit', x => {
     x.preventDefault();
@@ -2661,20 +2845,26 @@ function bindEdit(ev) {
     Object.assign(ev, { title: v('ed-title'), date: v('ed-date'), start: v('ed-start'), end: v('ed-end'), place: v('ed-place'), address: v('ed-address'), about: v('ed-about'), bring: v('ed-bring'), tags: $$('input[name=ed-tag]:checked').map(i => i.value).concat(ev.tags.filter(t => !TAGS.some(x => x[0] === t))) });
     const pl = ev.plan;
     pl.leadStart = v('ed-ls'); pl.leadEnd = v('ed-le');
-    const host = $('#ed-host').value; pl.roles = [['Host', [host]], ['Co-hosts', $('#ed-cos').value.split(',').map(x => x.trim()).filter(x => x && x !== host)]]; 
+    // only the Host and Co-hosts roles change; the plan's other roles ("Neighborhood outreach") stay
+    const host = $('#ed-host').value;
+    pl.roles = withHosting(pl, host, $$('input[name=ed-co]:checked', form).map(i => i.value));
+    if (host) ev.host = host; // the name the posts say it's hosted by
     pl.timeline = parseTimeline($('#p-tl').value); pl.notes = lns($('#p-notes').value);
     const moved = was !== whenWhere(ev);
     CHANNELS.forEach(c => {
       const q = ev.posts[c.id];
-      if (isSent(q)) { if (!ev.isNew && moved) q.stale = true; return; } // the Calendar and the Group get Update calendar and Draft an update
+      // the Calendar and the Group get Update calendar and Draft an update (a cancelled event's entry is off the calendar)
+      if (isSent(q)) { if (!ev.isNew && moved && ev.status !== 'cancelled') q.stale = true; return; }
       if (!q.edited) q.text = freshText(c.id, ev, q);
       if (q.status === 'approved') toReview(q);
     });
-    const wasNew = !!ev.isNew; delete ev.isNew; S.editing = false;
+    if (ev.status === 'published') ev.wasPublished = true;
+    // created: the Sheet adds a row for it only while this is set, until its first save gets through
+    const wasNew = !!ev.isNew; delete ev.isNew; if (wasNew) ev.created = true; S.editing = false;
     ev.log.push([nowStamp(), wasNew ? `${ME} created the event` : `${ME} edited the event`]);
     const turned = ev.status !== wasStatus && (!wasNew || ev.status !== 'draft');
     if (turned) ev.log.push([nowStamp(), ev.status === 'published' ? `${ME} published the event` : `${ME} made the event a draft`]);
-    if (wasNew) S.when = ev.date >= TODAY ? 'up' : 'past';
+    if (wasNew) S.when = isPast(ev) ? 'past' : 'up';
     render(); renderMaterials();
     const draftNote = 'Only organizers can see it.';
     whenSaved(() => toast(wasNew ? (ev.status === 'draft' ? 'Event created as a draft. ' + draftNote : 'Event created and published.')
@@ -2801,6 +2991,8 @@ function helperHTML(inHelp) {
    Update calendar, or Draft an update for the Group. Only people with "Approve & post" get the actions; everyone sees where it stands. */
 function chRow(ev, ch) {
   const p = ev.posts[ch.id], id = esc(ch.id), auto = ch.mode === 'auto', ok = can('approve'), out = isSent(p);
+  // a cancelled event's Calendar entry came off the calendar (stale here: it couldn't, so it's for deleting by hand)
+  const offCal = ch.id === 'calendar' && ev.status === 'cancelled' && out;
   const site = safeUrl(ch.url), link = p.status === 'posted' ? safeUrl(p.url) : '', going = posting.get(ev.id + ':' + ch.id);
   // no link for this channel on the Channels tab yet: say where it goes (a link to the Sheet, for organizers who have it)
   const noSite = safeUrl(sheetUrl) ? `<a class="hint nolink" href="${esc(safeUrl(sheetUrl))}" target="_blank" rel="noopener">${ic('link')}${NO_LINK}${ic('out')}</a>` : `<span class="hint nolink">${ic('link')}${NO_LINK}</span>`;
@@ -2824,8 +3016,8 @@ function chRow(ev, ch) {
       + (site && !fill ? `<a class="btn ghost sm" href="${esc(site)}" target="_blank" rel="noopener">Open ${esc(ch.name)}${ic('out')}</a>` : '')
       + (ch.id === 'chats' ? `<a class="btn ghost sm" href="${esc('https://wa.me/?text=' + encodeURIComponent(p.text))}" target="_blank" rel="noopener">${ic('message-circle')}Share to WhatsApp${ic('out')}</a>` : '')
       + (p.marking ? '' : act('mark', 'check', 'Mark as posted', fill && !opened ? 'ghost' : 'primary')) + (site || fill ? '' : noSite);
-  else if (ok && out && auto && p.stale) acts = ch.id === 'calendar' ? act('update', 'calendar', 'Update calendar', 'primary') : act('redraft', 'pencil', 'Draft an update', 'primary');
-  else if (ok && auto && p.status === 'test' && remote && !testOn) acts = act('again', 'send', 'Post for real', 'primary'); // test mode is off now
+  else if (ok && out && auto && p.stale && !offCal) acts = ch.id === 'calendar' ? act('update', 'calendar', 'Update calendar', 'primary') : act('redraft', 'pencil', 'Draft an update', 'primary');
+  else if (ok && auto && p.status === 'test' && remote && !testOn && !offCal) acts = act('again', 'send', 'Post for real', 'primary'); // test mode is off now
   else if (ok && p.status === 'posted' && !auto) acts = act('undo', 'rotate-ccw', 'Undo');
   const note = said ? `<p class="ofill${said.ok ? '' : ' bad'}">${ic(said.ok ? 'wand' : 'alert-triangle')}<span>${esc(said.text)}</span></p>` : '';
   const mk = `mk-${esc(ev.id)}-${id}`;
@@ -2838,7 +3030,8 @@ function chRow(ev, ch) {
       <div class="omark-b">${act('rsvp-yes', 'check', 'Yes', 'primary')}${act('rsvp-no', 'x', 'No')}</div></div>` : '';
   return `<li class="orow ${esc(p.status)}" data-row="${id}"><span class="logo" style="background:${esc(ch.color)}">${esc(ch.abbr)}</span>
     <div class="ohead"><button class="oname" type="button" data-act="toggle" data-ch="${id}" aria-expanded="${!!p.open}">${esc(ch.name)}<span class="hint">${out ? '' : 'Read draft · '}${auto ? 'posts automatically' : fill ? 'the Posting Helper fills it in' : 'copy and paste'}</span></button>
-      <span class="ostat"><span class="pill ${esc(p.status)}"${p.status === 'test' ? ` title="${esc(TEST_TIP)}"` : ''}>${esc(postPill(p))}${p.status === 'test' ? `<span class="vh"> (${esc(TEST_TIP)})</span>` : ''}</span>${out && auto && p.stale ? `<span class="warnchip">${ic('alert-triangle')}Changed since posted</span>` : ''}${link ? `<a href="${esc(link)}" target="_blank" rel="noopener">View post${ic('out')}</a>` : ''}${!ok && p.status === 'review' ? `<span class="hint">${esc(whoApproves())}</span>` : ''}</span></div>
+      <span class="ostat">${offCal ? `<span class="pill ${esc(p.status)}">${p.stale ? esc(postPill(p)) : `${ic('calendar-x')}Taken off the calendar`}</span>${p.stale ? `<span class="warnchip">${ic('alert-triangle')}Still on the calendar. Delete it there by hand</span>` : ''}`
+        : `<span class="pill ${esc(p.status)}"${p.status === 'test' ? ` title="${esc(TEST_TIP)}"` : ''}>${esc(postPill(p))}${p.status === 'test' ? `<span class="vh"> (${esc(TEST_TIP)})</span>` : ''}</span>${out && auto && p.stale ? `<span class="warnchip">${ic('alert-triangle')}Changed since posted</span>` : ''}`}${link ? `<a href="${esc(link)}" target="_blank" rel="noopener">View post${ic('out')}</a>` : ''}${!ok && p.status === 'review' ? `<span class="hint">${esc(whoApproves())}</span>` : ''}</span></div>
     ${acts ? `<div class="oacts${ok && p.status === 'approved' && !auto ? ' wide' : ''}">${acts}</div>` : ''}${note}
     ${p.open ? `<div class="obody"><textarea id="ta-${esc(ev.id)}-${id}" data-ta="${id}" aria-label="${esc(ch.name)} text" ${out ? 'readonly' : ''}>${esc(p.text)}</textarea>${p.status !== 'review' ? '' : site ? `<a class="hint" href="${esc(site)}" target="_blank" rel="noopener">Open ${esc(ch.name)}${ic('out')}</a>` : auto ? '' : noSite}</div>` : ''}
     ${mark}${ask}</li>`;
@@ -2863,7 +3056,7 @@ function bindDetail(ev) {
   // Publish: the draft goes on the public page (from today on), as soon as the Sheet has it
   $('#publish-ev')?.addEventListener('click', () => {
     if (!can('edit') || ev.status !== 'draft') return;
-    ev.status = 'published';
+    ev.status = 'published'; ev.wasPublished = true;
     ev.log.push([nowStamp(), `${ME} published the event`]);
     const { back } = refreshDrafts(ev);
     render(); renderMaterials();
@@ -2871,6 +3064,44 @@ function bindDetail(ev) {
     const again = back ? ` ${back === 1 ? '1 approved post changed, so it needs' : back + ' approved posts changed, so they need'} review again.` : '';
     whenSaved(() => toast((ev.date >= TODAY ? "Published. It's on the public site now." : 'Published.') + again, 'check'));
   });
+  // Cancel event and Delete draft open their question under the header; Keep it (or Escape) closes it again
+  const ask = kind => {
+    S.confirm = S.confirm && S.confirm.id === ev.id && S.confirm.kind === kind ? null : { kind, id: ev.id };
+    renderDetail();
+    (S.confirm ? $(kind === 'cancel' ? '#dc-why' : '#dc-no') : $(kind === 'cancel' ? '#cancel-ev' : '#delete-ev'))?.focus();
+  };
+  $('#cancel-ev')?.addEventListener('click', () => ask('cancel'));
+  $('#delete-ev')?.addEventListener('click', () => ask('delete'));
+  const keep = () => { const k = S.confirm?.kind; S.confirm = null; renderDetail(); $(k === 'delete' ? '#delete-ev' : '#cancel-ev')?.focus(); };
+  $('#dc-no')?.addEventListener('click', keep);
+  $('#dconfirm')?.addEventListener('keydown', e => { if (e.key === 'Escape' && !cancelling.has(ev.id)) { e.preventDefault(); e.stopPropagation(); keep(); } });
+  $('#dconfirm')?.addEventListener('submit', async e => {
+    e.preventDefault();
+    if (!can('edit') || !cancellable(ev) || cancelling.has(ev.id)) return;
+    const why = $('#dc-why').value.trim().replace(/\s+/g, ' ').slice(0, 300);
+    cancelling.set(ev.id, why);
+    renderDetail();
+    let msg = '';
+    if (remote) {
+      try { msg = await remote.cancel(ev, why); }
+      catch (er) {
+        cancelling.delete(ev.id);
+        if (S.sel !== ev.id || !$('#detail') || !EVENTS.includes(ev)) { render(); toast(er.message, 'alert-triangle'); return; }
+        renderDetail();
+        const err = $('#dc-err');
+        if (err) { err.textContent = er.message; err.hidden = false; $('#dc-why').value = why; $('#dc-why').focus(); } else toast(er.message, 'alert-triangle');
+        return;
+      }
+    }
+/*PROTO*/
+    else msg = cancelHere(ev, why);
+/*/PROTO*/
+    cancelling.delete(ev.id); S.confirm = null;
+    render(); renderMaterials();
+    if (S.sel === ev.id) $('#edit-ev')?.focus();
+    toast(msg, 'check');
+  });
+  $('#dc-del')?.addEventListener('click', () => { if (can('edit') && deletable(ev)) deleteDraft(ev); });
   bindEdit(ev);
   bindTasks(ev);
   bindPlan(ev);
@@ -3046,137 +3277,79 @@ function bindDetail(ev) {
   }));
 }
 
-/* plan <-> text, so the drawer can edit everything with plain text boxes */
+/* Delete draft: the draft goes from the page at once, with 10 seconds to Undo; only then is the Sheet told (deleteEvent).
+   One Undo at a time: deleting another draft, signing out or closing the page sends the waiting one now. */
+const UNDO_MS = 10000;
+function deleteDraft(ev) {
+  commitDeletes();
+  const i = EVENTS.indexOf(ev);
+  if (i < 0) return;
+  EVENTS.splice(i, 1);
+  DELETING.set(ev.id, { ev, i, timer: setTimeout(() => commitDelete(ev.id), UNDO_MS) });
+  if (S.sel === ev.id) { leaveEvent(); S.sel = nextEvent()?.id; }
+  render(); renderMaterials();
+  undoBar(`Deleted ${ev.label || ev.title || 'the draft'}.`, () => undoDelete(ev.id));
+}
+function undoDelete(id) {
+  const d = DELETING.get(id);
+  if (!d || d.going) return;
+  clearTimeout(d.timer); DELETING.delete(id);
+  EVENTS.splice(Math.min(d.i, EVENTS.length), 0, d.ev);
+  hideUndo(true);
+  S.when = isPast(d.ev) ? 'past' : 'up';
+  render(); renderMaterials();
+  ($$('#tiles [data-open]').find(t => t.dataset.open === id) || $('#new-ev'))?.focus();
+  toast(`${d.ev.label || d.ev.title || 'The draft'} is back.`, 'check');
+}
+// now: the page is closing or signing out, so the call goes out at once
+function commitDelete(id, now) {
+  const d = DELETING.get(id);
+  if (!d || d.going) return;
+  clearTimeout(d.timer); d.going = true;
+  hideUndo();
+  if (!remote) { DELETING.delete(id); return; } // the artifact keeps nothing anywhere else
+  remote.del(d.ev, now).then(() => { DELETING.delete(id); }, er => {
+    // still in the Sheet: back on the page, so nobody thinks it's gone
+    DELETING.delete(id);
+    if (!EVENTS.some(e => e.id === id)) EVENTS.splice(Math.min(d.i, EVENTS.length), 0, d.ev);
+    render(); renderMaterials();
+    toast(`${d.ev.label || d.ev.title || 'The draft'} wasn't deleted. ${er.message}`, 'alert-triangle');
+  });
+}
+const commitDeletes = now => [...DELETING.keys()].forEach(id => commitDelete(id, now));
+/* the Undo bar, where toasts show. Its button gets keyboard focus, since what had it (the event's pop-up) is gone. */
+function undoBar(msg, onUndo) {
+  const bar = $('#undobar');
+  bar.innerHTML = `${ic('trash')}<span id="undo-msg">${esc(msg)}</span><button class="btn sm" type="button" id="undo-btn" aria-describedby="undo-msg">${ic('rotate-ccw')}Undo</button>`;
+  bar.hidden = false;
+  $('#undo-btn').addEventListener('click', onUndo);
+  $('#undo-btn').focus();
+}
+// undone: focus goes where undoDelete puts it; timed out with focus still on Undo: to New event
+function hideUndo(undone) {
+  const bar = $('#undobar'), had = bar.contains(document.activeElement);
+  bar.hidden = true; bar.innerHTML = '';
+  if (!had || undone) return;
+  const h1 = $('#p-events h1');
+  if (!$('#new-ev').disabled) $('#new-ev').focus(); else { h1.tabIndex = -1; h1.focus(); }
+}
+
+/* plan <-> text, so the edit form can take the timeline and notes in plain text boxes */
 const toTime = str => { const m = String(str).trim().match(/^(\d{1,2})(?::(\d{2}))?\s*(am|pm)?$/i); if (!m) return null; let h = +m[1]; const ap = (m[3] || '').toLowerCase(); if (ap === 'pm' && h < 12) h += 12; if (ap === 'am' && h === 12) h = 0; if (h > 23) return null; return String(h).padStart(2, '0') + ':' + (m[2] || '00'); };
 const PT = {
   timeline: pl => pl.timeline.slice().sort((a, b) => a[0].localeCompare(b[0])).map(([t, x]) => `${t12(t)} ${x}`).join('\n'),
-  roles: pl => pl.roles.map(([l, ns]) => `${l}: ${ns.join(', ')}`).join('\n'),
-  supplies: pl => pl.supplies.map(x => x.who ? `${x.item} - ${x.who}` : x.item).join('\n'),
-  areas: pl => pl.areas.map(a => `${a.name}: ${a.items.map(i => i.text).join(', ')}`).join('\n'),
   list: arr => (arr || []).join('\n'),
 };
 const lns = t => t.split('\n').map(x => x.trim()).filter(Boolean);
 function parseTimeline(t) {
   return lns(t).map(l => { const m = l.match(/^(\d{1,2}(?::\d{2})?\s*(?:am|pm)?)\s*[-–:]?\s+(.+)$/i); const tm = m && toTime(m[1]); return tm ? [tm, m[2], /^leads/i.test(m[2]) ? 'Leads' : ''] : null; }).filter(Boolean);
 }
-const parseRoles = t => lns(t).map(l => { const [a, ...b] = l.split(':'); return [a.trim(), b.join(':').split(',').map(x => x.trim()).filter(Boolean)]; });
-const parseSupplies = (t, old) => lns(t).map(l => { const [item, who = ''] = l.split(/\s+-\s+/); const prev = old.find(x => x.item === item.trim()); return sup(item.trim(), prev ? prev.status : 'need', who.trim()); });
-const parseAreas = t => lns(t).map(l => { const [a, ...b] = l.split(':'); return { name: a.trim(), items: b.join(':').split(',').map(x => x.trim()).filter(Boolean).map(x => ({ text: x, done: false })) }; });
-function planFields(pl) {
-  pl = pl || { timeline: [], roles: [['Event leads', [ME]]], supplies: [], areas: [], setup: [], questions: [], notes: [], food: null, icebreaker: '' };
-  const ta = (id, label, val, hint, rows = 4) => `<label class="fld">${label}${hint ? ` <span class="hint" style="font-weight:400">${hint}</span>` : ''}<textarea id="${id}" rows="${rows}">${esc(val)}</textarea></label>`;
-  return `<fieldset class="planf"><legend>Event plan</legend>
-    ${ta('p-roles', 'People', PT.roles(pl), 'one role per line, e.g. "Event leads: Jessie, Phil"', 3)}
-    ${ta('p-setup', 'Outline', PT.list(pl.setup), 'one per line', 3)}
-    ${ta('p-sup', 'Who&#39;s bringing what', PT.supplies(pl), 'one per line, add " - who" if someone brings it', 5)}
-    <div class="r2"><label class="fld">Food brought by<input id="p-fwho" value="${esc(pl.food?.who || '')}"></label><label class="fld">Menu<input id="p-fmenu" value="${esc(pl.food?.menu || '')}"></label></div>
-    <label class="fld">Food service items<input id="p-fitems" value="${esc(pl.food?.items || '')}" placeholder="Plates, cups, napkins, utensils"></label>
-    ${ta('p-tl', 'Timeline', PT.timeline(pl), 'one per line, e.g. "10:15 AM Intro and ice breaker"', 6)}
-    <label class="fld">Ice breaker<input id="p-ice" value="${esc(pl.icebreaker || '')}"></label>
-    ${ta('p-areas', 'Garden tasks', PT.areas(pl), 'one area per line, e.g. "Front garden: Top dressing, New bed"', 3)}
-    ${ta('p-notes', 'Notes', PT.list(pl.notes), 'one per line', 3)}
-  </fieldset>`;
-}
-function fillPlanFields(pl) {
-  const set = (id, v) => { const el = $('#' + id); if (el) el.value = v; };
-  set('p-roles', PT.roles(pl)); set('p-setup', PT.list(pl.setup)); set('p-sup', PT.supplies(pl)); set('p-tl', PT.timeline(pl)); set('p-ice', pl.icebreaker || '');
-  set('p-areas', PT.areas(pl)); set('p-notes', PT.list(pl.notes));
-  set('p-fwho', pl.food?.who || ''); set('p-fmenu', pl.food?.menu || ''); set('p-fitems', pl.food?.items || '');
-}
-function readPlanFields(pl) {
-  const v = id => $('#' + id).value;
-  pl.roles = parseRoles(v('p-roles')); pl.setup = lns(v('p-setup')); pl.supplies = parseSupplies(v('p-sup'), pl.supplies || []);
-  pl.timeline = parseTimeline(v('p-tl')); pl.icebreaker = v('p-ice').trim(); pl.areas = parseAreas(v('p-areas'));
-  pl.notes = lns(v('p-notes'));
-  const fw = v('p-fwho').trim(), fi = v('p-fitems').trim(), fm = v('p-fmenu').trim();
-  pl.food = fw || fi || fm ? { who: fw || 'Someone', items: fi, menu: fm } : null;
-}
-
-/* create / edit drawer */
-function openDrawer(ev) {
-  const edit = !!ev;
-  const e = ev || { title: '', date: '2026-11-22', start: '10:00', end: '14:00', place: 'Oakland Peace Center', address: '111 Fairmount Ave, Oakland', about: '', bring: 'water bottle, gloves if you have them', tags: ['beginner', 'tools'], host: ME, plan: { leadStart: '09:00', leadEnd: '14:30' } };
-  const chosen = edit ? CHANNELS.filter(c => ev.posts[c.id].status !== 'off').map(c => c.id) : newChannels();
-  $('#drawer').innerHTML = `<div class="scrim" id="scrim"><div class="panel" role="dialog" aria-modal="true" aria-labelledby="dr-t">
-    <header><h2 id="dr-t">${edit ? 'Edit event' : 'New event'}</h2><button class="btn ghost sm" type="button" id="dr-x">${ic('x')}Close</button></header>
-    <form id="evf" novalidate>
-      ${edit ? '' : `<label class="fld">Start from<select id="f-from"><option value="">Blank event</option>${EVENTS.filter(x => x.plan).sort((a, b) => b.date.localeCompare(a.date)).map(x => `<option value="${esc(x.id)}">Copy ${esc(x.label || x.title)} (${shortDate(x.date)})</option>`).join('')}</select></label>`}
-      <label class="fld">Event name<input id="f-title" value="${esc(e.title)}" placeholder="e.g. OPC Garden Work Party"></label>
-      <div class="r3"><label class="fld">Date<input type="date" id="f-date" value="${esc(e.date)}"></label><label class="fld">Start<input type="time" id="f-start" value="${esc(e.start)}"></label><label class="fld">End<input type="time" id="f-end" value="${esc(e.end)}"></label></div>
-      <div class="r2"><label class="fld">Leads arrive<input type="time" id="f-ls" value="${esc(e.plan?.leadStart)}"></label><label class="fld">Leads leave<input type="time" id="f-le" value="${esc(e.plan?.leadEnd)}"></label></div>
-      <div class="r2"><label class="fld">Place<input id="f-place" value="${esc(e.place)}"></label><label class="fld">Address<input id="f-address" value="${esc(e.address)}"></label></div>
-      <label class="fld">What we'll do<textarea id="f-about" placeholder="What's happening, in a sentence or two.">${esc(e.about)}</textarea></label>
-      <label class="fld">What to bring<input id="f-bring" value="${esc(e.bring)}" placeholder="water, gloves if you have them"></label>
-      <fieldset><legend>Photo</legend><div class="picks">${PHOTOS.map(([k, l]) => `<label><input type="radio" name="photo" value="${k}" ${k === (e.photo || 'trellis') ? 'checked' : ''}><span><i class="pt">${photo(k)}</i>${l}</span></label>`).join('')}</div></fieldset>
-      <label class="fld">Host<select id="f-host">${HOSTS.map(h => `<option ${h === e.host ? 'selected' : ''}>${esc(h)}</option>`).join('')}</select></label>
-      <fieldset><legend>Good to know</legend><div class="picks">${TAGS.map(([k, l]) => `<label><input type="checkbox" name="tag" value="${k}" ${e.tags.includes(k) ? 'checked' : ''}><span>${l}</span></label>`).join('')}</div></fieldset>
-      <fieldset><legend>Post to</legend><div class="picks">${CHANNELS.filter(c => c.used || chosen.includes(c.id)).map(c => `<label><input type="checkbox" name="ch" value="${c.id}" ${chosen.includes(c.id) ? 'checked' : ''}><span>${esc(c.name)}</span></label>`).join('')}</div></fieldset>
-      ${planFields(e.plan && e.plan.timeline ? e.plan : null)}
-      ${edit ? '<p class="hint">Changed drafts go back for approval.</p>' : ''}
-      <p class="err" id="f-err" role="alert" hidden></p>
-    </form>
-    <footer><span></span><button class="btn primary" type="submit" form="evf">${edit ? 'Save' : 'Create event'}</button></footer>
-  </div></div>`;
-  const close = () => { $('#drawer').innerHTML = ''; };
-  $('#dr-x').addEventListener('click', close);
-  $('#scrim').addEventListener('click', x => { if (x.target.id === 'scrim') close(); });
-  document.addEventListener('keydown', function k(x) { if (x.key === 'Escape') { close(); document.removeEventListener('keydown', k); } });
-  setTimeout(() => $('#f-title')?.focus(), 30);
-  $('#f-from')?.addEventListener('change', x => {
-    const src = EVENTS.find(y => y.id === x.target.value); if (!src) return;
-    [['f-title', src.title], ['f-start', src.start], ['f-end', src.end], ['f-place', src.place], ['f-address', src.address], ['f-about', src.about], ['f-bring', src.bring], ['f-ls', src.plan.leadStart], ['f-le', src.plan.leadEnd]].forEach(([id, val]) => { $('#' + id).value = val || ''; });
-    $$('input[name=tag]').forEach(i => i.checked = src.tags.includes(i.value));
-    $$('input[name=photo]').forEach(i => i.checked = i.value === src.photo);
-    fillPlanFields(copyPlan(src.plan));
-  });
-  $('#evf').addEventListener('submit', x => {
-    x.preventDefault();
-    const v = id => $('#' + id).value.trim();
-    const err = $('#f-err');
-    const fail = m => { err.textContent = m; err.hidden = false; };
-    if (!v('f-title')) return fail('Give the event a name so people know what it is.');
-    if (!v('f-date')) return fail('Pick a date.');
-    if (v('f-end') <= v('f-start')) return fail('The end time needs to be after the start time.');
-    if (!v('f-about')) return fail('Add a sentence about what you\'ll do. It goes into every post.');
-    const chs = $$('input[name=ch]:checked').map(i => i.value);
-    if (!chs.length) return fail('Pick at least one place to post it.');
-    const data = { title: v('f-title'), date: v('f-date'), start: v('f-start'), end: v('f-end'), place: v('f-place'), address: v('f-address'), about: v('f-about'), bring: v('f-bring'), host: $('#f-host').value, photo: ($('input[name=photo]:checked') || {}).value || 'none', tags: $$('input[name=tag]:checked').map(i => i.value) };
-    const ls = v('f-ls'), le = v('f-le');
-    if (edit) {
-      const was = whenWhere(ev);
-      Object.assign(ev, data);
-      const moved = was !== whenWhere(ev);
-      if (ev.plan) { ev.plan.leadStart = ls; ev.plan.leadEnd = le; readPlanFields(ev.plan); }
-      CHANNELS.forEach(c => {
-        const p = ev.posts[c.id], on = chs.includes(c.id);
-        if (!on) { if (!isSent(p)) p.status = 'off'; return; }
-        if (p.status === 'off') { p.status = 'review'; p.text = draft(c.id, ev); p.edited = false; return; }
-        if (isSent(p)) { if (moved) p.stale = true; return; }
-        if (!p.edited) p.text = freshText(c.id, ev, p);
-        if (p.status === 'approved') toReview(p);
-      });
-      ev.log.push([nowStamp(), `${ME} edited the details`]);
-      toast('Saved');
-    } else {
-      const src = EVENTS.find(x => x.id === $('#f-from').value);
-      const ne = { id: 'n' + Date.now(), ...data };
-      if (src) { ne.series = src.series; ne.num = Math.max(...EVENTS.filter(x => x.series === src.series).map(x => x.num)) + 1; ne.label = (src.series === 'workday' ? 'Workday #' : 'Community Meeting #') + ne.num; ne.plan = copyPlan(src.plan); ne.map = src.map; }
-      else ne.plan = { leadStart: '', leadEnd: '', leadNote: '', roles: [['Event leads', [ME]]], pending: [], setup: [], supplies: [], food: null, timeline: [], icebreaker: '', questions: [], notes: [], areas: [], debrief: [] };
-      ne.plan.leadStart = ls; ne.plan.leadEnd = le; readPlanFields(ne.plan);
-      ne.tasks = src ? copyTasks(src) : [];
-      ne.posts = makePosts(ne, chs, 'review');
-      ne.log = [[nowStamp(), `${ME} created the event`], [nowStamp(), `Drafts written for ${chs.length} channels`]];
-      EVENTS.push(ne); S.sel = ne.id; S.when = ne.date >= TODAY ? 'up' : 'past';
-      toast(`Created. ${chs.length} drafts to approve.`);
-    }
-    const wasNew = !edit;
-    close(); render(); renderMaterials();
-    if (wasNew) openEvent(S.sel, 'modal');
-  });
-}
+// a new event's plan: hosted by whoever makes it, nothing else yet
+const blankPlan = () => ({ leadStart: '', leadEnd: '', leadNote: '', roles: [['Host', [ME]], ['Co-hosts', []]], pending: [], setup: [], supplies: [], food: null, timeline: [], icebreaker: '', questions: [], notes: [], areas: [], debrief: [] });
+// New event: a work day by default, on the next 4th Sunday from 10 to 2, labeled with the next number
 $('#new-ev').addEventListener('click', () => {
-  const ne = { id: 'n' + Date.now(), isNew: true, status: 'draft', rsvp: '', title: '', date: '2026-11-22', start: '10:00', end: '14:00', ...OPC, about: '', bring: 'water bottle, gloves if you have them', tags: ['beginner', 'tools'], host: ME, photo: 'trellis',
-    plan: { leadStart: '09:00', leadEnd: '14:30', leadNote: '', roles: [['Event leads', [ME]]], pending: [], setup: [], supplies: [], food: null, timeline: [], icebreaker: '', questions: [], notes: [], areas: [], debrief: [] }, tasks: [], log: [] };
+  const ne = { id: 'n' + Date.now(), isNew: true, status: 'draft', rsvp: '', title: '', ...OPC, about: '', host: ME, plan: blankPlan(), tasks: [], log: [] };
+  applyType(ne, 'workday');
   ne.posts = makePosts(ne, newChannels(), 'review'); // the Channels tab's "on for new events"
   EVENTS.push(ne); S.editing = true; S.dtab = 'plan'; openEvent(ne.id, 'modal');
   setTimeout(() => $('#ed-title')?.focus(), 40);
@@ -3700,23 +3873,29 @@ function pubEventHTML(e) {
 }
 const PE_SKEL = `<div class="pe pe-skel skel"><div class="pe-main"><div><span class="sk k"></span><span class="sk h"></span></div><p role="status"><b>Loading event…</b></p>`
   + '<span class="sk ln"></span><span class="sk ln s"></span><span class="sk box"></span></div><div class="pe-side" aria-hidden="true"><span class="sk box"></span></div></div>';
-// an event that isn't on the public calendar (never was, a draft, cancelled, or over), or the Sheet didn't answer
-function peGoneHTML(failed) {
+// an event that isn't on the public calendar (never was, a draft, or over), one that was cancelled, or the Sheet didn't answer
+function peGoneHTML(failed, cancelled) {
   const home = `<a class="btn ghost" href="${esc(homeHref())}" data-pe="home-top">${ic('arrow-left')}Go to the home page</a>`;
+  const soon = `<p><b>Next dates coming soon.</b> <a href="${esc(homeHref('#join'))}" data-pe="joinlist">Join the list</a> and we'll tell you.</p>`;
+  if (cancelled) {
+    const nx = upcoming().slice(0, 3);
+    return `<section class="pe-gone"><i class="ic-chip">${ic('calendar-x')}</i><h1 tabindex="-1">This event was cancelled</h1>`
+      + (nx.length ? `<p>Sorry to miss you. Here's what's coming up next.</p><div class="nextup">${nx.map(nextCard).join('')}</div>` : `<p>Sorry to miss you.</p>${soon}`) + home + '</section>';
+  }
   if (failed) return `<section class="pe-gone warn"><i class="ic-chip">${ic('alert-triangle')}</i><h1 tabindex="-1">We couldn't load this event</h1>`
     + `<p>The Guild Sheet didn't answer. Try again in a minute, or <a href="${esc(linktree())}" target="_blank" rel="noopener">see our Linktree${ic('out')}</a> for upcoming events.</p>${home}</section>`;
   const nx = upcoming().slice(0, 3);
   return `<section class="pe-gone"><i class="ic-chip">${ic('calendar')}</i><h1 tabindex="-1">This event isn't on the calendar anymore</h1>`
     + (nx.length ? `<p>It may have moved, or it's already happened. Here's what's coming up next.</p><div class="nextup">${nx.map(nextCard).join('')}</div>`
-      : `<p><b>Next dates coming soon.</b> <a href="${esc(homeHref('#join'))}" data-pe="joinlist">Join the list</a> and we'll tell you.</p>`) + home + '</section>';
+      : soon) + home + '</section>';
 }
 /* draw the page for S.pub: the event, grey shapes while the Sheet's first answer is on its way, or the not-found note.
    Redrawn only when it changes, so a focused button keeps focus when the Sheet's answer comes. */
 let peHTML = '';
 function renderPubEvent() {
   const box = $('#p-pubevent'), found = upcoming().find(e => e.id === S.pub), e = found && pubShape(found);
-  const failed = pubState === 'failed', waiting = !e && !failed && (pubState === 'loading' || !pubAnswered);
-  const html = e ? pubEventHTML(e) : waiting ? PE_SKEL : peGoneHTML(failed);
+  const failed = pubState === 'failed', off = !e && wasCancelled(S.pub), waiting = !e && !off && !failed && (pubState === 'loading' || !pubAnswered);
+  const html = e ? pubEventHTML(e) : off ? peGoneHTML(failed, true) : waiting ? PE_SKEL : peGoneHTML(failed);
   document.title = e ? e.title + ' · East Bay Permaculture Guild' : TITLE0;
   busyAttr(box, waiting);
   if (html === peHTML) return;
