@@ -2685,6 +2685,18 @@ test('Flyers & posts: every piece has a Download button, the flyer, thank-you ca
   p.noErrors();
 });
 
+// jsdom does no layout, so these read the built CSS. Each button's hidden piece name (.vh) is absolutely positioned:
+// without a positioned button it escapes the strip's scroll box and makes the whole pop-up or page scroll sideways at 375px.
+test('Download and Print: the hidden piece name stays inside its button, and the event strip keeps each piece\'s buttons on one row', () => {
+  const live = fs.readFileSync(SITE, 'utf8'), css = live.slice(live.indexOf('<style>'), live.indexOf('</style>'));
+  const rule = sel => (css.match(new RegExp('\\n' + sel.replace(/[.]/g, '\\.') + ' \\{([^}]*)\\}')) || [])[1] || '';
+  assert.match(css, /\n\.vh \{[^}]*position: absolute/, 'the hidden name is absolutely positioned');
+  assert.match(rule('.xacts .btn'), /position: relative/, 'so each Download and Print button is its containing block');
+  assert.match(rule('.hstrip'), /overflow-x: auto/, 'the strip scrolls on its own');
+  assert.match(rule('.hstrip .xacts'), /flex-wrap: nowrap/, 'one row of buttons under every piece, so the captions line up');
+  assert.doesNotMatch(rule('.hstrip .xacts'), /width: 0/, 'the buttons may widen a narrow piece\'s column rather than overflow it');
+});
+
 test('Download: html-to-image comes from cdnjs on the first click and draws a copy of the Instagram post at 1080 × 1080, saved as ebpg-<title>-<date>-instagram-post.png', async t => {
   const p = await openPage(t, withQRExport, await seededSheet(t));
   await signIn(p);

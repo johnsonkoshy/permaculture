@@ -409,7 +409,7 @@ legend { font-size: 13px; font-weight: 700; color: var(--ink-2); margin-bottom: 
 .mat figcaption .ic, .hstrip figcaption .ic { width: 13px; height: 13px; vertical-align: -2px; margin-right: 4px; }
 /* Download and Print under each piece */
 .xacts { display: flex; flex-wrap: wrap; gap: 6px; }
-.xacts .btn { background: var(--raised); }
+.xacts .btn { background: var(--raised); position: relative; } /* keeps the hidden piece name (.vh) inside the button, so a scrolling strip clips it */
 .xacts .btn .ic { width: 15px; height: 15px; }
 .xacts .btn[aria-busy="true"] { cursor: progress; border-color: var(--fern); color: var(--fern); }
 .xacts .btn[aria-busy="true"] .ic { animation: spin 1s linear infinite; }
@@ -633,7 +633,7 @@ legend { font-size: 13px; font-weight: 700; color: var(--ink-2); margin-bottom: 
 .hstrip { display: flex; gap: 16px; align-items: flex-end; overflow-x: auto; padding: 20px 18px 16px; border-radius: 14px; background: linear-gradient(160deg, var(--fern-soft), var(--paper)); }
 .hstrip .hfig { display: grid; gap: 8px; flex: none; }
 .hstrip figure { margin: 0; display: grid; gap: 6px; }
-.hstrip .xacts { width: 0; min-width: 100%; } /* the buttons wrap under a narrow piece rather than widening it */
+.hstrip .xacts { flex-wrap: nowrap; } /* one row under every piece, so the captions line up; a narrow piece's column widens to fit */
 .hstrip figcaption { font-size: 12px; color: var(--ink-3); }
 .hstrip figcaption b { color: var(--ink); }
 .hstrip .flyer { width: 210px; }
