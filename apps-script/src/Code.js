@@ -34,12 +34,30 @@ function doGet(e) {
   if (/^https:\/\/[^\s"'<>]+$/.test(site)) return moved_(site.replace(/\/$/, '') + '/' + (ev ? '?ev=' + encodeURIComponent(ev) : ''));
   const boot = { url: ScriptApp.getService().getUrl(), ev: ev };
   const page = HtmlService.createHtmlOutputFromFile('index').getContent();
-  // show script errors on the page instead of failing silently inside Google's frame
-  const onErr = "window.addEventListener('error',function(e){var d=document.createElement('div');d.style.cssText='position:fixed;left:0;right:0;bottom:0;z-index:99999;background:#9b2c2c;color:#fff;font:13px/1.4 monospace;padding:8px 12px';d.textContent='Something broke: '+e.message+' (line '+e.lineno+':'+e.colno+')';(document.body||document.documentElement).appendChild(d)});";
-  return HtmlService.createHtmlOutput('<script>' + onErr + 'window.EBPG_GAS=' + JSON.stringify(boot).replace(/</g, '\\u003c').replace(/\//g, '\\/') + '</script>' + page)
+  return HtmlService.createHtmlOutput('<script>' + ON_ERROR + 'window.EBPG_GAS=' + JSON.stringify(boot).replace(/</g, '\\u003c').replace(/\//g, '\\/') + '</script>' + page)
     .setTitle('East Bay Permaculture Guild')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1');
 }
+
+/* Script errors show a friendly bar instead of failing silently inside Google's frame; the details go to the console.
+   Same script as on_err in build.py (a test checks they match). No "//" in it: HtmlService would cut the line there.
+   Browser-extension errors, cross-origin "Script error." and ResizeObserver noise are ignored. */
+const ON_ERROR = "(function(){var shown=0;window.addEventListener('error',function(e){" +
+  "var m=String((e&&e.message)||''),f=String((e&&e.filename)||'');" +
+  "if(m==='Script error.'||/ResizeObserver loop/.test(m)||/^(chrome|moz|safari)-extension:/.test(f))return;" +
+  "console.error('Event Hub error: '+m+' ('+f+' '+(e.lineno||0)+':'+(e.colno||0)+')',e.error||'');" +
+  "if(shown)return;shown=1;" +
+  "var d=document.createElement('div');d.id='err-bar';d.setAttribute('role','alert');" +
+  "d.style.cssText='position:fixed;left:0;right:0;bottom:0;z-index:99999;display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;" +
+  "padding:12px max(16px,env(safe-area-inset-right,0px)) calc(12px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));" +
+  "background:var(--raised,#fff);color:var(--ink,#1B2A21);border-top:3px solid var(--flag,#C24A22);box-shadow:0 -6px 20px rgba(0,0,0,.18);" +
+  "font:15px/1.45 var(--body,system-ui,sans-serif)';" +
+  "var t=document.createElement('span');t.style.flex='1 1 220px';" +
+  "t.textContent='Something went wrong. Please refresh the page. If it keeps happening, email the Guild.';" +
+  "var b=document.createElement('button');b.type='button';b.textContent='Dismiss';" +
+  "b.style.cssText='border:1px solid var(--line-2,#C5CCB9);background:transparent;color:inherit;border-radius:999px;padding:7px 14px;font:inherit;font-weight:700;cursor:pointer';" +
+  "b.addEventListener('click',function(){d.remove()});" +
+  "d.appendChild(t);d.appendChild(b);(document.body||document.documentElement).appendChild(d)})})();";
 
 /* The page now lives on Netlify: send visitors of the old Google link there. */
 function moved_(to) {
@@ -109,6 +127,7 @@ function signIn(code) {
   check_(code);
   const st = readAll_();
   st.empty = !on_('SEEDED') && !st.events.length;
+  st.sheetUrl = book_().getUrl(); // for the Help page's "Open the Guild Sheet" link
   return st;
 }
 

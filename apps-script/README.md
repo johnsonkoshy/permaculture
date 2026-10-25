@@ -36,7 +36,8 @@ The Event Hub prototype, now saving to a real Google Sheet. The page is hosted o
 ## What works
 
 - **Landing page** for the public: upcoming events, a garden map and the volunteer sign-up. Sign-ups go to the **Volunteers** tab. The volunteer gets a welcome email and the lead organizer gets a "new volunteer" email.
-- **Organizer sign-in** with the organizer code. You can change the code on the **Settings** tab at any time.
+- **Organizer sign-in** with the organizer code. You can change the code on the **Settings** tab at any time. The header shows who is signed in.
+- **Help tab** for organizers: where the data lives (with a link to the Sheet), the organizer code, test mode, when reminders go out, hand edits, and who the lead organizer is.
 - **Events:** creating, editing, the host and co-hosts, the timeline and "who's bringing what" all save to the Sheet in under a second.
 - **Post button:**
   - **Google Group:** sends the email.
@@ -83,6 +84,8 @@ clasp redeploy AKfycbxy4le3b-fRgH9BjhSZrcPf3TDcSgzMZ0sDnZEeRiZsCnPoX5jPVy6GU5DPt
 
 If the Apps Script deployment URL ever changes, update `API_URL` in `build.py` and redeploy the site.
 
-**Watch out:** Apps Script's HtmlService deletes everything after `//` on a line of inline JavaScript. It respects normal quotes but not backtick strings, so a URL or base64 inside a template literal breaks the page. `gas-safe.js` rewrites those as `/\/` and fails the build if any `//` is left. The page also shows any script error in a red bar at the bottom, instead of failing silently inside Google's frame.
+**Watch out:** Apps Script's HtmlService deletes everything after `//` on a line of inline JavaScript. It respects normal quotes but not backtick strings, so a URL or base64 inside a template literal breaks the page. `gas-safe.js` rewrites those as `/\/` and fails the build if any `//` is left. If a script error happens, the page shows a friendly bar ("Something went wrong. Please refresh the page...") with a Dismiss button, and the details go to the browser console. Browser-extension errors, cross-origin "Script error." and ResizeObserver warnings are ignored. The bar's script is `on_err` in `build.py` (Netlify) and `ON_ERROR` in `src/Code.js` (Google-hosted page). Keep the two the same; a test checks this.
 
 `event-hub/src.html` is still the prototype artifact's source. The live build swaps in `src/bridge.js` at the `/*__GAS_BRIDGE__*/` marker. The artifact build leaves that marker as an empty comment, so the artifact keeps working as before.
+
+**Prototype-only content** in `src.html` sits between `<!--PROTO-->` and `<!--/PROTO-->` (HTML), or `/*PROTO*/` and `/*/PROTO*/` (CSS and JS), each marker on a line of its own. `build.py` removes those blocks before it adds the bridge, and fails if the markers don't pair up. `event-hub/build.py` keeps them, so the artifact still has its sample badges, "Viewing as" picker, Google button and "How we'd build it" page. It goes the other way too: the live page's wording is in the markup, and anything only the live page shows (the organizer code field, the Help tab, the signed-in chip) has `class="live"`, which the artifact hides.

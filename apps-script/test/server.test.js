@@ -263,3 +263,25 @@ test('reminders: nothing goes out for an open, unassigned task', () => {
   assert.equal(g.ctx.hourly(), 0);
   assert.equal(g.mail.length, 0);
 });
+
+/* ---------- live page: the Help page's Sheet link and the friendly error bar ---------- */
+test("signIn gives organizers the Sheet's link for the Help page; the public view doesn't", () => {
+  const g = seeded();
+  assert.equal(g.ctx.signIn(CODE).sheetUrl, 'https://docs.google.com/spreadsheets/d/sheet-1/edit');
+  assert.ok(!JSON.stringify(g.ctx.getPublic()).includes('docs.google.com'), 'not in getPublic');
+  const call = (fn, args) => JSON.parse(g.ctx.doPost({ postData: { contents: JSON.stringify({ fn, args }) } }).content);
+  assert.equal(call('signIn', [CODE]).value.sheetUrl, 'https://docs.google.com/spreadsheets/d/sheet-1/edit', 'and through the JSON API');
+  assert.equal(call('signIn', ['nope']).value, undefined, 'not without the code');
+});
+
+test('the Google-hosted page shows a friendly error bar, with no "//" in its script', () => {
+  const vm = require('vm');
+  const out = makeGas().ctx.doGet({ parameter: {} }).content;
+  const js = out.match(/^<script>([\s\S]*?)<\/script>/)[1];
+  assert.ok(!js.includes('//'), 'HtmlService would cut the line at //');
+  assert.ok(js.includes('Something went wrong. Please refresh the page. If it keeps happening, email the Guild.'));
+  assert.ok(js.includes("b.textContent='Dismiss'"));
+  assert.ok(!/Something broke|e\.message\+|monospace/.test(js), 'no raw message on the page');
+  assert.ok(/console\.error\(/.test(js), 'details go to the console');
+  new vm.Script(js);
+});

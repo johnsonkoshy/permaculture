@@ -50,6 +50,7 @@ function makeGas({ page, now, url = 'http://localhost:8766/', activeUser = 'owne
   const sheets = new Map([['Sheet1', new Sheet('Sheet1')]]);
   const ss = {
     getId: () => 'sheet-1',
+    getUrl: () => 'https://docs.google.com/spreadsheets/d/sheet-1/edit',
     getSheetByName: n => sheets.get(n) || null,
     insertSheet: n => { const s = new Sheet(n); sheets.set(n, s); return s; },
     getSheets: () => [...sheets.values()],

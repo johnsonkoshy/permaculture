@@ -88,6 +88,7 @@ if (window.EBPG_GAS) {
       $$('#si-pick button').forEach(b => b.disabled = true);
       try {
         let st = await run('signIn', c);
+        sheetUrl = st.sheetUrl || '';
         if (st.empty) st = await run('seed', c, SEED);
         code = c; store.set('ebpg-code', c); load(st); live = true;
         renderVols(); renderMaterials(); renderLanding();
@@ -104,19 +105,13 @@ if (window.EBPG_GAS) {
     post: (ev, ch) => { clearTimeout(timer); flush(); return run('postTo', code, ev.id, ch, ev.posts[ch].text); },
     join: v => run('addVolunteer', { ...v, help: v.help.map(k => Object.fromEntries(HELP)[k] || k) }).catch(er => toast("Couldn't send your sign-up: " + er.message)),
   };
-  $('#signout').addEventListener('click', () => { if (live) flush(); live = false; code = ''; store.set('ebpg-code', ''); }, true);
+  $('#signout').addEventListener('click', () => { if (live) flush(); live = false; code = ''; sheetUrl = ''; store.set('ebpg-code', ''); }, true);
 
   // live-only page tweaks
   const rs = history.replaceState.bind(history);
   history.replaceState = (...a) => { try { rs(...a); } catch {} }; // the Apps Script frame may refuse URL changes
   evLink = id => G.url ? G.url + '?ev=' + encodeURIComponent(id) : '';
   CH.luma.mode = 'copy'; CH.luma.note = '';
-  $('#si-codew').hidden = false; $('#si-google').hidden = true;
-  $('.scard .or').textContent = 'then choose who you are';
-  $('.scard .demo').textContent = 'Ask the lead organizer for the code.';
-  $('.whosel').hidden = true;
-  $('.joinrow .hint').textContent = 'We only use this to welcome you and say when we meet.';
-  $$('.tabs a[data-tab=architecture]').forEach(a => a.hidden = true);
   $('#si-code').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); $('#si-pick button')?.focus(); } });
 
   const boot = () => {

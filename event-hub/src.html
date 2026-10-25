@@ -1,10 +1,12 @@
 <title>EBPG Event Hub</title>
+<!--PROTO-->
 <meta name="claude:viewport-fit-sides" content="cover">
+<!--/PROTO-->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Mono:wght@400;600&family=Atkinson+Hyperlegible+Next:wght@400;600;700&family=Young+Serif&display=swap">
 <style>
-/* Layout: one working screen. Event list on the left, the selected event's channels on the right; architecture lives on a second tab. */
+/* Layout: one working screen. Event list on the left, the selected event's channels on the right. */
 :root {
   --paper: #F1F3EA; --surface: #FAFBF5; --raised: #FFFFFF;
   --ink: #1B2A21; --ink-2: #4A5A4F; --ink-3: #737F75;
@@ -63,8 +65,11 @@ a { color: var(--fern); }
 .tabs a { text-decoration: none; color: var(--ink-2); font-weight: 700; font-size: 14px; padding: 7px 12px; border-radius: 999px; }
 .tabs a:hover { background: var(--fern-soft); color: var(--ink); }
 .tabs a[aria-current="page"] { background: var(--fern); color: var(--fern-ink); }
-.who { font-size: 13px; color: var(--ink-3); display: flex; align-items: center; gap: 6px; }
-.who i { width: 24px; height: 24px; border-radius: 50%; background: var(--lemon); color: #2A2208; font: 700 11px/24px var(--body); text-align: center; font-style: normal; }
+.who { font-size: 13px; color: var(--ink-2); display: flex; align-items: center; gap: 6px; min-width: 0; max-width: 100%; padding: 3px 10px 3px 3px; border-radius: 999px; border: 1px solid var(--line); background: var(--raised); white-space: nowrap; }
+.who .av { width: 24px; height: 24px; font-size: 10px; }
+.who > span:last-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.who b { color: var(--ink); }
+.vh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 @media (max-width: 640px) { .tabs { margin-left: 0; } }
 
 /* buttons, pills */
@@ -84,7 +89,9 @@ a { color: var(--fern); }
 .pill.off { background: transparent; color: var(--ink-3); border: 1px dashed var(--line-2); }
 .mode { font: 600 11px/1 var(--mono); letter-spacing: .04em; padding: 4px 6px; border-radius: 4px; border: 1px solid var(--line-2); color: var(--ink-3); white-space: nowrap; }
 .mode.auto { border-color: transparent; background: var(--fern-soft); color: var(--fern); }
+/*PROTO*/
 .sample { font: 600 11px/1 var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); border: 1px dashed var(--line-2); padding: 5px 8px; border-radius: 4px; white-space: nowrap; }
+/*/PROTO*/
 
 /* events page */
 main { padding-block: 24px 64px; }
@@ -340,8 +347,10 @@ legend { font-size: 13px; font-weight: 700; color: var(--ink-2); margin-bottom: 
 .addtask .rems input { accent-color: var(--fern); }
 .tsum { font-size: 13px; color: var(--ink-2); }
 /* team + permissions */
+/*PROTO*/
 .whosel { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--ink-3); }
 .whosel select { border: 1px solid var(--line-2); border-radius: 999px; padding: 5px 10px; background: var(--raised); font-size: 13px; font-weight: 700; color: var(--ink); }
+/*/PROTO*/
 .perm-note { font-size: 13px; color: var(--ink-3); padding: 8px 12px; border-radius: 10px; background: var(--paper); border: 1px dashed var(--line-2); }
 .team td, .team th { white-space: nowrap; }
 .team td:first-child { white-space: normal; min-width: 160px; }
@@ -524,9 +533,9 @@ legend { font-size: 13px; font-weight: 700; color: var(--ink-2); margin-bottom: 
 .doc #tasks-body { padding: 4px 14px 10px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); overflow-x: auto; }
 
 /* signed-out state */
-body.out .tabs, body.out .whosel, body.out #signout, body.out .lock span { display: none; }
+body.out .tabs, body.out .whosel, body.out .who, body.out #signout, body.out .lock span { display: none; }
 body:not(.out) #signin-top { display: none; }
-.topbtns { display: flex; gap: 8px; align-items: center; }
+.topbtns { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; min-width: 0; max-width: 100%; }
 body.out .topbtns { margin-left: auto; }
 
 /* landing */
@@ -595,9 +604,11 @@ body.out .topbtns { margin-left: auto; }
 .scard { width: min(440px, 100%); background: var(--surface); border: 1px solid var(--line); border-radius: 20px; box-shadow: var(--shadow); padding: 32px 28px; display: grid; gap: 16px; animation: up .6s cubic-bezier(.2, .7, .2, 1) both; }
 .scard > svg { width: 52px; height: 52px; }
 .scard h1 { font: 400 30px/1.1 var(--display); }
+/*PROTO*/
 .scard .gbtn { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--line-2); background: var(--raised); font-weight: 700; cursor: pointer; font-size: 15px; }
 .scard .gbtn:hover { border-color: var(--fern); }
 .scard .gbtn .g { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; background: var(--paper); font: 700 13px/1 var(--body); color: var(--water); }
+/*/PROTO*/
 .or { display: flex; align-items: center; gap: 10px; color: var(--ink-3); font-size: 13px; }
 .or::before, .or::after { content: ""; flex: 1; height: 1px; background: var(--line); }
 .pick { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
@@ -711,6 +722,7 @@ body.out .topbtns { margin-left: auto; }
 .combo-r .joined { grid-column: auto; }
 .combo-r .fld { color: var(--ink-2); }
 
+/*PROTO*/
 .optseg { margin-top: 12px; flex-wrap: wrap; }
 .optseg button { padding: 7px 14px; font-size: 14px; }
 
@@ -747,6 +759,7 @@ body.out .topbtns { margin-left: auto; }
 .steps li b::before { counter-increment: s; content: counter(s) ". "; color: var(--fern); }
 .steps li span { font-size: 14px; color: var(--ink-2); }
 .steps, .wk { padding: 0; margin: 0; }
+/*/PROTO*/
 .tbl { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; }
 table { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 640px; }
 th { text-align: left; font: 600 11px/1.2 var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); padding: 12px 14px; border-bottom: 1px solid var(--line-2); }
@@ -754,6 +767,7 @@ td { padding: 11px 14px; border-bottom: 1px solid var(--line); vertical-align: t
 tr:last-child td { border-bottom: 0; }
 td b { font-weight: 700; }
 td code, .code code { font: 400 13px/1.5 var(--mono); }
+/*PROTO*/
 .two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
 @media (max-width: 860px) { .two { grid-template-columns: 1fr; } }
 .card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 18px; min-width: 0; }
@@ -769,9 +783,21 @@ td code, .code code { font: 400 13px/1.5 var(--mono); }
 .wk li .eyebrow { color: var(--fern); }
 .wk li b { font-size: 15px; }
 .wk li span { font-size: 14px; color: var(--ink-2); }
+/*/PROTO*/
+/* help */
+.helpg { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr)); gap: 14px; align-items: start; }
+.helpg section { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 18px; display: grid; gap: 8px; min-width: 0; }
+.helpg h2 { font: 700 16px/1.3 var(--body); }
+.helpg p { color: var(--ink-2); }
+.helpg code { font: 600 13px/1.4 var(--mono); color: var(--ink); background: var(--paper); border: 1px solid var(--line); border-radius: 4px; padding: 1px 5px; overflow-wrap: anywhere; }
+.helpg .btn { justify-self: start; }
 .toast { position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%) translateY(16px); background: var(--ink); color: var(--paper); padding: 10px 16px; border-radius: 999px; font-weight: 700; font-size: 14px; opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; z-index: 60; max-width: calc(100% - 32px); text-align: center; }
 .toast.on { opacity: 1; transform: translateX(-50%) translateY(0); }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+/*PROTO*/
+/* class="live" marks what only the live hub shows (organizer code, Help, the signed-in chip). Kept last so it wins. */
+.live { display: none !important; }
+/*/PROTO*/
 </style>
 
 <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
@@ -792,8 +818,15 @@ td code, .code code { font: 400 13px/1.5 var(--mono); }
 <header class="top">
   <div class="wrap">
     <div class="lock"><svg><use href="#mark"/></svg><b>East Bay Permaculture Guild</b><span>Event Hub</span></div>
-    <nav class="tabs" aria-label="Sections"><a href="#events" data-tab="events">Events</a><a href="#team" data-tab="team">Team</a><a href="#materials" data-tab="materials">Templates</a><a href="#architecture" data-tab="architecture">How we'd build it</a></nav>
-    <label class="whosel"><span>Viewing as</span><select id="as" aria-label="Viewing as"></select></label><div class="topbtns"><button class="btn ghost sm" type="button" id="signout">Sign out</button><button class="btn primary sm" type="button" id="signin-top">Sign in</button></div>
+    <nav class="tabs" aria-label="Sections"><a href="#events" data-tab="events">Events</a><a href="#team" data-tab="team">Team</a><a href="#materials" data-tab="materials">Templates</a><a class="live" href="#help" data-tab="help">Help</a>
+<!--PROTO-->
+<a href="#architecture" data-tab="architecture">How we'd build it</a>
+<!--/PROTO-->
+</nav>
+<!--PROTO-->
+    <label class="whosel"><span>Viewing as</span><select id="as" aria-label="Viewing as"></select></label>
+<!--/PROTO-->
+    <div class="topbtns"><span class="who live" id="who"></span><button class="btn ghost sm" type="button" id="signout">Sign out</button><button class="btn primary sm" type="button" id="signin-top">Sign in</button></div>
   </div>
 </header>
 
@@ -845,7 +878,7 @@ td code, .code code { font: 400 13px/1.5 var(--mono); }
     <section class="lsec perm">
       <div><h2>What is permaculture?</h2>
       <p>An interdisciplinary design system for building resilient, efficient systems, practiced for millennia by Indigenous peoples around the world. Bill Mollison and David Holmgren later wrote its principles down. It's used in farming, forestry, architecture, community development, education and the home.</p></div>
-      <blockquote>“Working with rather than against nature.”<cite>Bill Mollison, Permaculture: A Designers' Manual</cite></blockquote>
+      <blockquote>“Working with rather than against nature.”<cite>Bill Mollison</cite></blockquote>
     </section>
 
     <section class="lcta combo" id="join">
@@ -861,7 +894,11 @@ td code, .code code { font: 400 13px/1.5 var(--mono); }
         <fieldset><legend>I'd like to help with</legend><div class="picks" id="vj-picks"></div></fieldset>
         <label class="fld">Anything else? <span class="hint" style="font-weight:400">optional</span><textarea id="vj-note" rows="2" placeholder="Skills, availability, languages you speak"></textarea></label>
         <p class="err" id="vj-err" hidden></p>
-        <div class="joinrow"><button class="btn primary lg" type="submit">Join the list</button><span class="hint">Prototype: sign-ups stay in this browser tab.</span></div>
+        <div class="joinrow"><button class="btn primary lg" type="submit">Join the list</button>
+<!--PROTO-->
+<span class="hint">Prototype: sign-ups stay in this browser tab.</span>
+<!--/PROTO-->
+<span class="hint live">We only use this to welcome you and tell you when we meet.</span></div>
       </form>
       <div class="joined" id="joined" hidden></div>
       </div>
@@ -873,12 +910,18 @@ td code, .code code { font: 400 13px/1.5 var(--mono); }
     <div class="scard" role="form" aria-labelledby="si-t">
       <svg><use href="#mark"/></svg>
       <div><h1 id="si-t">Welcome back</h1><p class="muted">Sign in to the Guild's event hub.</p></div>
+<!--PROTO-->
       <button class="gbtn" type="button" id="si-google"><span class="g">G</span>Continue with Google</button>
       <div class="or">or choose who you are</div>
-      <label class="fld" id="si-codew" hidden>Organizer code<input id="si-code" type="password" autocomplete="off"></label>
+<!--/PROTO-->
+      <label class="fld live" id="si-codew">Organizer code<input id="si-code" type="password" autocomplete="off"></label>
       <p class="err" id="si-err" hidden></p>
-      <div class="pick" id="si-pick"></div>
+      <div class="or live" id="si-then">then choose who you are</div>
+      <div class="pick" id="si-pick" aria-label="Who are you?" role="group"></div>
+<!--PROTO-->
       <p class="demo">Prototype sign-in. No password, nothing is saved.</p>
+<!--/PROTO-->
+      <p class="demo live">Ask the lead organizer for the code.</p>
       <button class="tog" type="button" id="si-back" style="justify-self:center">← Back to the home page</button>
     </div>
   </div>
@@ -887,7 +930,11 @@ td code, .code code { font: 400 13px/1.5 var(--mono); }
   <div id="p-events" data-page="events">
     <div class="pagehead">
       <div><h1>Events</h1><p>Plan it, share the jobs, approve where it goes.</p></div>
-      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span class="sample">Real OPC plans · sample contacts</span><button class="btn primary" type="button" id="new-ev"><svg><use href="#i-plus"/></svg>New event</button></div>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+<!--PROTO-->
+<span class="sample">Real OPC plans · sample contacts</span>
+<!--/PROTO-->
+<button class="btn primary" type="button" id="new-ev"><svg><use href="#i-plus"/></svg>New event</button></div>
     </div>
     <div id="attn"></div>
     <div class="tilebar"><div class="seg" role="group" aria-label="Show"><button type="button" data-when="up" aria-pressed="true">Upcoming</button><button type="button" data-when="past" aria-pressed="false">Past</button></div><span class="hint">Click an event to open it.</span></div>
@@ -902,7 +949,11 @@ td code, .code code { font: 400 13px/1.5 var(--mono); }
 
   <!-- ============ TEAM ============ -->
   <div id="p-team" data-page="team" hidden>
-    <div class="pagehead"><div><h1>Team</h1><p>Who organizes, who helps, and what each person can do.</p></div><span class="sample">Sample data</span></div>
+    <div class="pagehead"><div><h1>Team</h1><p>Who organizes, who helps, and what each person can do.</p></div>
+<!--PROTO-->
+<span class="sample">Sample data</span>
+<!--/PROTO-->
+</div>
     <div class="roles">
       <div><b>Lead organizer</b><span>Everything, including the team.</span></div>
       <div><b>Co-organizer</b><span>Signs in. Can do what you tick.</span></div>
@@ -910,7 +961,11 @@ td code, .code code { font: 400 13px/1.5 var(--mono); }
     </div>
     <div id="team-note"></div>
     <div class="tbl"><table class="team" id="team-tbl"></table></div>
-    <h2 style="font-size:26px;margin:36px 0 6px">Volunteer list</h2><p class="muted" style="margin-bottom:12px">People who signed up on the home page. <span class="sample">Sample + this tab's sign-ups</span></p>
+    <h2 style="font-size:26px;margin:36px 0 6px">Volunteer list</h2><p class="muted" style="margin-bottom:12px">People who signed up on the home page.
+<!--PROTO-->
+<span class="sample">Sample + this tab's sign-ups</span>
+<!--/PROTO-->
+</p>
     <div class="tbl"><table class="team" id="vol-tbl"></table></div>
     <form class="addp" id="addp" novalidate>
       <label class="fld">Name<input id="ap-name" placeholder="Name"></label>
@@ -924,7 +979,11 @@ td code, .code code { font: 400 13px/1.5 var(--mono); }
 
   <!-- ============ MATERIALS ============ -->
   <div id="p-materials" data-page="materials" hidden>
-    <div class="pagehead"><div><h1>Templates</h1><p>On-brand flyers and posts, filled in from each event.</p></div><span class="sample">Stand-in photos</span></div>
+    <div class="pagehead"><div><h1>Templates</h1><p>On-brand flyers and posts, filled in from each event.</p></div>
+<!--PROTO-->
+<span class="sample">Stand-in photos</span>
+<!--/PROTO-->
+</div>
     <div class="msec">
       <div class="msec-h"><h2>For an event</h2><label class="mats-h" style="gap:8px"><span class="hint">Event</span><select id="m-ev" aria-label="Event to fill templates with"></select></label></div>
       <div class="mgal" id="m-event"></div>
@@ -940,6 +999,7 @@ td code, .code code { font: 400 13px/1.5 var(--mono); }
     </div>
   </div>
 
+<!--PROTO-->
   <!-- ============ ARCHITECTURE ============ -->
   <div id="p-architecture" data-page="architecture" class="arch" hidden>
     <section>
@@ -1275,6 +1335,38 @@ await supabase.from('volunteers').insert({
     </section>
   </div>
   </div>
+<!--/PROTO-->
+  <!-- ============ HELP (organizers) ============ -->
+  <div id="p-help" data-page="help" hidden>
+    <div class="pagehead"><div><h1>Help</h1><p>How the Event Hub works behind the scenes, in plain words.</p></div></div>
+    <div class="helpg">
+      <section aria-labelledby="hp-data">
+        <h2 id="hp-data">Where everything is saved</h2>
+        <p>Everything you do here is saved to the Guild's Google Sheet a moment after you change it. Each tab holds one kind of thing: Events, Bringing, Posts, Team, Volunteers, Activity and Gardens. Settings holds the organizer code and switches like <code>TEST_MODE</code> and <code>REMINDERS</code>.</p>
+        <div id="help-sheet"></div>
+      </section>
+      <section aria-labelledby="hp-code">
+        <h2 id="hp-code">Changing the organizer code</h2>
+        <p>Open the <b>Settings</b> tab of the Sheet and type a new code next to <code>ORGANIZER_CODE</code>. It works right away, and everyone signs in again with the new code, so tell the other organizers first.</p>
+      </section>
+      <section aria-labelledby="hp-test">
+        <h2 id="hp-test">Test mode</h2>
+        <p>While <code>TEST_MODE</code> on the Settings tab says TRUE, every email the hub sends goes only to the Sheet's owner, with the real recipient in the subject line. Calendar events go on the owner's own calendar. Nothing reaches the Google Group, the team or volunteers. Set it to FALSE to go live.</p>
+      </section>
+      <section aria-labelledby="hp-rem">
+        <h2 id="hp-rem">Reminders</h2>
+        <p>Everyone who's bringing something gets a reminder email from 6 PM the evening before, and again between 8 AM and noon on the day. People with only a phone number go on a list emailed to the host, so someone can text them. To pause reminders, set <code>REMINDERS</code> on the Settings tab to FALSE.</p>
+      </section>
+      <section aria-labelledby="hp-edit">
+        <h2 id="hp-edit">Fixing things in the Sheet</h2>
+        <p>You can change an event's title, date, times, place, host, co-hosts, description, notes or timeline, or who's bringing what, right in the Sheet. Your change shows up here the next time the page loads. Leave the last Events column, "data (don't edit)", as it is.</p>
+      </section>
+      <section aria-labelledby="hp-lead">
+        <h2 id="hp-lead">Who to ask</h2>
+        <p id="help-lead"></p>
+      </section>
+    </div>
+  </div>
 </main>
 
 <div class="modal" id="modal" hidden><div class="mbox" role="dialog" aria-modal="true" aria-labelledby="m-title">
@@ -1289,7 +1381,7 @@ await supabase.from('volunteers').insert({
 const iso = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
 const TODAY = window.EBPG_GAS ? iso(new Date()) : '2026-10-24';
 let ME = 'Jessie';
-let remote = null, sync = () => {}; // set by the live (Apps Script) build
+let remote = null, sync = () => {}, sheetUrl = ''; // set by the live (Apps Script) build
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -1335,6 +1427,15 @@ const can = k => !!person(ME)?.perms[k];
 const AVC = ['#F2C14E', '#A8C49A', '#9EC3D6', '#D9B79A', '#C9D9A6', '#E8B9A0'];
 const avatar = n => `<span class="av" style="background:${AVC[[...n].reduce((a, c) => a + c.charCodeAt(0), 0) % AVC.length]}" aria-hidden="true">${esc(n.split(' ').map(x => x[0]).join('').slice(0, 2))}</span>`;
 const NOPE = { create: 'You need "Create events"', edit: 'You need "Edit events"', approve: 'You need "Post"', tasks: 'You need "Assign tasks"', team: 'You need "Manage team"' };
+const CANT = { create: 'create events', edit: 'edit events', approve: 'post', tasks: 'assign tasks', team: 'manage the team' };
+const orList = a => a.length > 1 ? a.slice(0, -1).join(', ') + ' or ' + a[a.length - 1] : a[0] || '';
+const lead = () => TEAM.find(t => t.role === 'lead');
+// what this person can't do, in plain words, and who to ask
+function cantNote(p) {
+  const missing = PERMS.map(([k]) => k).filter(k => !p.perms[k]), l = lead();
+  if (!missing.length) return '';
+  return `You can't ${orList(missing.map(k => CANT[k]))}. Ask ${l && l.name !== p.name ? l.name.split(' ')[0] : 'the lead organizer'} if you need to.`;
+}
 
 /* tasks */
 const TASK_TYPES = [
@@ -1598,19 +1699,34 @@ function applyPerms() {
   gate('#plan-next', 'create', d);
   gate('#addrow input, #addrow button, [data-rmrow], [data-chk], [data-additem] input, [data-additem] button, #addarea input, #addarea button, #addsup input, #addsup button, [data-sup], [data-idea], #adddeb input, #adddeb button', 'edit', d);
   $$('[data-ta]', d).forEach(ta => { if (!can('approve')) ta.readOnly = true; });
-  const p = person(ME) || TEAM[0], missing = PERMS.filter(([k]) => !p.perms[k]).map(([, l]) => l);
-  const note = $('#perm-note');
+  const note = $('#perm-note'), msg = cantNote(person(ME) || TEAM[0]);
   if (note) note.remove();
-  if (missing.length) d.insertAdjacentHTML('afterbegin', `<div class="perm-note" id="perm-note">Viewing as ${esc(ME)} (${ROLE[p.role]}). Can't: ${missing.join(', ')}.</div>`);
+  if (msg) d.insertAdjacentHTML('afterbegin', `<div class="perm-note" id="perm-note">${esc(msg)}</div>`);
 }
 function renderAs() {
   if (!organizers().find(o => o.name === ME)) ME = TEAM[0].name;
+/*PROTO*/
   $('#as').innerHTML = organizers().map(o => `<option ${o.name === ME ? 'selected' : ''}>${esc(o.name)}</option>`).join('');
+/*/PROTO*/
+  const p = person(ME);
+  $('#who').innerHTML = p ? `${avatar(p.name)}<span><span class="vh">Signed in as </span><b>${esc(p.name)}</b> · ${esc(ROLE[p.role] || '')}</span>` : '';
 }
+/*PROTO*/
 $('#as').addEventListener('change', e => { ME = e.target.value; render(); renderTeam(); toast(`Viewing as ${ME}`); });
+/*/PROTO*/
+function renderHelp() {
+  const l = lead();
+  $('#help-sheet').innerHTML = /^https:/.test(sheetUrl)
+    ? `<a class="btn ghost sm" href="${esc(sheetUrl)}" target="_blank" rel="noopener">Open the Guild Sheet<svg aria-hidden="true"><use href="#i-out"/></svg></a>`
+    : '<p class="hint">Ask the Sheet owner for the link.</p>';
+  $('#help-lead').innerHTML = !l ? 'No lead organizer is set yet. Add one on the Team tab of the Sheet.'
+    : l.name === ME ? "You're the lead organizer, so you can add people to the team and change what each person can do. Organizers will ask you for the organizer code."
+    : `<b>${esc(l.name)}</b> is the lead organizer. Ask ${esc(l.name.split(' ')[0])} to add someone to the team, change what someone can do, or share the organizer code.`;
+}
 function renderTeam() {
   const edit = can('team');
-  $('#team-note').innerHTML = edit ? '' : `<div class="perm-note" style="margin-bottom:12px">Viewing as ${esc(ME)}. ${NOPE.team} to change the team.</div>`;
+  $('#team-note').innerHTML = edit ? '' : `<div class="perm-note" style="margin-bottom:12px">${esc(cantNote(person(ME) || TEAM[0]))}</div>`;
+  renderHelp();
   $('#team-tbl').innerHTML = `<thead><tr><th>Person</th><th>Role</th><th>Reminders</th>${PERMS.map(([, l]) => `<th class="c">${l}</th>`).join('')}<th></th></tr></thead><tbody>${TEAM.map((t, i) => {
     const lock = !edit || t.role === 'lead';
     return `<tr><td><span class="nm">${avatar(t.name)}<span><b>${esc(t.name)}</b><br>${t.contact ? `<span class="hint">${esc(t.contact)}</span>` : '<span class="warnchip">No contact yet</span>'}</span></span></td>
@@ -1668,9 +1784,12 @@ function renderTiles() {
     t.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } });
   });
 }
+let evLink = id => ''; // the live build links to its own page
+/*PROTO*/
 const ARTIFACT = 'https://claude.ai/artifact/EDjxHQH1WdzLnhMVGh6taL';
 const SEEDED = ['w2', 'w5', 'm1', 'w6', 'w7', 'm2'];
-let evLink = id => SEEDED.includes(id) ? ARTIFACT + '#ev-' + id : '';
+evLink = id => SEEDED.includes(id) ? ARTIFACT + '#ev-' + id : '';
+/*/PROTO*/
 const DETAIL = Object.assign(document.createElement('div'), { id: 'detail', className: 'detail' });
 function openEvent(id, mode) {
   S.sel = id; S.mode = mode;
@@ -1701,7 +1820,9 @@ $('#modal').addEventListener('click', e => { if (e.target.id === 'modal') closeE
 $('#ev-back').addEventListener('click', () => { DETAIL.remove(); S.mode = null; showTab('events'); history.replaceState(null, '', '#events'); render(); });
 $('#ev-copy').addEventListener('click', async () => {
   const link = evLink(S.sel);
+/*PROTO*/
   if (!link) { toast('This prototype event only lives in this tab, so it has no link yet.'); return; }
+/*/PROTO*/
   try { await navigator.clipboard.writeText(link); toast('Link copied'); } catch { toast(link); }
 });
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#modal').hidden && !$('#scrim')) closeEvent(); });
@@ -1920,7 +2041,9 @@ function bindDetail(ev) {
       case 'post':
         if (ch.mode === 'copy') { try { await navigator.clipboard.writeText(p.text); toast(`Copied. Paste it on ${ch.name}.`); } catch { toast(`Open the text and copy it for ${ch.name}.`); } ev.log.push([nowStamp(), `${ME} posted to ${ch.name}`]); }
         else if (remote) { b.disabled = true; try { toast(await remote.post(ev, id)); } catch (er) { b.disabled = false; toast(er.message); return; } ev.log.push([nowStamp(), `${ME} posted to ${ch.name}`]); }
+/*PROTO*/
         else { ev.log.push([nowStamp(), `${ME} posted to ${ch.name} (simulated)`]); toast(`Posted to ${ch.name} (simulated)`); }
+/*/PROTO*/
         p.status = 'posted'; p.by = ME; p.open = false; break;
       case 'copy': try { await navigator.clipboard.writeText(p.text); toast('Copied. Paste it on ' + ch.name + '.'); } catch { p.open = true; renderDetail(); const ta = $(`#ta-${ev.id}-${id}`); ta?.focus(); ta?.select(); toast('Text selected. Press Ctrl+C or Cmd+C to copy.'); } return;
       case 'mark': p.status = 'posted'; ev.log.push([nowStamp(), `${ME} marked ${ch.name} posted`]); toast(`${ch.name} marked as posted`); break;
@@ -2080,11 +2203,13 @@ function renderMaterials() {
 }
 $('#m-ev').addEventListener('change', renderMaterials);
 
+/*PROTO*/
 /* build options */
 $$('[data-opt]').forEach(b => b.addEventListener('click', () => {
   $$('[data-opt]').forEach(x => x.setAttribute('aria-pressed', x === b));
   $('#opt-a').hidden = b.dataset.opt !== 'a'; $('#opt-b').hidden = b.dataset.opt !== 'b';
 }));
+/*/PROTO*/
 
 /* landing + mock sign-in */
 const AUTH = {
@@ -2166,7 +2291,9 @@ function signOut() {
 document.addEventListener('click', e => { if (e.target.closest('[data-signin]')) { e.preventDefault(); goSignIn(); } });
 $('#signin-top').addEventListener('click', goSignIn);
 $('#signout').addEventListener('click', signOut);
+/*PROTO*/
 $('#si-google').addEventListener('click', () => signIn(TEAM.find(t => t.role === 'lead').name));
+/*/PROTO*/
 $('#si-back').addEventListener('click', () => { showTab('landing'); history.replaceState(null, '', '#welcome'); });
 $('.lock').style.cursor = 'pointer';
 $('.lock').addEventListener('click', () => { if (document.body.classList.contains('out')) { showTab('landing'); history.replaceState(null, '', '#welcome'); } else { showTab('events'); history.replaceState(null, '', '#events'); } });

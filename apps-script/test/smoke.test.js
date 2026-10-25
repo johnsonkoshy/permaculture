@@ -14,6 +14,9 @@ const { JSDOM, VirtualConsole } = require('jsdom');
 const { makeGas } = require('./gas-mock');
 
 const SITE = path.join(__dirname, '..', 'site', 'index.html');
+const ARTIFACT = path.join(__dirname, '..', '..', 'event-hub', 'src.html'); // the prototype artifact's source
+const PROTO_WORDS = /prototype|simulated|hackathon|claude\.ai|sample data|stand-in|Continue with Google|Viewing as|Weekend build plan|approveAndPublish/i;
+const FRIENDLY = 'Something went wrong. Please refresh the page. If it keeps happening, email the Guild.';
 const MISSING = 'site/index.html is missing. Build it first: cd apps-script && python3 build.py';
 const START = Date.UTC(2026, 9, 24, 17, 0); // 10:00 AM in Oakland
 const NOISE = /^Could not parse CSS stylesheet/; // jsdom's CSS parser lags behind browsers; not a page bug
@@ -69,16 +72,18 @@ function stub(w, g, api) {
   w.addEventListener('error', e => api.errors.push('page error: ' + ((e.error && e.error.stack) || e.message)));
 }
 
-/* load the built page in a fresh jsdom with a fresh mock Sheet, and wait for its first call to finish */
-async function openPage(t) {
-  assert.ok(fs.existsSync(SITE), MISSING);
+/* shown on screen: no hidden attribute and no display:none (from the page's CSS) on it or any parent */
+const onScreen = (w, el) => { for (; el && el.nodeType === 1; el = el.parentElement) if (el.hidden || w.getComputedStyle(el).display === 'none') return false; return true; };
+
+/* load a page in a fresh jsdom with a fresh mock Sheet */
+function loadPage(t, file, url) {
   const g = makeGas({ page: undefined, now: START });
   const api = { errors: [], calls: [], pending: 0, copied: [], opened: [], toasts: [] };
   const vc = new VirtualConsole();
   vc.on('error', (...a) => api.errors.push('console.error: ' + a.map(x => (x && x.stack) || String(x)).join(' ')));
   vc.on('jsdomError', e => { if (!NOISE.test(e.message)) api.errors.push('jsdom: ' + ((e.detail && e.detail.stack) || e.stack || e.message)); });
-  const dom = new JSDOM(fs.readFileSync(SITE, 'utf8'), {
-    runScripts: 'dangerously', pretendToBeVisual: true, url: 'http://localhost:8766/site', virtualConsole: vc,
+  const dom = new JSDOM(fs.readFileSync(file, 'utf8'), {
+    runScripts: 'dangerously', pretendToBeVisual: true, url, virtualConsole: vc,
     beforeParse: w => stub(w, g, api),
   });
   t.after(() => dom.window.close());
@@ -95,6 +100,7 @@ async function openPage(t) {
     $: s => d.querySelector(s),
     $$: s => [...d.querySelectorAll(s)],
     shown: s => { const el = d.querySelector(s); return !!el && !el.hidden; },
+    visible: s => onScreen(w, typeof s === 'string' ? d.querySelector(s) : s),
     idle: () => api.pending === 0,
     set(sel, v) { const el = d.querySelector(sel); assert.ok(el, sel + ' exists'); el.value = v; el.dispatchEvent(new w.Event('input', { bubbles: true })); el.dispatchEvent(new w.Event('change', { bubbles: true })); },
     code: () => (g.tab('Settings').find(r => r[0] === 'ORGANIZER_CODE') || [])[1],
@@ -103,22 +109,28 @@ async function openPage(t) {
       assert.deepEqual(api.toasts.filter(s => FAILED.test(s)), [], 'no failure messages on the page');
     },
   };
-  await waitFor(() => api.calls.includes('getPublic') && p.idle(), 4000, 'the page to load the public events');
+  return p;
+}
+/* the built Netlify page; waits for its first call to finish */
+async function openPage(t) {
+  assert.ok(fs.existsSync(SITE), MISSING);
+  const p = loadPage(t, SITE, 'http://localhost:8766/site');
+  await waitFor(() => p.api.calls.includes('getPublic') && p.idle(), 4000, 'the page to load the public events');
   return p;
 }
 
-/* type the code and pick the first organizer; returns the name picked */
-async function startSignIn(p, code) {
+/* type the code and pick an organizer (the first one unless named); returns the name picked */
+async function startSignIn(p, code, who) {
   p.$('#signin-top').click();
   await waitFor(() => p.shown('#p-signin'), 2000, 'the sign-in page');
-  assert.ok(p.shown('#si-codew'), 'the organizer code field is shown');
+  assert.ok(p.shown('#si-codew') && p.visible('#si-codew'), 'the organizer code field is shown');
   p.set('#si-code', code);
-  const first = await waitFor(() => p.$('#si-pick button[data-as]'), 2000, 'an organizer to pick');
-  first.click();
-  return first.dataset.as;
+  const pick = await waitFor(() => p.$(who ? `#si-pick button[data-as="${who}"]` : '#si-pick button[data-as]'), 2000, 'an organizer to pick');
+  pick.click();
+  return pick.dataset.as;
 }
-async function signIn(p) {
-  const name = await startSignIn(p, p.code());
+async function signIn(p, who) {
+  const name = await startSignIn(p, p.code(), who);
   await waitFor(() => p.shown('#p-events') && !p.d.body.classList.contains('out') && p.$('#tiles [data-open]'), 4000, 'the events page after sign-in');
   await waitFor(p.idle, 2000, 'sign-in calls to finish');
   return name;
@@ -136,7 +148,7 @@ test('landing page renders with upcoming events', async t => {
   assert.ok(cards.every(c => c.textContent.trim()), 'cards have text');
   assert.ok(p.$$('#nextup button').length >= 1, 'at least one upcoming Guild event from the event list');
   assert.ok(p.$$('#si-pick button[data-as]').length >= 1, 'organizers to sign in as');
-  assert.ok(!p.d.body.textContent.includes('Something broke'), 'no error bar');
+  assert.ok(!p.$('#err-bar') && !p.d.body.textContent.includes('Something went wrong'), 'no error bar');
   p.noErrors();
 });
 
@@ -270,5 +282,144 @@ test('the starter data is honest: drafts, open tasks, blank contacts, no sign-up
   assert.equal(p.$('#ap-name').placeholder, 'Name');
   assert.equal(p.$('#ap-contact').placeholder, 'Phone or email');
   await waitFor(p.idle, 2000, 'calls to finish');
+  p.noErrors();
+});
+
+/* ---------- the live page has no prototype-only content ---------- */
+test('the live page has none of the prototype wording; the artifact source keeps it', () => {
+  const live = fs.readFileSync(SITE, 'utf8');
+  assert.deepEqual(live.split('\n').filter(l => PROTO_WORDS.test(l)).map(l => l.trim().slice(0, 140)), [], 'lines with prototype wording');
+  assert.ok(!/PROTO(-->|\*\/)/.test(live), 'no PROTO markers left');
+  for (const id of ['p-architecture', 'si-google', 'as', 'opt-a']) assert.ok(!live.includes(`id="${id}"`), id + ' is not in the live page');
+  const src = fs.readFileSync(ARTIFACT, 'utf8');
+  for (const s of ["How we'd build it", 'Continue with Google', 'Prototype sign-in', 'Sample data', 'Stand-in photos', 'Viewing as', 'Weekend build plan', '(simulated)', 'claude.ai/artifact'])
+    assert.ok(src.includes(s), s + ' is still in the artifact');
+});
+
+test('the sign-in card asks only for the organizer code and who you are', async t => {
+  const p = await openPage(t);
+  p.$('#signin-top').click();
+  await waitFor(() => p.shown('#p-signin'), 2000, 'the sign-in page');
+  const card = p.$('#p-signin .scard'), seen = [...card.querySelectorAll('input, button, select, textarea, a')].filter(p.visible);
+  assert.deepEqual(seen.filter(el => el.tagName === 'INPUT').map(el => el.id), ['si-code']);
+  const buttons = seen.filter(el => el.tagName === 'BUTTON');
+  assert.ok(buttons.length > 1 && buttons.slice(0, -1).every(b => b.dataset.as), 'the name picker');
+  assert.equal(buttons.at(-1).id, 'si-back', 'and the way back');
+  assert.ok(!/google|prototype|nothing is saved/i.test(card.textContent), card.textContent);
+  assert.ok(p.visible('#si-then') && p.visible(card.querySelector('.demo')));
+  assert.match(card.textContent, /Ask the lead organizer for the code\./);
+  p.noErrors();
+});
+
+test("signed in as Phil: the chip, the four tabs, plain-words permissions and the Help page", async t => {
+  const p = await openPage(t);
+  assert.ok(!p.visible('#who') && !p.visible('.tabs'), 'no chip or tabs while signed out');
+  assert.equal(p.$('#help-sheet').textContent, 'Ask the Sheet owner for the link.', 'no Sheet link before sign-in');
+  await signIn(p, 'Phil');
+  assert.ok(p.visible('#who'), 'the chip is shown');
+  assert.equal(p.$('#who > span:last-child').textContent, 'Signed in as Phil · Co-organizer');
+  assert.equal(p.$('#who .vh').textContent, 'Signed in as ', 'the "Signed in as" part is for screen readers');
+  assert.equal(p.$('#who .av').textContent, 'P', 'with the avatar');
+  assert.equal(p.$('#who .av').getAttribute('aria-hidden'), 'true');
+  assert.deepEqual(p.$$('.tabs a').filter(p.visible).map(a => a.textContent), ['Events', 'Team', 'Templates', 'Help']);
+  const note = "You can't manage the team. Ask Jessie if you need to.";
+  assert.equal(p.$('#team-note').textContent, note);
+  p.$('#tiles [data-open]').click();
+  assert.equal((await waitFor(() => p.$('#detail #perm-note'), 2000, 'the permissions note')).textContent, note);
+  p.$('#m-x').click();
+
+  p.$('.tabs a[data-tab=help]').click();
+  assert.ok(p.visible('#p-help') && !p.visible('#p-events'), 'the Help page is shown');
+  assert.equal(p.$('.tabs a[aria-current=page]').textContent, 'Help');
+  const link = p.$('#help-sheet a');
+  assert.equal(link.textContent, 'Open the Guild Sheet');
+  assert.equal(link.href, 'https://docs.google.com/spreadsheets/d/sheet-1/edit');
+  assert.equal(link.target, '_blank');
+  assert.equal(link.rel, 'noopener');
+  const help = p.$('#p-help').textContent.replace(/\s+/g, ' ');
+  for (const s of ['ORGANIZER_CODE', 'Settings', 'TEST_MODE', 'goes only to the Sheet', '6 PM the evening before', 'between 8 AM and noon on the day', 'shows up here the next time the page loads'])
+    assert.ok(help.includes(s), s);
+  assert.match(p.$('#help-lead').textContent, /^Jessie is the lead organizer\. Ask Jessie/);
+
+  // signing out hides the chip; a co-organizer missing two permissions gets both in plain words
+  p.$('#signout').click();
+  assert.ok(p.d.body.classList.contains('out') && !p.visible('#who') && !p.visible('#p-help'), 'signed out');
+  await signIn(p, 'Kalynn');
+  assert.equal(p.$('#who > span:last-child').textContent, 'Signed in as Kalynn · Co-organizer');
+  p.$('#tiles [data-open]').click();
+  assert.equal((await waitFor(() => p.$('#detail #perm-note'), 2000, 'the permissions note')).textContent, "You can't post or manage the team. Ask Jessie if you need to.");
+  await waitFor(p.idle, 2000, 'calls to finish');
+  p.noErrors();
+});
+
+test('a script error shows the friendly bar with a Dismiss button, and the details go to the console', async t => {
+  const p = await openPage(t);
+  const fire = (message, filename = 'http://localhost:8766/site') => p.w.dispatchEvent(new p.w.ErrorEvent('error', { message, filename, lineno: 3, colno: 7 }));
+  fire('Script error.', '');
+  fire('ResizeObserver loop completed with undelivered notifications.');
+  fire('TypeError: x is undefined', 'chrome-extension://abcdefgh/content.js');
+  fire('TypeError: x is undefined', 'moz-extension://abcdefgh/content.js');
+  fire('TypeError: x is undefined', 'safari-extension://abcdefgh/content.js');
+  assert.ok(!p.$('#err-bar'), 'extension, cross-origin and ResizeObserver noise shows nothing');
+  assert.ok(!p.api.errors.some(e => /Event Hub error/.test(e)), 'and is not logged');
+
+  // a real error from page script
+  const s = p.d.createElement('script');
+  s.textContent = 'document.getElementById("no-such-thing").secretDetail = 1;';
+  p.d.body.appendChild(s);
+  const bar = await waitFor(() => p.$('#err-bar'), 2000, 'the error bar');
+  assert.equal(bar.getAttribute('role'), 'alert');
+  assert.equal(bar.querySelector('span').textContent, FRIENDLY);
+  assert.ok(!/secretDetail|null|TypeError|line/i.test(bar.textContent), 'no raw message: ' + bar.textContent);
+  assert.ok(p.api.errors.some(e => /^console\.error: Event Hub error: .*secretDetail/.test(e)), 'the details are in the console');
+  fire('Another one');
+  assert.equal(p.$$('#err-bar').length, 1, 'one bar at a time');
+  const dismiss = bar.querySelector('button');
+  assert.equal(dismiss.textContent, 'Dismiss');
+  dismiss.click();
+  assert.ok(!p.$('#err-bar'), 'Dismiss removes the bar');
+});
+
+test('the Netlify and Google-hosted pages use the same error script', () => {
+  const head = fs.readFileSync(SITE, 'utf8').match(/<script>([\s\S]*?)<\/script>/)[1];
+  const google = makeGas().ctx.doGet({ parameter: {} }).content.match(/^<script>([\s\S]*?)<\/script>/)[1];
+  const onErr = js => js.split('window.EBPG_GAS=')[0];
+  assert.ok(onErr(head).includes(FRIENDLY));
+  assert.equal(onErr(head), onErr(google), 'build.py on_err and Code.js ON_ERROR match');
+});
+
+/* ---------- the prototype artifact keeps working ---------- */
+test('the prototype artifact still runs with its own sign-in, Viewing as, architecture page and simulated posts', async t => {
+  const p = loadPage(t, ARTIFACT, 'http://localhost/artifact');
+  await waitFor(() => p.shown('#p-landing'), 2000, 'the artifact landing page');
+  assert.ok(p.d.body.classList.contains('out'));
+  p.$('#signin-top').click();
+  assert.ok(p.visible('#si-google'), 'Continue with Google');
+  assert.ok(!p.visible('#si-codew') && !p.visible('#si-then'), 'no organizer code field in the artifact');
+  assert.match(p.$('#p-signin').textContent, /Prototype sign-in\. No password, nothing is saved\./);
+  p.$('#si-google').click();
+  assert.ok(p.visible('#p-events') && !p.d.body.classList.contains('out'), 'signed in');
+  assert.ok(!p.visible('#who'), 'the artifact keeps its Viewing as select instead of the chip');
+  assert.deepEqual(p.$$('.tabs a').filter(p.visible).map(a => a.textContent), ['Events', 'Team', 'Templates', "How we'd build it"]);
+  assert.deepEqual(p.$$('#as option').map(o => o.textContent), ['Jessie', 'Phil', 'Kalynn', 'Sky']);
+  assert.ok(p.$$('.sample').filter(p.visible).length >= 1, 'the sample badges');
+
+  p.$('.tabs a[data-tab=architecture]').click();
+  assert.ok(p.visible('#p-architecture') && p.visible('#opt-a') && !p.visible('#opt-b'));
+  p.$('[data-opt=b]').click();
+  assert.ok(p.visible('#opt-b') && !p.visible('#opt-a'), 'the build options switch');
+
+  p.$('.tabs a[data-tab=events]').click();
+  p.$('#tiles [data-open="w7"]').click();
+  p.$('#detail [data-dtab="outreach"]').click();
+  p.$('#dp-out [data-act=post][data-ch=ggroup]').click();
+  await waitFor(() => p.api.toasts.includes('Posted to Google Group email (simulated)'), 2000, 'the simulated post');
+  p.$('#m-x').click();
+
+  p.set('#as', 'Kalynn');
+  await waitFor(() => p.api.toasts.includes('Viewing as Kalynn'), 2000, 'the Viewing as toast');
+  p.$('#tiles [data-open="w7"]').click();
+  assert.equal(p.$('#detail #perm-note').textContent, "You can't post or manage the team. Ask Jessie if you need to.");
+  assert.deepEqual(p.api.calls, [], 'the artifact calls no server');
   p.noErrors();
 });
