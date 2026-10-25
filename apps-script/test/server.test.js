@@ -46,7 +46,7 @@ test('first load makes every tab and the settings', () => {
   assert.ok(!out.content.includes('w7</script>'), 'deep link is escaped');
   assert.equal(g.ctx.getPublic().events.length, 0);
   g.ctx.doGet({ parameter: {} });
-  assert.equal(g.tab('Settings').length, 15, 'settings not duplicated on reload');
+  assert.equal(g.tab('Settings').length, 16, 'settings not duplicated on reload');
   assert.deepEqual(['SCHEDULE_TEXT', 'WORKDAY_SCHEDULE', 'LINKTREE_URL', 'CONTACT_EMAIL'].map(k => g.tab('Settings').find(r => r[0] === k)[1]), [
     'Garden work days at the Oakland Peace Center, plus community meetings with a potluck. Everyone is welcome, no experience needed.',
     '4th Sundays, 10 AM', 'https://linktr.ee/eastbaypermacultureguild', '']);
@@ -1300,6 +1300,20 @@ test('organizers add, change and remove gardens; a new or changed address is loo
   const post = (fn, args) => JSON.parse(g.ctx.doPost({ postData: { contents: JSON.stringify({ fn, args }) } }).content);
   assert.equal(post('saveGarden', [CODE, { name: 'Fruitvale plot', addr: '3301 E 12th St, Oakland' }]).value.garden.name, 'Fruitvale plot');
   assert.equal(post('deleteGarden', [CODE, 'Fruitvale plot']).value.gardens.length, 3);
+});
+
+test('only the lead organizer turns the Plants page on and off; signIn says which features are on', () => {
+  const g = seeded({ now: BEFORE });
+  assert.deepEqual(plain(g.ctx.signIn(CODE).features), { plants: false }, 'off to start');
+  assert.throws(() => g.ctx.setFeature('wrong', 'Jessie', 'plants', true));
+  assert.throws(() => g.ctx.setFeature(CODE, 'Phil', 'plants', true), /Only the lead organizer/);
+  assert.throws(() => g.ctx.setFeature(CODE, 'Jessie', 'nope', true), /isn't a feature/);
+  assert.throws(() => g.ctx.setFeature(CODE, 'Jessie', 'plants', 'yes'), /on or off/);
+  assert.deepEqual(plain(g.ctx.setFeature(CODE, ' jessie ', 'plants', true)), { plants: true });
+  assert.equal(g.tab('Settings').find(r => r[0] === 'PLANTS_PAGE')[1], 'TRUE');
+  assert.deepEqual(plain(g.ctx.signIn(CODE).features), { plants: true });
+  assert.deepEqual(plain(g.ctx.setFeature(CODE, 'Jessie', 'plants', false)), { plants: false });
+  assert.equal(plain(g.ctx.getPublic()).settings.PLANTS_PAGE, undefined, 'not on the public page');
 });
 
 /* ---------- the Channels tab: which channels the Guild uses, their links, and what new events start with ---------- */

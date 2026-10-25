@@ -7,3 +7,5 @@ field-kit/index.html
 apps-script/dist/
 apps-script/site/
 chrome-extension/dist/
+# demo recordings (too big for git)
+demo/*.mp4

@@ -365,6 +365,7 @@ if (window.EBPG_GAS) {
     if (st.vols) VOLS.splice(0, VOLS.length, ...vols(st.vols));
     if (Array.isArray(st.gardens)) { takeGardens(st.gardens); baseGardens = JSON.stringify(st.gardens); }
     takePlants(st.plants || []); basePlants = JSON.stringify(st.plants || []);
+    if (st.features && typeof st.features === 'object') Object.keys(FEATURES).forEach(k => { FEATURES[k] = !!st.features[k]; });
     problems = st.problems || []; // only signIn and seed send these, so the public page never has any
     taskSeq = Math.max(taskSeq, ...EVENTS.flatMap(e => e.tasks.map(t => +String(t.id).replace(/\D/g, '') || 0)));
     EVENTS.forEach(e => { saved[keyOf(e)] = snapEv(e); });
@@ -461,6 +462,10 @@ if (window.EBPG_GAS) {
     if (vl) renderVols();
     if (pl) renderPlants();
     if (gd) { renderGardens(); renderMap(); }
+    // a feature switched on or off (from another tab, or in the Settings tab by hand)
+    if (st.features && typeof st.features === 'object' && !FEAT_BUSY.size && Object.keys(FEATURES).some(k => FEATURES[k] !== !!st.features[k])) {
+      Object.keys(FEATURES).forEach(k => { FEATURES[k] = !!st.features[k]; }); applyFeatures(); news = true;
+    }
     // the open event's Who lists, Ask links and reminder lines go by the team and the sign-ups
     if ((team || vl) && open && !openRedo && !S.editing && !typing()) renderDetail();
     status();
@@ -520,6 +525,18 @@ if (window.EBPG_GAS) {
     if (g !== gen) throw new Error('You signed out before the Guild Sheet answered.');
     if (out && Array.isArray(out.gardens)) baseGardens = JSON.stringify(out.gardens);
     return out;
+  };
+
+  /* ---------- features ----------
+     The lead organizer's switches on the Team page: setFeature answers with every feature as the Settings tab has it. */
+  featureCall = async (fn, by, key, on) => {
+    if (stale) throw new Error(STALE);
+    if (!live) throw new Error('Sign in again to change this.');
+    try { return await run(fn, code, by, key, on); }
+    catch (er) {
+      if (codeGone(er)) { staleCode(); throw new Error(STALE); }
+      throw er.net ? new Error("The Guild Sheet didn't answer. Try again in a minute.") : er;
+    }
   };
 
   /* ---------- test mode ----------

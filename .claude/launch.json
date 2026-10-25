@@ -4,20 +4,41 @@
     {
       "name": "event-hub-local",
       "runtimeExecutable": "env",
-      "runtimeArgs": ["PORT=8790", "node", "apps-script/test/dev-server.js"],
+      "runtimeArgs": [
+        "PORT=8790",
+        "node",
+        "apps-script/test/dev-server.js"
+      ],
       "port": 8790
     },
     {
       "name": "event-hub-team",
       "runtimeExecutable": "env",
-      "runtimeArgs": ["PORT=8792", "node", "apps-script/test/dev-server.js"],
+      "runtimeArgs": [
+        "PORT=8792",
+        "node",
+        "apps-script/test/dev-server.js"
+      ],
       "port": 8792
     },
     {
       "name": "event-hub-snapshot",
       "runtimeExecutable": "bash",
-      "runtimeArgs": ["-c", "cd /private/tmp/ebpg-preview/apps-script && PORT=8791 exec node test/dev-server.js"],
+      "runtimeArgs": [
+        "-c",
+        "cd /private/tmp/ebpg-preview/apps-script && PORT=8791 exec node test/dev-server.js"
+      ],
       "port": 8791
+    },
+    {
+      "name": "event-hub-join",
+      "runtimeExecutable": "env",
+      "runtimeArgs": [
+        "PORT=8793",
+        "node",
+        "apps-script/test/dev-server.js"
+      ],
+      "port": 8793
     }
   ]
 }

@@ -45,7 +45,10 @@ const DEFAULTS = [
   ['WORKDAY_SCHEDULE', '4th Sundays, 10 AM', 'When garden work days usually happen, in a few words.'],
   ['LINKTREE_URL', 'https://linktr.ee/eastbaypermacultureguild', "The Guild's Linktree, linked from the public page. Starts with https://."],
   ['CONTACT_EMAIL', '', 'An email address the public page can show for questions. Blank: none is shown.'],
+  ['PLANTS_PAGE', 'FALSE', 'TRUE: organizers see the Plants page (Adopt a plant) in the top menu. The lead organizer turns it on and off on the Team page.'],
 ];
+/* Pages the lead organizer turns on and off on the Team page (setFeature): the page's name -> its Settings row. */
+const FEATURES = { plants: 'PLANTS_PAGE' };
 // 'vol' is a member: on the team without signing in. Rows that still say Volunteer (the old name) read as members.
 const ROLES = { lead: 'Lead organizer', co: 'Co-organizer', vol: 'Member' };
 const PERM_KEYS = ['create', 'edit', 'approve', 'tasks', 'team'];
@@ -132,7 +135,7 @@ function moved_(to) {
    Only these functions can be called; each one checks the organizer code itself. */
 const API = { getPublic: getPublic, signIn: signIn, seed: seed, saveEvent: saveEvent, saveTeam: saveTeam, addVolunteer: addVolunteer, postTo: postTo,
   cancelEvent: cancelEvent, deleteEvent: deleteEvent, savePlant: savePlant, deletePlant: deletePlant, approveAdoption: approveAdoption, declineAdoption: declineAdoption,
-  saveGarden: saveGarden, deleteGarden: deleteGarden };
+  saveGarden: saveGarden, deleteGarden: deleteGarden, setFeature: setFeature };
 function doPost(e) {
   let out;
   try {
@@ -414,6 +417,27 @@ function deleteEvent(code, id) {
 function saveTeam(code, team) {
   check_(code);
   return writing_(() => { writeTeam_(team); return true; });
+}
+
+/* ---------- Features ----------
+   Which of FEATURES are on, as { plants: true, ... }. */
+function features_() {
+  const out = {};
+  Object.keys(FEATURES).forEach(k => { out[k] = on_(FEATURES[k]); });
+  return out;
+}
+/* Turn a page on or off. Only the lead organizer can: by is who pressed it, and must be the lead on the Team tab.
+   Returns every feature, as features_ reads them. */
+function setFeature(code, by, key, on) {
+  check_(code);
+  if (!Object.prototype.hasOwnProperty.call(FEATURES, key)) throw new Error("That isn't a feature the Event Hub has.");
+  if (typeof on !== 'boolean') throw new Error('Say on or off.');
+  return writing_(() => {
+    const lead = readTeam_().find(t => t.role === 'lead');
+    if (!lead || key_(lead.name) !== key_(by)) throw new Error('Only the lead organizer can turn features on or off.');
+    setSetting_(FEATURES[key], on ? 'TRUE' : 'FALSE');
+    return features_();
+  });
 }
 
 /* ---------- Gardens ----------
@@ -1424,6 +1448,7 @@ function readAll_() {
     gardens: readGardens_(),
     channels: readChannels_(),
     plants: readPlants_(problems),
+    features: features_(), // the lead's switches (seed answers with this too, so a first sign-in has them)
     problems: problems,
   };
 }

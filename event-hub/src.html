@@ -1153,6 +1153,13 @@ a.nxcard:hover { transform: translateY(-3px); box-shadow: var(--shadow); }
 .mpin .lab { order: 1; background: #fff; color: #1C3A2B; font: 700 12px/1.2 var(--body); padding: 5px 9px; border-radius: 999px; box-shadow: 0 4px 12px rgba(20, 35, 25, .2); white-space: nowrap; }
 .mpin:hover .dot, .mpin.on .dot { transform: rotate(-45deg) scale(1.15); background: var(--b-lemon); color: #1C3A2B; }
 .mpin::after { content: ""; position: absolute; bottom: -6px; width: 22px; height: 8px; border-radius: 50%; background: rgba(0, 0, 0, .18); z-index: -1; }
+.feat { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 12px; align-items: start; max-width: 760px; padding: 16px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
+.feat input { width: 20px; height: 20px; margin: 2px 0 0; accent-color: var(--fern); grid-row: span 2; }
+.feat input:disabled { cursor: not-allowed; }
+.feat b { display: flex; align-items: center; gap: 8px; font-size: 16px; }
+.feat b .ic { width: 16px; height: 16px; color: var(--fern); }
+.feat .hint { font-size: 14px; }
+.feat .perm-note, .feat .err { grid-column: 2; margin-top: 6px; }
 .gd-map { margin-bottom: 24px; max-width: 760px; }
 .gd-map .mpin { pointer-events: none; }
 .gdcard .plc-acts .btn, .gdcard .plc-acts .tog { text-decoration: none; }
@@ -1559,6 +1566,8 @@ td code, .code code { font: 400 13px/1.5 var(--mono); }
 <!--/PROTO-->
 </p>
     <div class="tbl"><table class="team" id="vol-tbl"></table></div>
+    <h2 class="h2i" style="font-size:26px;margin:36px 0 6px"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-wand"/></svg>Features</h2><p class="muted" style="margin-bottom:12px">Pages the lead organizer turns on for every organizer. Off, a page is out of the top menu; nothing on it is lost.</p>
+    <div id="feat"></div>
   </div>
 
   <!-- ============ PLANTS (Adopt a plant) ============ -->
@@ -2001,7 +2010,7 @@ await supabase.from('volunteers').insert({
       </section>
       <section aria-labelledby="hp-plants">
         <h2 id="hp-plants">Adopt a plant</h2>
-        <p>A newcomer adopts one plant, gets a reminder before each work day, and comes back to care for it. The <b>Plants</b> page lists the plants the Guild would like a neighbor to look after: add one with <b>Add a plant</b>, or type it into the <b>Plants</b> tab of the Sheet, where a row typed in by hand gets its number on the next sign-in. Pick a <b>Steward</b> and a <b>Backup</b> from the team or the people who signed up; the steward's email or phone is copied to the Plants tab. Adoption requests show first, with <b>Approve</b> and <b>Decline</b>.</p>
+        <p>The lead organizer turns the <b>Plants</b> page on or off under <b>Features</b> at the bottom of the Team page. A newcomer adopts one plant, gets a reminder before each work day, and comes back to care for it. The <b>Plants</b> page lists the plants the Guild would like a neighbor to look after: add one with <b>Add a plant</b>, or type it into the <b>Plants</b> tab of the Sheet, where a row typed in by hand gets its number on the next sign-in. Pick a <b>Steward</b> and a <b>Backup</b> from the team or the people who signed up; the steward's email or phone is copied to the Plants tab. Adoption requests show first, with <b>Approve</b> and <b>Decline</b>.</p>
         <p><b>Print tag</b> prints the plant's garden tag, 5 inches wide, with a QR code to the plant's own page. A plant's number is never given to another plant, so a printed tag always means its own plant. You need <b>Edit events</b> to change the plants; anyone signed in can print a tag.</p>
       </section>
       <section aria-labelledby="hp-edit">
@@ -2583,7 +2592,7 @@ function showTab(t) {
 $$('.tabs a').forEach(a => a.addEventListener('click', e => { e.preventDefault(); showTab(a.dataset.tab); history.replaceState(null, '', '#' + a.dataset.tab); window.scrollTo({ top: 0 }); }));
 
 /* render */
-function render() { renderProblems(); renderAttn(); renderTiles(); if ($('#detail')) renderDetail(); else applyPerms(); renderGardens(); sync(); }
+function render() { renderProblems(); renderAttn(); renderTiles(); if ($('#detail')) renderDetail(); else applyPerms(); renderGardens(); applyFeatures(); sync(); }
 function gate(sel, k, root = document) { $$(sel, root).forEach(el => { if (!can(k)) { el.disabled = true; el.title = NOPE[k]; el.setAttribute('aria-disabled', 'true'); if (el.tagName === 'A') { el.removeAttribute('href'); el.style.opacity = .4; } } }); }
 function applyPerms() {
   const d = $('#detail');
@@ -4328,6 +4337,58 @@ function renderMap() {
   $$('#glist [data-gl]').forEach(a => { const pin = $(`#gmap-art .mpin[data-g="${a.dataset.gl}"]`); a.addEventListener('mouseenter', () => pin?.classList.add('on')); a.addEventListener('mouseleave', () => pin?.classList.remove('on')); });
 }
 
+/* ---------- Features: pages the lead organizer turns on and off ----------
+   FEATURES says which are on. It comes with signing in (the Settings tab's PLANTS_PAGE); the switches are on the
+   Team page, and only the lead organizer can flip them (setFeature in Code.js checks too). Off, the page's tab and
+   its Help section go, and nothing on it is lost. */
+const FEATURES = { plants: false };
+const FEATURE_INFO = { plants: ['sprout', 'Plants (Adopt a plant)', 'A Plants page in the top menu: plants a newcomer can adopt, their stewards, adoption requests and printed plant tags.'] };
+let featureCall = () => Promise.reject(new Error("Features can't be changed here."));
+const FEAT_BUSY = new Set(), FEAT_ERR = new Map();
+function applyFeatures() {
+  const on = !!FEATURES.plants;
+  $('.tabs a[data-tab=plants]').hidden = !on;
+  $('#hp-plants').closest('section').hidden = !on;
+  if (!on && S.plForm) closePlantForm(true);
+  if (!on && !$('#p-plants').hidden) { showTab('events'); history.replaceState(null, '', '#events'); }
+  renderFeatures();
+}
+let featHTML = '';
+function renderFeatures() {
+  const me = person(ME), isLead = !!me && me.role === 'lead', l = lead();
+  const html = Object.keys(FEATURE_INFO).map(k => {
+    const [icon, name, what] = FEATURE_INFO[k], busy = FEAT_BUSY.has(k);
+    return `<label class="feat"><input type="checkbox" data-feat="${k}"${FEATURES[k] ? ' checked' : ''}${isLead && !busy ? '' : ' disabled'}><b>${ic(icon)}${esc(name)}</b><span class="hint">${esc(what)} ${FEATURES[k] ? 'On.' : 'Off.'}</span>`
+      + (isLead ? '' : `<span class="perm-note">${ic('lock')}<span>Only the lead organizer${l ? `, ${esc(firstName(l.name))},` : ''} can turn this on or off.</span></span>`)
+      + (FEAT_ERR.has(k) ? `<span class="err" role="alert">${esc(FEAT_ERR.get(k))}</span>` : '') + '</label>';
+  }).join('');
+  if (html === featHTML) return;
+  const f = document.activeElement?.dataset?.feat;
+  $('#feat').innerHTML = featHTML = html;
+  if (f) $(`#feat [data-feat="${f}"]`)?.focus();
+}
+$('#feat').addEventListener('change', async e => {
+  const k = e.target.dataset.feat;
+  if (!k || FEAT_BUSY.has(k)) return;
+  const on = e.target.checked;
+  FEAT_BUSY.add(k); FEAT_ERR.delete(k); renderFeatures();
+  let out = null;
+  try { out = await featureCall('setFeature', ME, k, on); }
+  catch (er) { FEAT_ERR.set(k, String((er && er.message) || "That didn't save. Try again.")); }
+  FEAT_BUSY.delete(k);
+  if (out) Object.assign(FEATURES, out);
+  applyFeatures();
+  if (out) toast(`${FEATURE_INFO[k][1]} is ${FEATURES[k] ? 'on: it\'s in the top menu now' : 'off: it\'s out of the top menu'}.`, 'check');
+});
+/*PROTO*/
+// the artifact has no Sheet: the lead's switch stays in this tab
+featureCall = async (fn, by, k, on) => {
+  if (person(by)?.role !== 'lead') throw new Error('Only the lead organizer can turn features on or off.');
+  FEATURES[k] = !!on;
+  return { ...FEATURES };
+};
+/*/PROTO*/
+
 /* ---------- the Gardens page ----------
    Organizers with "Edit events" add, change and take gardens off the map. Each change goes to the Sheet at once
    (saveGarden, deleteGarden in Code.js), which looks a new address up straight away and answers with every garden. */
@@ -4991,7 +5052,7 @@ const h = (location.hash || '').slice(1), pub = pubFromUrl();
 if (!user) { document.body.classList.add('out'); if (pub) showPubEvent(pub); else showTab(h === 'signin' ? 'signin' : 'landing'); }
 else if (h.startsWith('ev-') && EVENTS.find(e => e.id === h.slice(3))) openEvent(h.slice(3), 'page');
 else if (pub && EVENTS.find(e => e.id === pub)) openEvent(pub, 'page');
-else showTab(['architecture', 'materials', 'team', 'plants', 'gardens'].includes(h) ? h : 'events');
+else showTab(['architecture', 'materials', 'team', 'gardens', ...(FEATURES.plants ? ['plants'] : [])].includes(h) ? h : 'events');
 }
 })();
 </script>

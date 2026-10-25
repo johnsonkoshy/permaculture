@@ -94,7 +94,7 @@ const onScreen = (w, el) => { for (; el && el.nodeType === 1; el = el.parentElem
 /* load a page in a fresh jsdom with a fresh mock Sheet (or `sheet`, another page's mock, for a reload);
    before(w, g) runs before the page's scripts */
 function loadPage(t, file, url, before, sheet) {
-  const g = sheet || makeGas({ page: undefined, now: START, settings: { ORGANIZER_CODE: 'garden-test-2468' } }); // the code starts blank, so set one
+  const g = sheet || makeGas({ page: undefined, now: START, settings: { ORGANIZER_CODE: 'garden-test-2468', PLANTS_PAGE: 'TRUE' } }); // the code starts blank, so set one; the Plants page is on for its tests
   const api = { errors: [], calls: [], sent: [], done: [], out: {}, most: {}, latency: 0, fail: '', pending: 0, copied: [], opened: [], toasts: [], blobs: [], downloads: [] };
   const vc = new VirtualConsole();
   vc.on('error', (...a) => api.errors.push('console.error: ' + a.map(x => (x && x.stack) || String(x)).join(' ')));
@@ -548,7 +548,7 @@ test('the prototype artifact still runs with its own sign-in, Viewing as, archit
   p.$('#si-google').click();
   assert.ok(p.visible('#p-events') && !p.d.body.classList.contains('out'), 'signed in');
   assert.ok(!p.visible('#who'), 'the artifact keeps its Viewing as select instead of the chip');
-  assert.deepEqual(p.$$('.tabs a').filter(p.visible).map(a => a.textContent), ['Events', 'Team', 'Plants', 'Gardens', 'Flyers & posts', "How we'd build it"]);
+  assert.deepEqual(p.$$('.tabs a').filter(p.visible).map(a => a.textContent), ['Events', 'Team', 'Gardens', 'Flyers & posts', "How we'd build it"], 'Plants waits for the lead to turn it on');
   assert.deepEqual(p.$$('#as option').map(o => o.textContent), ['Jessie', 'Phil', 'Kalynn', 'Sky']);
   assert.ok(p.$$('.sample').filter(p.visible).length >= 1, 'the sample badges');
 
@@ -4605,6 +4605,14 @@ test('the prototype artifact: tasks take a status and a new volunteer from the h
 
 /* ---------- Adopt a plant: the Plants page ---------- */
 const NICK = 'Big' + ' Mama'; // typed in by the test: the page itself has no made-up plants
+// the lead's switch on the Team page
+function flipFeature(p, k) {
+  p.$('.tabs a[data-tab=team]').click();
+  const box = p.$(`#feat [data-feat="${k}"]`);
+  assert.ok(box && !box.disabled, 'the switch is there for the lead');
+  box.checked = !box.checked;
+  box.dispatchEvent(new p.d.defaultView.Event('change', { bubbles: true }));
+}
 const openPlants = p => { p.$('.tabs a[data-tab=plants]').click(); assert.ok(p.visible('#p-plants') && !p.visible('#p-events'), 'the Plants page is shown'); };
 const plantCardOf = (p, id) => p.$$('#pl-list [data-pl]').find(c => c.dataset.pl === id);
 const sheetPlant = (g, id) => { const [h, ...rows] = g.tab('Plants'), r = rows.find(x => x[0] === id); return r && Object.fromEntries(h.map((k, i) => [k, r[i] == null ? '' : r[i]])); };
@@ -4848,6 +4856,7 @@ test('the prototype artifact: Plants starts empty, takes a plant and a steward w
   await waitFor(() => p.shown('#p-landing'), 2000, 'the artifact landing page');
   p.$('#signin-top').click();
   p.$('#si-google').click();
+  flipFeature(p, 'plants');
   openPlants(p);
   assert.equal(p.$('#pl-list .nxnote > span').textContent, 'No plants yet. Add the first plant the Guild would like a neighbor to look after.');
   p.$('#pl-list [data-plact=add]').click();
@@ -4945,5 +4954,35 @@ test('the prototype artifact: Gardens takes a garden with no server', async t =>
   await waitFor(() => gardenCardOf(p, 'Dimond Park'), 2000, 'the card');
   assert.equal(p.$$('#glist li').length, 2);
   assert.deepEqual(p.api.calls, [], 'the artifact calls no server');
+  p.noErrors();
+});
+
+test('Features: Plants is out of the top menu until the lead organizer turns it on; others see the switch locked', async t => {
+  const p = await openPage(t, null, makeGas({ page: undefined, now: START, settings: { ORGANIZER_CODE: 'garden-test-2468' } }));
+  await signIn(p, 'Jessie');
+  const tabs = () => p.$$('.tabs a').filter(p.visible).map(a => a.dataset.tab);
+  assert.ok(!tabs().includes('plants'), 'off to start');
+  assert.equal(p.g.tab('Settings').find(r => r[0] === 'PLANTS_PAGE')[1], 'FALSE');
+  flipFeature(p, 'plants');
+  await waitFor(() => tabs().includes('plants') && p.idle(), 3000, 'the Plants tab');
+  assert.equal(p.g.tab('Settings').find(r => r[0] === 'PLANTS_PAGE')[1], 'TRUE');
+  assert.ok(p.api.toasts.includes("Plants (Adopt a plant) is on: it's in the top menu now."));
+  p.$('.tabs a[data-tab=plants]').click();
+  assert.ok(p.visible('#p-plants'));
+  // Phil (a co-organizer) sees it on, and can't flip it
+  p.$('#signout').click();
+  await waitFor(p.idle, 2000, 'signing out');
+  await signIn(p, 'Phil');
+  assert.ok(tabs().includes('plants'));
+  p.$('.tabs a[data-tab=team]').click();
+  assert.ok(p.$('#feat [data-feat=plants]').disabled && p.$('#feat [data-feat=plants]').checked);
+  assert.match(p.$('#feat .perm-note').textContent, /Only the lead organizer, Jessie, can turn this on or off/);
+  // turned off in the Settings tab by hand: the next read takes the tab away
+  const sh = p.g.sheets.get('Settings'), row = p.g.tab('Settings').findIndex(r => r[0] === 'PLANTS_PAGE') + 1;
+  sh.set(row, 2, 'FALSE');
+  p.$('#signout').click();
+  await waitFor(p.idle, 2000, 'signing out');
+  await signIn(p, 'Jessie');
+  assert.ok(!tabs().includes('plants'), 'off again');
   p.noErrors();
 });
