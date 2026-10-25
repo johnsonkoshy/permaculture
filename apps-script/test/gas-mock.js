@@ -67,7 +67,9 @@ class Sheet {
    settings: rows for the Settings tab before Code.js first runs, e.g. { ORGANIZER_CODE: 'garden-test-2468' }.
    The code starts blank (nobody can sign in), so a test that signs in sets one here.
    quota: emails left today (MailApp.getRemainingDailyQuota); change it later through g.mailbox.quota.
-   g.mailbox.fail(to, subject, n) can return an error message to make the nth sendEmail call throw. */
+   g.mailbox.fail(to, subject, n) can return an error message to make the nth sendEmail call throw.
+   g.geo.find(address) says where an address is ({ lat, lng }), or null for one Google can't find; every address
+   looked up is in g.geo.asked. g.geo.down = true makes the geocoder throw, as it does when it doesn't answer. */
 function makeGas({ page, now, url = 'http://localhost:8766/', activeUser = 'owner@example.com', settings, quota = 100 } = {}) {
   const sheets = new Map([['Sheet1', new Sheet('Sheet1')]]);
   if (settings) {
@@ -85,6 +87,7 @@ function makeGas({ page, now, url = 'http://localhost:8766/', activeUser = 'owne
   };
   const props = {}, cache = {};
   const mail = [], calendar = [], mailbox = { quota, fail: null, calls: 0 };
+  const geo = { find: () => ({ lat: 37.81, lng: -122.25 }), asked: [], down: false };
   const RealDate = Date;
   const clock = { now: now ? new RealDate(now).getTime() : null };
   class FakeDate extends RealDate {
@@ -170,11 +173,16 @@ function makeGas({ page, now, url = 'http://localhost:8766/', activeUser = 'owne
       createHtmlOutput: content => { const o = { content, setTitle: () => o, addMetaTag: () => o }; return o; },
     },
     ContentService: { MimeType: { JSON: 'application/json' }, createTextOutput: content => { const o = { content, setMimeType: t => { o.type = t; return o; } }; return o; } },
-    Maps: { newGeocoder: () => ({ geocode: () => ({ results: [{ geometry: { location: { lat: 37.81, lng: -122.25 } } }] }) }) },
+    Maps: { newGeocoder: () => ({ geocode: addr => {
+      geo.asked.push(addr);
+      if (geo.down) throw new Error('Service invoked too many times for one day: geocode.');
+      const loc = geo.find(addr);
+      return loc ? { status: 'OK', results: [{ geometry: { location: loc } }] } : { status: 'ZERO_RESULTS', results: [] };
+    } }) },
   };
   vm.createContext(ctx);
   vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'dist', 'Code.js'), 'utf8'), ctx, { filename: 'Code.js' });
-  return { ctx, sheets, mail, mailbox, calendar, clock, cache, logs, tab: n => sheets.get(n).table() };
+  return { ctx, sheets, mail, mailbox, calendar, clock, cache, logs, geo, tab: n => sheets.get(n).table() };
 }
 
 module.exports = { makeGas };

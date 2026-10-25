@@ -76,7 +76,8 @@ if (window.EBPG_GAS) {
     return {
       id: ev.id, data,
       cols: { label: ev.label || '', title: ev.title, date: ev.date, start: ev.start, end: ev.end, place: ev.place, address: ev.address || '', host: hostOf(pl), cohosts: cohostsOf(pl).join(', '),
-        about: ev.about || '', bring: ev.bring || '', tags: ev.tags.join(', '), notes: (pl.notes || []).join('\n'), timeline: PT.timeline(pl) },
+        about: ev.about || '', bring: ev.bring || '', tags: ev.tags.join(', '), notes: (pl.notes || []).join('\n'), timeline: PT.timeline(pl),
+        status: ev.status || '', rsvp: ev.rsvp || '' }, // a blank status leaves the Sheet's as it is
       tasks: (tasks || []).map(t => ({ id: t.id, what: t.text, who: t.who || '', status: t.status || '', last: t.last || '' })),
       posts: CHANNELS.filter(c => posts[c.id] && posts[c.id].status !== 'off').map(c => {
         const q = posts[c.id];
@@ -93,7 +94,8 @@ if (window.EBPG_GAS) {
     const c = r.cols, ev = Object.assign({ tags: [], photo: 'trellis' }, r.data);
     ev.plan = Object.assign(BLANK_PLAN(), ev.plan || {});
     const pl = ev.plan;
-    Object.assign(ev, { id: c.id, label: c.label, title: c.title, date: c.date, start: c.start, end: c.end, place: c.place, address: c.address, about: c.about, bring: c.bring });
+    Object.assign(ev, { id: c.id, label: c.label, title: c.title, date: c.date, start: c.start, end: c.end, place: c.place, address: c.address, about: c.about, bring: c.bring,
+      status: c.status == null || c.status === '' ? 'published' : EV_STATUS[c.status] ? c.status : 'draft', rsvp: safeUrl(c.rsvp) }); // as the Sheet reads it: blank is published
     if (split(c.tags).join(',') !== ev.tags.join(',')) ev.tags = split(c.tags);
     // hand edits in the Sheet win; untouched cells keep the richer saved plan
     if (c.host !== hostOf(pl) || c.cohosts !== cohostsOf(pl).join(', ')) pl.roles = [['Host', c.host ? [c.host] : []], ['Co-hosts', split(c.cohosts).filter(n => n !== c.host)]];
@@ -112,6 +114,27 @@ if (window.EBPG_GAS) {
     });
     ev.log = r.log;
     return ev;
+  }
+  /* An event for the public page, from getPublic's public fields only (no plan notes, tasks, posts or activity):
+     just enough for the landing page's cards, with the rest left empty so nothing that draws an event trips on it. */
+  function fromPublic(e) {
+    const s = v => String(v ?? ''), host = s(e.host);
+    const ev = { id: s(e.id), series: s(e.type), num: 0, label: s(e.label), title: s(e.title), date: s(e.date), start: s(e.start), end: s(e.end),
+      place: s(e.place), address: s(e.address), map: safeUrl(e.map), about: s(e.about), bring: s(e.bring), tags: Array.isArray(e.tags) ? e.tags.map(s) : [],
+      photo: s(e.photo), host, status: 'published', rsvp: safeUrl(e.rsvp) };
+    ev.plan = Object.assign(BLANK_PLAN(), { roles: [['Host', host ? [host] : []]], timeline: (Array.isArray(e.timeline) ? e.timeline : []).map(r => [s(r && r[0]), s(r && r[1]), '']) });
+    ev.tasks = []; ev.log = []; ev.posts = {};
+    CHANNELS.forEach(ch => { ev.posts[ch.id] = { status: 'off', text: '', edited: false, ...NO_TRAIL, open: false }; });
+    return ev;
+  }
+  // signed out: the Sheet's public view. A Sheet nobody has signed in to yet (no team) keeps the Guild's starter events on show.
+  function loadPublic(st) {
+    if (!(st && (st.events?.length || st.team?.length))) return;
+    EVENTS.length = 0; (st.events || []).forEach(e => EVENTS.push(fromPublic(e)));
+    // names and roles only: what each person can do comes with signing in
+    if (st.team?.length) TEAM.splice(0, TEAM.length, ...st.team.map(t => ({ name: String(t.name ?? ''), role: ROLE[t.role] ? t.role : 'vol', contact: '', via: '', perms: allPerms(false) })));
+    if (st.gardens?.length) GARDENS.splice(0, GARDENS.length, ...st.gardens);
+    if (!EVENTS.find(e => e.id === S.sel)) S.sel = nextEvent()?.id;
   }
   const snapEv = ev => JSON.stringify(payload(ev));
   const snapTeam = () => JSON.stringify(TEAM.map(({ name, role, contact, via, perms }) => ({ name, role, contact, via, perms })));
@@ -504,6 +527,6 @@ if (window.EBPG_GAS) {
   };
   // show the page right away, then swap in what's in the Sheet (Apps Script can take a few seconds to wake up)
   boot();
-  run('getPublic').then(st => { if (live) return; load(st); render(); renderMaterials(); redrawLanding(); })
+  run('getPublic').then(st => { if (live) return; loadPublic(st); render(); renderMaterials(); redrawLanding(); })
     .catch(er => toast(er.net ? "Couldn't reach the Guild Sheet. Refresh the page to try again." : "Couldn't reach the Sheet: " + er.message));
 }

@@ -133,6 +133,11 @@ body.out .savest { display: none; }
 .pill.posted { background: var(--fern-soft); color: var(--fern); }
 .pill.test { background: var(--lemon-soft); color: var(--lemon-ink); border: 1px dashed var(--lemon-ink); cursor: help; }
 .pill.off { background: transparent; color: var(--ink-3); border: 1px dashed var(--line-2); }
+/* an event's status: Draft (only organizers see it) or Cancelled. Published needs no badge. */
+.pill.evs { display: inline-flex; align-items: center; gap: 5px; }
+.pill.evs .ic { width: 12px; height: 12px; vertical-align: 0; }
+.pill.ev-draft { background: var(--lemon-soft); color: var(--lemon-ink); }
+.pill.ev-cancelled { background: var(--flag-soft); color: var(--flag); }
 .mode { font: 600 11px/1 var(--mono); letter-spacing: .04em; padding: 4px 6px; border-radius: 4px; border: 1px solid var(--line-2); color: var(--ink-3); white-space: nowrap; }
 .mode.auto { border-color: transparent; background: var(--fern-soft); color: var(--fern); }
 /*PROTO*/
@@ -200,6 +205,7 @@ main { padding-block: 24px 64px; }
 .dh .fact .ic, .doc-kv .ic { width: 15px; height: 15px; color: var(--ink-3); }
 a .ic.out { width: 13px; height: 13px; margin-left: 3px; vertical-align: -1px; }
 .dh .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.dh .dk { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 2px; }
 .about { color: var(--ink-2); max-width: 70ch; }
 .tags { display: flex; gap: 6px; flex-wrap: wrap; }
 .tag { font-size: 12px; font-weight: 700; padding: 3px 9px; border-radius: 999px; background: var(--fern-soft); color: var(--ink); }
@@ -259,6 +265,18 @@ legend { font-size: 13px; font-weight: 700; color: var(--ink-2); margin-bottom: 
 .picks span { display: inline-flex; align-items: center; gap: 6px; padding: 6px 11px; border-radius: 999px; border: 1px solid var(--line-2); font-size: 13px; font-weight: 700; background: var(--raised); }
 .picks input:checked + span { background: var(--fern); border-color: var(--fern); color: var(--fern-ink); }
 .picks input:focus-visible + span { outline: 2.5px solid var(--lemon); outline-offset: 2px; }
+/* a segmented choice made of radio buttons (the edit form's Status): side by side, stacked on a phone */
+.segopts { display: inline-grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 3px; padding: 3px; max-width: 100%; border: 1px solid var(--line-2); border-radius: 12px; background: var(--raised); }
+.segopts label { position: relative; display: block; cursor: pointer; }
+.segopts input { position: absolute; inset: 0; margin: 0; opacity: 0; cursor: pointer; }
+.segopts span { display: flex; align-items: center; gap: 7px; height: 100%; padding: 8px 12px; border-radius: 9px; font-size: 13px; font-weight: 400; color: var(--ink-2); }
+.segopts span b { color: var(--ink); font-weight: 700; }
+.segopts input:checked + span { background: var(--fern); color: var(--fern-ink); }
+.segopts input:checked + span b { color: inherit; }
+.segopts em { font-style: normal; }
+.segopts input:focus-visible + span { outline: 2.5px solid var(--lemon); outline-offset: 2px; }
+@media (max-width: 560px) { .segopts { display: grid; grid-auto-flow: row; } }
+.stnote { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--ink-2); }
 .err { color: var(--flag); font-weight: 700; font-size: 14px; display: flex; gap: 8px; align-items: flex-start; }
 .err::before { content: ""; flex: none; width: 16px; height: 16px; margin-top: 2px; background: currentColor; -webkit-mask: var(--i-alert) center / contain no-repeat; mask: var(--i-alert) center / contain no-repeat; }
 .hint { font-size: 13px; color: var(--ink-3); }
@@ -549,6 +567,10 @@ legend { font-size: 13px; font-weight: 700; color: var(--ink-2); margin-bottom: 
 .nsave { display: none; position: absolute; top: 12px; right: 12px; z-index: 1; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; background: var(--raised); color: var(--flag); font-size: 12px; font-weight: 700; line-height: 1.3; box-shadow: var(--shadow); }
 .nsave i { width: 8px; height: 8px; border-radius: 50%; background: var(--flag); }
 .tile.unsaved .nsave { display: inline-flex; }
+/* Draft or Cancelled, over the tile's cover */
+.tstat { position: absolute; top: 12px; left: 12px; z-index: 1; display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 999px; background: var(--raised); color: var(--lemon-ink); font-size: 12px; font-weight: 700; line-height: 1.3; box-shadow: var(--shadow); }
+.tstat .ic { width: 13px; height: 13px; }
+.tstat.ev-cancelled { color: var(--flag); }
 .tbody { padding: 16px; display: grid; gap: 10px; align-content: start; }
 .trow { display: grid; grid-template-columns: 50px minmax(0, 1fr); gap: 12px; align-items: start; }
 .tile h3 { font: 400 20px/1.15 var(--display); }
@@ -1556,7 +1578,11 @@ await supabase.from('volunteers').insert({
       </section>
       <section aria-labelledby="hp-edit">
         <h2 id="hp-edit">Fixing things in the Sheet</h2>
-        <p>You can change an event's title, date, times, place, host, co-hosts, description, notes or timeline, or who's bringing what, right in the Sheet. Your change shows up here within two minutes, or as soon as you come back to this tab. An event with changes here that haven't been saved yet keeps those until they are. Leave the last Events column, "data (don't edit)", as it is.</p>
+        <p>You can change an event's title, date, times, place, host, co-hosts, description, notes or timeline, or who's bringing what, right in the Sheet. Your change shows up here within two minutes, or as soon as you come back to this tab. An event with changes here that haven't been saved yet keeps those until they are. Leave the hidden Events column, "data (don't edit)", as it is.</p>
+      </section>
+      <section aria-labelledby="hp-pub">
+        <h2 id="hp-pub">Drafts and the public page</h2>
+        <p>A new event starts as a <b>Draft</b>: only organizers see it, so you can plan it before anyone else does. When it's ready, click <b>Publish</b> at the top of the event, or pick <b>Published</b> in Edit event. Published events show on the public page from today on, with the RSVP link if you add one. In the Sheet, the Events tab's <code>status</code> column says <code>draft</code>, <code>published</code> or <code>cancelled</code>; a blank one counts as published. A change typed into the Sheet by hand can take up to 5 minutes to reach the public page.</p>
       </section>
       <section aria-labelledby="hp-lead">
         <h2 id="hp-lead">Who to ask</h2>
@@ -1679,6 +1705,12 @@ const PHOTOS = [['trellis', 'Garden work'], ['moat', 'Before the dig'], ['pantry
 const STATUS = { off: 'Not used', review: 'Draft · needs review', approved: 'Approved', posted: 'Posted', test: 'Test sent' };
 // it went out: posted, or (the Google Group and the Calendar, in test mode) sent only to the Sheet owner
 const isSent = p => p.status === 'posted' || p.status === 'test';
+// an event's status: a draft is for organizers only; a published event is on the public page from today on.
+// Cancelled is only shown for now (the Events tab's status column can say it).
+const EV_STATUS = { draft: 'Draft', published: 'Published', cancelled: 'Cancelled' };
+const onSite = ev => ev.status === 'published';
+const evPill = ev => ev.status === 'draft' ? `<span class="pill evs ev-draft">${ic('lock')}Draft<span class="vh">, only organizers see it</span></span>`
+  : ev.status === 'cancelled' ? `<span class="pill evs ev-cancelled">${ic('x')}Cancelled</span>` : '';
 // what makes the Calendar entry and the Group email out of date once they've gone out
 const WHEN_WHERE = ['title', 'date', 'start', 'end', 'place', 'address'];
 const whenWhere = ev => WHEN_WHERE.map(k => ev[k] || '').join('\n');
@@ -1769,6 +1801,7 @@ const area = (name, items) => ({ name, items: items.map(t => ({ text: t, done: f
 const EVENTS = [];
 // past events from the Guild's planning notes: no outreach on record, one log line saying where they came from
 function addEvent(ev) {
+  ev.status = ev.status || 'published'; ev.rsvp = ev.rsvp || '';
   ev.posts = makePosts(ev, []);
   ev.log = [[D(ev.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }), 'Imported from the Guild planning notes']];
   ev.tasks = (TASKS[ev.id] || []).map(([ty, tx, w, st]) => mkTask(ty, tx, w, st));
@@ -1873,7 +1906,7 @@ function planNext(src, date) {
   const same = EVENTS.filter(e => e.series === src.series);
   const num = Math.max(...same.map(e => e.num)) + 1;
   if (!date) { const d = D(src.date); d.setDate(d.getDate() + 28); date = d.toISOString().slice(0, 10); }
-  const ev = { ...JSON.parse(JSON.stringify({ ...src, posts: null, log: null, tasks: null })), id: src.series[0] + num + '-' + Date.now() % 10000, num, label: (src.series === 'workday' ? 'Workday #' : 'Community Meeting #') + num, date };
+  const ev = { ...JSON.parse(JSON.stringify({ ...src, posts: null, log: null, tasks: null })), id: src.series[0] + num + '-' + Date.now() % 10000, num, label: (src.series === 'workday' ? 'Workday #' : 'Community Meeting #') + num, date, status: 'draft', rsvp: '' };
   ev.plan = copyPlan(src.plan);
   const used = CHANNELS.filter(c => src.posts[c.id].status !== 'off').map(c => c.id);
   ev.posts = makePosts(ev, used.length ? used : USUAL_CHANNELS, 'review');
@@ -1884,7 +1917,7 @@ function planNext(src, date) {
 }
 // upcoming: drafted from the last ones, waiting for an organizer to review the posts and fill the tasks
 const w7 = planNext(EVENTS.find(e => e.id === 'w6'), '2026-10-25');
-w7.id = 'w7'; w7.about = 'Our monthly garden work day at the Oakland Peace Center. We pick up where Workday #6 left off, then share lunch and a short debrief. No experience needed.';
+w7.id = 'w7'; w7.status = 'published'; w7.about = 'Our monthly garden work day at the Oakland Peace Center. We pick up where Workday #6 left off, then share lunch and a short debrief. No experience needed.';
 CHANNELS.forEach(c => { w7.posts[c.id].text = draft(c.id, w7); });
 w7.tasks.push(mkTask('other', 'Make a parking sign', '', 'open'));
 
@@ -1915,7 +1948,7 @@ function applyPerms() {
   const d = $('#detail');
   $('#new-ev').disabled = !can('create'); $('#new-ev').title = can('create') ? '' : NOPE.create;
   if (!d) return;
-  gate('#edit-ev, #ph-pick, #add-ch', 'edit', d);
+  gate('#edit-ev, #publish-ev, #ph-pick, #add-ch', 'edit', d);
   gate('#appr-all, [data-act=approve], [data-act=post], [data-act=update], [data-act=again], [data-act=redraft], [data-act=copy], [data-act=mark], [data-act=undo], [data-mark] input, [data-mark] button', 'approve', d);
   gate('#nt-text, #nt-who, #nt-add, [data-tdel]', 'tasks', d);
   gate('#plan-next', 'create', d);
@@ -2005,7 +2038,7 @@ function renderAttn() {
     : `<div class="attn ok">${ic('check')}<span class="grow"><b>All posted.</b></span></div>`
   $('#jump')?.addEventListener('click', () => { S.dtab = 'outreach'; openEvent(next.id, 'modal'); });
 }
-const tileLabel = e => `Open ${e.title}, ${longDate(e.date)}${unsaved(e.id) ? '. Changes not saved yet' : ''}`;
+const tileLabel = e => `Open ${e.title}, ${longDate(e.date)}${e.status === 'draft' ? '. Draft, only organizers see it' : e.status === 'cancelled' ? '. Cancelled' : ''}${unsaved(e.id) ? '. Changes not saved yet' : ''}`;
 // flag the tiles of events whose last save failed, without redrawing them (so focus stays put)
 function markUnsaved() {
   $$('#tiles [data-open]').forEach(t => {
@@ -2020,6 +2053,7 @@ function renderTiles() {
     const d = D(e.date), c = counts(e), open = (e.tasks || []).filter(t => !t.who || t.status === 'cant').length;
     return `<article class="tile ${e.date < TODAY ? 'past' : ''} ${unsaved(e.id) ? 'unsaved' : ''}" tabindex="0" role="button" data-open="${esc(e.id)}" aria-label="${esc(tileLabel(e))}">
       <span class="nsave" aria-hidden="true"><i></i>Not saved</span>
+      ${EV_STATUS[e.status] && !onSite(e) ? `<span class="tstat ev-${esc(e.status)}" aria-hidden="true">${ic(e.status === 'draft' ? 'lock' : 'x')}${esc(EV_STATUS[e.status])}</span>` : ''}
       <div class="cover" aria-hidden="true">${igArt(e)}${flyerArt(e)}${storyArt(e)}</div>
       <div class="tbody"><div class="trow"><span class="cal"><span>${d.toLocaleDateString('en-US', { month: 'short' }).toUpperCase()}</span><b>${d.getDate()}</b></span>
         <div style="min-width:0">${e.label ? `<div class="lbl">${esc(e.label)}</div>` : ''}<h3>${esc(e.title)}</h3><div class="m">${d.toLocaleDateString('en-US', { weekday: 'short' })} · ${range(e.start, e.end)} · ${ic('map-pin')}${esc(e.place)}</div></div></div>
@@ -2101,8 +2135,8 @@ function renderDetail() {
   const open = (ev.tasks || []).filter(t => !t.who || t.status === 'cant').length;
   $('#detail').innerHTML = `
     <div class="hstrip" aria-label="Flyers and posts for this event">${MATS.map(([k, name, use, fn, icon]) => `<figure>${fn(ev)}<figcaption>${ic(icon)}<b>${name}</b> · ${use}</figcaption></figure>`).join('')}</div>
-    <div class="dh"><div><div class="eyebrow">${past ? 'Past event' : 'Upcoming'}</div><h2>${esc(ev.title)}</h2><div class="meta"><span class="fact">${ic('calendar')}${esc(longDate(ev.date))}</span><span class="fact">${ic('clock')}${t12(ev.start)}–${t12(ev.end)}</span><span class="fact">${ic('map-pin')}${esc(ev.place)}${safeUrl(ev.map) ? ` · <a href="${esc(safeUrl(ev.map))}" target="_blank" rel="noopener">Map${ic('out', 'out')}</a>` : ''}</span></div></div>
-      <div class="actions">${S.editing ? '' : `<button class="btn ghost sm" type="button" id="edit-ev">${ic('pencil')}Edit event</button>`}</div></div>
+    <div class="dh"><div><div class="dk"><span class="eyebrow">${past ? 'Past event' : 'Upcoming'}</span>${evPill(ev)}</div><h2>${esc(ev.title)}</h2><div class="meta"><span class="fact">${ic('calendar')}${esc(longDate(ev.date))}</span><span class="fact">${ic('clock')}${t12(ev.start)}–${t12(ev.end)}</span><span class="fact">${ic('map-pin')}${esc(ev.place)}${safeUrl(ev.map) ? ` · <a href="${esc(safeUrl(ev.map))}" target="_blank" rel="noopener">Map${ic('out', 'out')}</a>` : ''}</span></div></div>
+      <div class="actions">${S.editing ? '' : `${ev.status === 'draft' ? `<button class="btn primary sm" type="button" id="publish-ev" title="Put it on the public site">${ic('eye')}Publish</button>` : ''}<button class="btn ghost sm" type="button" id="edit-ev">${ic('pencil')}Edit event</button>`}</div></div>
     <div class="dtabs" role="tablist" aria-label="Event sections">
       <button type="button" role="tab" id="dt-plan" aria-selected="${S.dtab === 'plan'}" aria-controls="dp-plan" data-dtab="plan">${ic('file-text')}Event plan${open ? `<span class="n">${open} open</span>` : ''}</button>
       <button type="button" role="tab" id="dt-out" aria-selected="${S.dtab === 'outreach'}" aria-controls="dp-out" data-dtab="outreach">${ic('send')}Outreach${c.review + c.approved ? `<span class="n">${c.review + c.approved} to post</span>` : ''}</button>
@@ -2164,10 +2198,15 @@ function editHTML(ev) {
   const max = id => MAXLEN[id] ? ` maxlength="${MAXLEN[id]}"` : ''; // the Sheet keeps this much
   const f = (id, label, val, type = 'text', icon) => `<label class="fld">${lab(label, icon)}<input id="${id}" type="${type}" value="${esc(val || '')}"${max(id)}></label>`;
   const ta = (id, label, val, hint, rows = 4, icon) => `<label class="fld">${lab(label, icon)}${hint ? ` <span class="hint" style="font-weight:400">${hint}</span>` : ''}<textarea id="${id}" rows="${rows}"${max(id)}>${esc(val || '')}</textarea></label>`;
+  // Status: a cancelled event only says so here (there's no way to cancel or un-cancel from the page yet)
+  const status = ev.status === 'cancelled' ? `<p class="stnote">${evPill(ev)}<span>This event is cancelled, so it isn't on the public site.</span></p>`
+    : `<fieldset><legend>Status</legend><div class="segopts">${[['draft', 'lock', 'Draft', 'only organizers see it'], ['published', 'eye', 'Published', 'on the public site']].map(([k, icon, name, what]) =>
+      `<label><input type="radio" name="ed-status" value="${k}" ${(EV_STATUS[ev.status] ? ev.status : 'draft') === k ? 'checked' : ''}><span>${ic(icon)}<em><b>${name}:</b> ${what}</em></span></label>`).join('')}</div></fieldset>`;
   const btns = `<div class="grp"><button class="btn ghost sm" type="button" data-cancel>${ic('x')}Cancel</button><button class="btn primary sm" type="submit">${ev.isNew ? `${ic('plus')}Create event` : `${ic('check')}Save`}</button></div>`;
   return `<form class="doc editdoc" id="editf" novalidate>
     <div class="edit-h"><div class="doc-title">${ev.isNew ? 'New event' : 'Edit event'}</div>${btns}</div>
     ${ev.isNew ? `<label class="fld">${lab('Start from', 'copy')}<select id="ed-from"><option value="">Blank event</option>${EVENTS.filter(x => !x.isNew && x.plan).sort((a, b) => b.date.localeCompare(a.date)).map(x => `<option value="${esc(x.id)}" ${x.id === ev.copiedFrom ? 'selected' : ''}>Copy ${esc(x.label || x.title)} (${shortDate(x.date)})</option>`).join('')}</select></label>` : ''}
+    ${status}
     ${f('ed-title', 'Event name', ev.title)}
     <div class="r3">${f('ed-date', 'Date', ev.date, 'date', 'calendar')}${f('ed-start', 'Start', ev.start, 'time', 'clock')}${f('ed-end', 'End', ev.end, 'time', 'clock')}</div>
     <div class="r2">${f('ed-place', 'Venue', ev.place, 'text', 'map-pin')}${f('ed-address', 'Address', ev.address)}</div>
@@ -2179,6 +2218,7 @@ function editHTML(ev) {
     ${ta('ed-about', 'Description', ev.about, 'shown in Details and used in posts', 3)}
     <fieldset><legend>Tags</legend><div class="picks">${TAGS.map(([k, l]) => `<label><input type="checkbox" name="ed-tag" value="${k}" ${ev.tags.includes(k) ? 'checked' : ''}><span>${l}</span></label>`).join('')}</div></fieldset>
     ${f('ed-bring', 'What to bring', ev.bring, 'text', 'package')}
+    <label class="fld">${lab('RSVP link', 'link')} <span class="hint" style="font-weight:400">(optional, e.g. the Partiful event)</span><input id="ed-rsvp" type="url" inputmode="url" autocomplete="off" spellcheck="false" placeholder="https://" maxlength="2000" value="${esc(ev.rsvp || '')}"></label>
     <p class="err" id="ed-err" role="alert" hidden></p>
     <div class="edit-f">${btns}</div>
   </form>`;
@@ -2207,7 +2247,12 @@ function bindEdit(ev) {
     if (!v('ed-title')) return fail('Give the event a name.');
     if (!v('ed-date')) return fail('Pick a date.');
     if (v('ed-end') <= v('ed-start')) return fail('The end time needs to be after the start time.');
-    const was = whenWhere(ev);
+    const rsvp = v('ed-rsvp'), rIn = $('#ed-rsvp');
+    if (rsvp && !safeUrl(rsvp)) { rIn.setAttribute('aria-invalid', 'true'); rIn.setAttribute('aria-describedby', 'ed-err'); fail('Paste a link that starts with https://'); rIn.focus(); return; }
+    rIn.removeAttribute('aria-invalid'); rIn.removeAttribute('aria-describedby');
+    const was = whenWhere(ev), wasStatus = ev.status, pick = $('input[name=ed-status]:checked', form)?.value;
+    if (EV_STATUS[pick]) ev.status = pick;
+    ev.rsvp = safeUrl(rsvp);
     Object.assign(ev, { title: v('ed-title'), date: v('ed-date'), start: v('ed-start'), end: v('ed-end'), place: v('ed-place'), address: v('ed-address'), about: v('ed-about'), bring: v('ed-bring'), tags: $$('input[name=ed-tag]:checked').map(i => i.value).concat(ev.tags.filter(t => !TAGS.some(x => x[0] === t))) });
     const pl = ev.plan;
     pl.leadStart = v('ed-ls'); pl.leadEnd = v('ed-le');
@@ -2222,9 +2267,13 @@ function bindEdit(ev) {
     });
     const wasNew = !!ev.isNew; delete ev.isNew; S.editing = false;
     ev.log.push([nowStamp(), wasNew ? `${ME} created the event` : `${ME} edited the event`]);
+    const turned = ev.status !== wasStatus && (!wasNew || ev.status !== 'draft');
+    if (turned) ev.log.push([nowStamp(), ev.status === 'published' ? `${ME} published the event` : `${ME} made the event a draft`]);
     if (wasNew) S.when = ev.date >= TODAY ? 'up' : 'past';
     render(); renderMaterials();
-    whenSaved(() => toast(wasNew ? 'Event created. Posts are ready to go out.' : 'Saved', 'check'));
+    const draftNote = 'Only organizers can see it.';
+    whenSaved(() => toast(wasNew ? (ev.status === 'draft' ? 'Event created as a draft. ' + draftNote : 'Event created and published.')
+      : turned ? (ev.status === 'draft' ? 'Saved as a draft. ' + draftNote : "Saved and published. It's on the public site now.") : 'Saved', 'check'));
   });
 }
 function bindPlan(ev) {
@@ -2316,6 +2365,15 @@ function bindTasks(ev) {
 }
 function bindDetail(ev) {
   $('#edit-ev')?.addEventListener('click', () => { S.editing = true; S.dtab = 'plan'; renderDetail(); setTimeout(() => $('#ed-title')?.focus(), 20); });
+  // Publish: the draft goes on the public page (from today on), as soon as the Sheet has it
+  $('#publish-ev')?.addEventListener('click', () => {
+    if (!can('edit') || ev.status !== 'draft') return;
+    ev.status = 'published';
+    ev.log.push([nowStamp(), `${ME} published the event`]);
+    render(); renderMaterials();
+    $('#edit-ev')?.focus();
+    whenSaved(() => toast(ev.date >= TODAY ? "Published. It's on the public site now." : 'Published.', 'check'));
+  });
   bindEdit(ev);
   bindTasks(ev);
   bindPlan(ev);
@@ -2551,7 +2609,7 @@ function openDrawer(ev) {
   });
 }
 $('#new-ev').addEventListener('click', () => {
-  const ne = { id: 'n' + Date.now(), isNew: true, title: '', date: '2026-11-22', start: '10:00', end: '14:00', ...OPC, about: '', bring: 'water bottle, gloves if you have them', tags: ['beginner', 'tools'], host: ME, photo: 'trellis',
+  const ne = { id: 'n' + Date.now(), isNew: true, status: 'draft', rsvp: '', title: '', date: '2026-11-22', start: '10:00', end: '14:00', ...OPC, about: '', bring: 'water bottle, gloves if you have them', tags: ['beginner', 'tools'], host: ME, photo: 'trellis',
     plan: { leadStart: '09:00', leadEnd: '14:30', leadNote: '', roles: [['Event leads', [ME]]], pending: [], setup: [], supplies: [], food: null, timeline: [], icebreaker: '', questions: [], notes: [], areas: [], debrief: [] }, tasks: [], log: [] };
   ne.posts = makePosts(ne, ['partiful', 'luma', 'ggroup', 'calendar', 'facebook', 'instagram', 'chats'], 'review');
   EVENTS.push(ne); S.editing = true; S.dtab = 'plan'; openEvent(ne.id, 'modal');
@@ -2563,7 +2621,7 @@ function renderMaterials() {
   const up = EVENTS.slice().sort((a, b) => a.date.localeCompare(b.date));
   sel.innerHTML = up.map(e => `<option value="${esc(e.id)}" ${e.id === cur ? 'selected' : ''}>${esc(shortDate(e.date))} · ${esc(e.title)}</option>`).join('');
   const ev = EVENTS.find(e => e.id === sel.value) || up[0];
-  $('#m-event').innerHTML = MATS.map(m => matFig(ev, m).replace('mat wide', 'mat w2')).join('');
+  $('#m-event').innerHTML = ev ? MATS.map(m => matFig(ev, m).replace('mat wide', 'mat w2')).join('') : '<p class="hint">No events yet. Create one on the Events page.</p>';
 }
 $('#m-ev').addEventListener('change', renderMaterials);
 
@@ -2597,12 +2655,13 @@ function renderMap() {
   const Z = 1 << 14, X0 = 2627, Y0 = 6330, NX = 4, NY = 2;
   const tile = (lat, lng) => [(lng + 180) / 360 * Z, (1 - Math.log(Math.tan(lat * Math.PI / 180) + 1 / Math.cos(lat * Math.PI / 180)) / Math.PI) / 2 * Z];
   const link = g => `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(g.addr)}`;
-  const pins = GARDENS.map((g, i) => { const [tx, ty] = tile(g.lat, g.lng); const L = (tx - X0) / NX * 100, T = (ty - Y0) / NY * 100;
+  const pins = GARDENS.map((g, i) => { if (typeof g.lat !== 'number' || typeof g.lng !== 'number') return ''; // no map point yet: list only
+    const [tx, ty] = tile(g.lat, g.lng); const L = (tx - X0) / NX * 100, T = (ty - Y0) / NY * 100;
     if (!(L >= 0 && L <= 100 && T >= 0 && T <= 100)) return ''; // off the map tiles: list only
     return `<a class="mpin ${L > 70 ? 'left' : ''}" style="left:${L.toFixed(2)}%;top:${T.toFixed(2)}%" href="${link(g)}" target="_blank" rel="noopener" data-g="${i}" aria-label="${esc(g.name)}, open in Google Maps"><span class="dot">${i + 1}</span><span class="lab">${esc(g.name)}</span></a>`; }).join('');
   $('#gmap-art').innerHTML = `<div class="tiles"><i class="t2627-6330"></i><i class="t2628-6330"></i><i class="t2629-6330"></i><i class="t2630-6330"></i><i class="t2627-6331"></i><i class="t2628-6331"></i><i class="t2629-6331"></i><i class="t2630-6331"></i></div>${pins}<a class="attr" href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© OpenStreetMap contributors</a>`;
   $('#glist').innerHTML = GARDENS.map((g, i) => `<li><a href="${link(g)}" target="_blank" rel="noopener" data-gl="${i}"><span class="n">${i + 1}</span><span><b>${esc(g.name)}</b><span>${esc(g.addr.replace(', CA', ''))}</span><span>${esc(g.what)}</span><span class="go">Open in Google Maps${ic('out')}</span></span></a></li>`).join('');
-  $$('[data-gl]').forEach(a => { const pin = $(`.mpin[data-g="${a.dataset.gl}"]`); a.addEventListener('mouseenter', () => pin.classList.add('on')); a.addEventListener('mouseleave', () => pin.classList.remove('on')); });
+  $$('[data-gl]').forEach(a => { const pin = $(`.mpin[data-g="${a.dataset.gl}"]`); a.addEventListener('mouseenter', () => pin?.classList.add('on')); a.addEventListener('mouseleave', () => pin?.classList.remove('on')); });
 }
 const HELP = [['setup', 'Meeting setup'], ['workdays', 'Garden work days'], ['projects', 'Partner projects'], ['outreach', 'Outreach & photos'], ['teach', 'Teaching a skill']];
 const VOLS = []; // filled by sign-ups on the home page
@@ -2633,9 +2692,10 @@ function renderLanding() {
   const nm = nextSecondMonday(TODAY);
   const meetIso = `${nm.getFullYear()}-${String(nm.getMonth() + 1).padStart(2, '0')}-${String(nm.getDate()).padStart(2, '0')}`;
   const meetCard = `<a class="mcard" href="https://linktr.ee/eastbaypermacultureguild" target="_blank" rel="noopener"><span class="mtop"><span class="mday"><span>${nm.toLocaleDateString('en-US', { month: 'short' })}</span><b>${nm.getDate()}</b></span><span class="mk">Monthly meeting</span><b class="mt">Potluck, speakers and community</b></span><span class="nb"><b>Guild Monthly Meeting</b><span class="meta">${ic('calendar')}${esc(longDate(meetIso))} · 6:00 PM</span><span class="meta">${ic('map-pin')}Grace Room, Oakland Peace Center</span><span class="rsvp">Bring a dish to share. RSVP on Partiful${ic('out')}</span></span></a>`;
-  const nx = EVENTS.filter(e => !e.isNew && e.date >= TODAY).sort((a, b) => a.date.localeCompare(b.date));
-  const hero = nx[0] || EVENTS[0];
-  $('#hero-cards').innerHTML = flyerArt(hero).replace('art flyer', 'art flyer c1') + igArt(hero).replace('art ig', 'art ig c2') + storyArt(hero).replace('art story', 'art story c3');
+  // the public page: published events only, never a draft
+  const nx = EVENTS.filter(e => !e.isNew && e.date >= TODAY && onSite(e)).sort((a, b) => a.date.localeCompare(b.date));
+  const hero = nx[0];
+  $('#hero-cards').innerHTML = hero ? flyerArt(hero).replace('art flyer', 'art flyer c1') + igArt(hero).replace('art ig', 'art ig c2') + storyArt(hero).replace('art story', 'art story c3') : '';
   const evCards = nx.filter(e => e.series === 'workday').slice(0, 2).map(e => [e.date, `<button type="button" data-signin title="Organizers can sign in to see the plan">${igArt(e)}<span class="nb"><b>${esc(e.title)}</b><span class="meta">${ic('calendar')}${esc(longDate(e.date))} · ${t12(e.start)}</span><span class="meta">${ic('map-pin')}${esc(e.place)}</span></span></button>`]);
   $('#nextup').innerHTML = evCards.concat([[meetIso, meetCard]]).sort((a, b) => a[0].localeCompare(b[0])).map(x => x[1]).join('');
   $('#si-pick').innerHTML = organizers().map(o => `<button type="button" data-as="${esc(o.name)}">${avatar(o.name)}<span>${esc(o.name)}<small>${esc(ROLE[o.role] || '')}</small></span></button>`).join('');

@@ -1018,7 +1018,7 @@ test('values typed into the Sheet never become page markup: photos, links, names
   const ev = {
     id: 'w9',
     data: { id: 'w9', series: 'workday', num: 9, label: 'Workday #9', photo: 'trellis', tags: ['beginner'], map: 'https://maps.app.goo.gl/9jQkydC38eJrRScr6', plan: { roles: [['Host', ['Jessie']]], notes: [], timeline: [] } },
-    cols: { label: 'Workday #9', title: 'OPC Garden Work Party', date: '2026-10-31', start: '10:00', end: '14:00', place: 'Oakland Peace Center', address: '', host: 'Jessie', cohosts: '', about: 'Dig day.', bring: 'water', tags: 'beginner', notes: '', timeline: '' },
+    cols: { label: 'Workday #9', title: 'OPC Garden Work Party', date: '2026-10-31', start: '10:00', end: '14:00', place: 'Oakland Peace Center', address: '', host: 'Jessie', cohosts: '', about: 'Dig day.', bring: 'water', tags: 'beginner', notes: '', timeline: '', status: 'published' },
     tasks: [{ id: 't1', what: 'Plates', who: 'Jessie', status: 'asked' }],
     posts: [{ channel: 'partiful', status: 'review', by: '', text: 'Come dig', edited: false }],
     log: [],
@@ -1611,4 +1611,132 @@ test("the Outreach summary says Everything is posted only when it all went out f
   assert.equal(say(), `Everything is posted · ${copy.length + 2} posted`);
   await waitFor(p.idle, 2000, 'calls to finish');
   p.noErrors();
+});
+
+/* ---------- draft and published events, and the RSVP link ---------- */
+const evCell = (p, id, head) => { const t = p.g.tab('Events'); return (t.find(r => r[0] === id) || [])[t[0].indexOf(head)]; };
+const pubIds = p => JSON.parse(JSON.stringify(p.g.ctx.getPublic().events.map(e => e.id)));
+
+test('the starter events: past ones and Workday #7 are published, Community Meeting #2 is a draft with a Draft badge', async t => {
+  const p = await openPage(t);
+  await signIn(p, 'Jessie');
+  assert.deepEqual(Object.fromEntries(p.g.tab('Events').slice(1).map(r => [r[0], evCell(p, r[0], 'status')])),
+    { w2: 'published', w5: 'published', m1: 'published', w6: 'published', w7: 'published', m2: 'draft' });
+  assert.deepEqual(pubIds(p), ['w7'], 'the public page gets Workday #7, not the draft');
+  const m2 = p.$('#tiles [data-open="m2"]'), w7 = p.$('#tiles [data-open="w7"]');
+  assert.equal(m2.querySelector('.tstat').textContent, 'Draft');
+  assert.ok(m2.querySelector('.tstat use[href="#i-lock"]'), 'with a lock icon');
+  assert.match(m2.getAttribute('aria-label'), /\. Draft, only organizers see it$/);
+  assert.ok(!w7.querySelector('.tstat') && !/Draft/.test(w7.getAttribute('aria-label')), 'no badge on a published event');
+  m2.click();
+  await waitFor(() => p.$('#detail #dp-plan'), 2000, 'Community Meeting #2 to open');
+  assert.equal(p.$('#detail .dh .pill.ev-draft').textContent, 'Draft, only organizers see it');
+  const pub = p.$('#detail #publish-ev');
+  assert.ok(pub && !pub.disabled && pub.querySelector('use[href="#i-eye"]'), 'a Publish button with an icon');
+  assert.equal(pub.textContent, 'Publish');
+  checkIcons(p, 'a draft event');
+  await waitFor(p.idle, 2000, 'calls to finish');
+  p.noErrors();
+});
+
+test('Publish puts a draft on the public page, says so once the Sheet has it, and logs who did it', async t => {
+  const p = await openPage(t);
+  await signIn(p, 'Phil');
+  p.$('#tiles [data-open="m2"]').click();
+  const btn = await waitFor(() => p.$('#detail #publish-ev'), 2000, 'the Publish button');
+  btn.click();
+  assert.ok(!p.$('#detail #publish-ev') && !p.$('#detail .dh .pill.ev-draft'), 'the pill and the button go');
+  assert.equal(p.d.activeElement, p.$('#detail #edit-ev'), 'focus moves to Edit event');
+  assert.ok(!p.$('#tiles [data-open="m2"] .tstat'), 'the tile badge goes');
+  assert.ok(!p.api.toasts.some(s => /^Published/.test(s)), 'not said before the Sheet has it');
+  await waitFor(() => evCell(p, 'm2', 'status') === 'published', 3000, 'the status column to say published');
+  await waitFor(() => p.api.toasts.includes("Published. It's on the public site now."), 2000, 'the toast');
+  assert.ok(p.g.tab('Activity').some(r => r[0] === 'm2' && r[2] === 'Phil published the event'));
+  assert.deepEqual(pubIds(p), ['w7', 'm2'], 'the public page has it right away');
+  // signed out, the landing page uses only published events
+  p.$('#m-x').click();
+  p.$('#signout').click();
+  const q = await openPage(t, null, p.g);
+  assert.ok(q.shown('#p-landing'));
+  assert.ok(q.$$('#hero-cards .art').length === 3 && q.$$('#nextup button').length === 1, 'the next work day is on the landing page');
+  await waitFor(p.idle, 2000, 'calls to finish');
+  p.noErrors(); q.noErrors();
+});
+
+test("someone without Edit events sees the Draft pill but can't publish", async t => {
+  const p = await openPage(t);
+  await signIn(p, 'Sky'); // Sky can approve posts, not edit events
+  p.$('#tiles [data-open="m2"]').click();
+  const btn = await waitFor(() => p.$('#detail #publish-ev'), 2000, 'the Publish button');
+  assert.ok(btn.disabled && btn.getAttribute('aria-disabled') === 'true');
+  assert.equal(btn.title, 'You need "Edit events"');
+  btn.click();
+  await sleep(900);
+  assert.equal(evCell(p, 'm2', 'status'), 'draft');
+  await waitFor(p.idle, 2000, 'calls to finish');
+  p.noErrors();
+});
+
+test('the edit form: Status choice, and an RSVP link that must start with https://', async t => {
+  const p = await openPage(t);
+  await signIn(p, 'Jessie');
+  p.$('#tiles [data-open="w7"]').click();
+  (await waitFor(() => p.$('#detail #edit-ev'), 2000, 'the event')).click();
+  await waitFor(() => p.$('#editf'), 2000, 'the edit form');
+  const radios = p.$$('#editf input[name=ed-status]');
+  assert.deepEqual(radios.map(r => [r.value, r.checked, r.closest('label').textContent]), [['draft', false, 'Draft: only organizers see it'], ['published', true, 'Published: on the public site']]);
+  assert.equal(p.$('#editf fieldset legend').textContent, 'Status');
+  const rsvp = p.$('#ed-rsvp');
+  assert.equal(rsvp.closest('label').textContent, 'RSVP link (optional, e.g. the Partiful event)');
+  checkIcons(p, 'edit form with status');
+  // an http link is refused, and nothing is saved
+  p.set('#ed-rsvp', 'http://partiful.com/e/seedswap');
+  p.$('#editf button[type=submit]').click();
+  assert.equal(p.$('#ed-err').textContent, 'Paste a link that starts with https://');
+  assert.ok(p.shown('#ed-err') && p.$('#editf'), 'the form stays open');
+  assert.equal(p.d.activeElement, rsvp);
+  assert.equal(rsvp.getAttribute('aria-invalid'), 'true');
+  // a good link, and back to a draft
+  p.set('#ed-rsvp', 'https://partiful.com/e/seedswap');
+  radios[0].click();
+  p.$('#editf button[type=submit]').click();
+  await waitFor(() => !p.$('#editf'), 2000, 'the form to close');
+  assert.ok(p.$('#detail .dh .pill.ev-draft') && p.$('#detail #publish-ev'), 'the header says Draft and offers Publish');
+  await waitFor(() => evCell(p, 'w7', 'status') === 'draft' && evCell(p, 'w7', 'rsvp link') === 'https://partiful.com/e/seedswap', 3000, 'the Sheet');
+  await waitFor(() => p.api.toasts.includes('Saved as a draft. Only organizers can see it.'), 2000, 'the toast');
+  assert.deepEqual(p.g.tab('Activity').filter(r => r[0] === 'w7').slice(-2).map(r => r[2]), ['Jessie edited the event', 'Jessie made the event a draft']);
+  assert.deepEqual(pubIds(p), [], 'off the public page');
+  // published again from the form, with the link on the public page
+  (await waitFor(() => p.$('#detail #edit-ev'), 2000, 'the event')).click();
+  await waitFor(() => p.$('#editf'), 2000, 'the edit form');
+  assert.equal(p.$('#ed-rsvp').value, 'https://partiful.com/e/seedswap', 'the link is kept');
+  p.$$('#editf input[name=ed-status]')[1].click();
+  p.$('#editf button[type=submit]').click();
+  await waitFor(() => evCell(p, 'w7', 'status') === 'published', 3000, 'published again');
+  await waitFor(() => p.api.toasts.includes("Saved and published. It's on the public site now."), 2000, 'the toast');
+  assert.equal(p.g.ctx.getPublic().events[0].rsvp, 'https://partiful.com/e/seedswap');
+  await waitFor(p.idle, 2000, 'calls to finish');
+  p.noErrors();
+});
+
+test('a new event starts as a draft, and a Sheet with nothing published shows no events on the landing page', async t => {
+  const p = await openPage(t);
+  await signIn(p, 'Jessie');
+  p.$('#new-ev').click();
+  await waitFor(() => p.$('#editf #ed-title'), 2000, 'the new event form');
+  assert.deepEqual(p.$$('#editf input[name=ed-status]').map(r => r.checked), [true, false], 'Draft is picked');
+  p.set('#ed-title', 'Seed Swap');
+  p.$('#editf button[type=submit]').click();
+  await waitFor(() => p.api.toasts.includes('Event created as a draft. Only organizers can see it.'), 3000, 'the toast');
+  const id = p.g.tab('Events').find(r => r[2] === 'Seed Swap')[0];
+  assert.equal(evCell(p, id, 'status'), 'draft');
+  assert.ok(p.$(`#tiles [data-open="${id}"] .tstat`), 'its tile says Draft');
+  // Workday #7 made a draft by hand in the Sheet: a fresh visitor sees no events, and nothing breaks
+  p.g.sheets.get('Events').set(p.g.tab('Events').findIndex(r => r[0] === 'w7') + 1, p.g.tab('Events')[0].indexOf('status') + 1, 'draft');
+  p.g.ctx.saveTeam(p.code(), JSON.parse(JSON.stringify(p.g.ctx.signIn(p.code()).team))); // drops the cached public copy
+  const q = await openPage(t, null, p.g);
+  assert.deepEqual([q.$$('#hero-cards .art').length, q.$$('#nextup button').length], [0, 0], 'no draft on the landing page');
+  assert.ok(q.$$('#si-pick button[data-as]').length >= 1, 'organizers can still sign in');
+  await waitFor(p.idle, 2000, 'calls to finish');
+  p.noErrors(); q.noErrors();
 });

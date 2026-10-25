@@ -5,7 +5,7 @@
 /* Each tab's columns. The app finds a column by its header in row 1, not by its position, so a column
    moved or added by hand is fine. Add a new column only at the END of a list: ensure_ adds it to the Sheet. */
 const TABS = {
-  Events: ['id', 'label', 'title', 'date', 'start', 'end', 'place', 'address', 'host', 'co-hosts', 'description', 'bring', 'tags', 'notes', 'timeline', "data (don't edit)"],
+  Events: ['id', 'label', 'title', 'date', 'start', 'end', 'place', 'address', 'host', 'co-hosts', 'description', 'bring', 'tags', 'notes', 'timeline', "data (don't edit)", 'status', 'rsvp link'],
   Bringing: ['event id', 'what', 'who', 'status', 'task id', 'last time'],
   Posts: ['event id', 'channel', 'status', 'posted by', 'text', 'edited', 'approved by', 'approved at', 'posted at', 'post url', 'calendar id', 'stale'],
   Team: ['name', 'role', 'email or phone', 'reminders by', 'create events', 'edit events', 'post', 'assign tasks', 'manage team'],
@@ -26,6 +26,10 @@ const DEFAULTS = [
   ['SEEDED', '', 'Set to TRUE by the app after the first sign-in fills the Sheet. Leave it.'],
   ['REPLY_TO', '', "Where replies to the hub's emails go. Blank: the lead organizer's email on the Team tab."],
   ['MAIL_RESERVE', '30', 'Welcome and new-volunteer emails wait when fewer than this many emails are left for the day, so reminders can still go out.'],
+  ['SCHEDULE_TEXT', 'Garden work days at the Oakland Peace Center, plus community meetings with a potluck. Everyone is welcome, no experience needed.', 'The line on the public page about when the Guild gets together.'],
+  ['WORKDAY_SCHEDULE', '4th Sundays, 10 AM', 'When garden work days usually happen, in a few words.'],
+  ['LINKTREE_URL', 'https://linktr.ee/eastbaypermacultureguild', "The Guild's Linktree, linked from the public page. Starts with https://."],
+  ['CONTACT_EMAIL', '', 'An email address the public page can show for questions. Blank: none is shown.'],
 ];
 const ROLES = { lead: 'Lead organizer', co: 'Co-organizer', vol: 'Volunteer' };
 const PERM_KEYS = ['create', 'edit', 'approve', 'tasks', 'team'];
@@ -128,7 +132,7 @@ function resetStarterData() {
   const me = Session.getActiveUser().getEmail();
   if (!me || me !== owner_()) throw new Error('Run resetStarterData from the script editor.');
   ensure_();
-  return locked_(() => {
+  return writing_(() => {
     ['Events', 'Bringing', 'Posts', 'Activity', 'Volunteers', 'Reminders', 'Team', 'Gardens'].forEach(name => {
       blank_(name, 2, sheet_(name).getLastRow() - 1, true); // Team has checkboxes; columns added by hand are kept
     });
@@ -138,19 +142,87 @@ function resetStarterData() {
 }
 
 /* ---------- calls from the page ---------- */
+/* The public page's data, for anyone (no organizer code). An allow-list: published events from today on, each with
+   only the fields a visitor needs; the organizers' names and roles; the gardens; and four settings. Nothing from the
+   plan's notes, tasks, posts, activity or permissions. It reads only the Events, Team, Gardens and Settings tabs, and
+   keeps its answer in the script cache for 5 minutes; every organizer save drops that copy (see writing_). */
+const PUBLIC_KEY = 'public:v1', PUBLIC_GEN = 'public:gen', PUBLIC_MAX = 90 * 1024;
 function getPublic() {
+  const cache = CacheService.getScriptCache(), hit = cache.get(PUBLIC_KEY);
+  if (hit) { try { return JSON.parse(hit); } catch (e) { /* worked out again below */ } }
+  const gen = cache.get(PUBLIC_GEN);
   ensure_();
-  geocodeGardens_();
-  const st = readAll_();
+  const out = publicView_(), json = JSON.stringify(out);
+  // a save that started while this was reading the Sheet changed the generation, so an older copy is never kept
+  if (bytes_(json) <= PUBLIC_MAX && cache.get(PUBLIC_GEN) === gen) cache.put(PUBLIC_KEY, json, 300);
+  return out;
+}
+function publicView_() {
+  const today = today_(), set = {};
+  rows_('Settings').forEach(r => { if (!Object.prototype.hasOwnProperty.call(set, r[0])) set[r[0]] = String(r[1]).trim(); });
+  const when = c => c.date + ' ' + c.start;
   return {
-    events: st.events.map(r => {
-      const data = Object.assign({}, r.data);
-      if (data.plan) data.plan = Object.assign({}, data.plan, { notes: [], debrief: [] });
-      return { data: data, cols: Object.assign({}, r.cols, { notes: '' }), tasks: [], posts: {}, log: [] };
-    }),
-    team: st.team.filter(t => t.role !== 'vol').map(t => ({ name: t.name, role: t.role, contact: '', via: '', perms: t.perms })),
-    gardens: st.gardens,
+    events: readEvents_().filter(e => e.cols.status === 'published' && e.cols.date >= today)
+      .sort((a, b) => when(a.cols) < when(b.cols) ? -1 : when(a.cols) > when(b.cols) ? 1 : 0).map(pubEvent_),
+    team: readTeam_().filter(t => t.role !== 'vol').map(t => ({ name: t.name, role: t.role })),
+    gardens: readGardens_(),
+    // four settings only: the organizer code and the switches never leave the Sheet
+    settings: {
+      SCHEDULE_TEXT: short_(set.SCHEDULE_TEXT, 500),
+      WORKDAY_SCHEDULE: short_(set.WORKDAY_SCHEDULE, 120),
+      LINKTREE_URL: postUrl_(set.LINKTREE_URL),
+      CONTACT_EMAIL: /^[^\s@<>"']+@[^\s@<>"']+\.[^\s@<>"']+$/.test(set.CONTACT_EMAIL || '') ? short_(set.CONTACT_EMAIL, 120) : '',
+    },
   };
+}
+/* One event as the public sees it. Hand-typed cells are checked again here: a photo the page doesn't know is 'none',
+   and only https:// links get through. The host is a first name only. */
+function pubEvent_(e) {
+  const c = e.cols, d = e.data || {}, hm = t => /^\d{2}:\d{2}$/.test(t) ? t : '';
+  const out = {
+    id: c.id, label: short_(c.label, 80), title: short_(c.title, MAX_LEN.title), date: c.date, start: hm(c.start), end: hm(c.end),
+    place: short_(c.place, 200), address: short_(c.address, 300), about: short_(c.about, MAX_LEN.about), bring: short_(c.bring, MAX_LEN.bring),
+    tags: String(c.tags).split(',').map(t => t.trim().toLowerCase()).filter((t, i, all) => TAG_KEYS.indexOf(t) >= 0 && all.indexOf(t) === i),
+    photo: PHOTOS.indexOf(d.photo) >= 0 ? d.photo : 'none',
+    type: /^[a-z]{1,20}$/.test(String(d.series || '')) ? d.series : '',
+    host: short_(c.host, 60).split(/\s+/)[0],
+    timeline: pubTimeline_(d.plan, c.timeline),
+  };
+  const map = postUrl_(d.map);
+  if (map) out.map = map;
+  if (c.rsvp) out.rsvp = c.rsvp;
+  return out;
+}
+/* The timeline as [time, text] rows, leaving out the ones for the leads only ('Leads set up'). It's the plan's own,
+   unless the Sheet's timeline cell was changed by hand: then the cell, read the way the page reads it. */
+function pubTimeline_(plan, cell) {
+  const by = r => String(r[0]);
+  const rows = (plan && Array.isArray(plan.timeline) ? plan.timeline : []).filter(r => Array.isArray(r) && /^\d{2}:\d{2}$/.test(String(r[0])))
+    .sort((a, b) => by(a) < by(b) ? -1 : by(a) > by(b) ? 1 : 0);
+  const asText = rows.map(r => t12_(r[0]) + ' ' + r[1]).join('\n'), typed = String(cell == null ? '' : cell).trim();
+  const list = typed === asText.trim() ? rows : typed.split('\n').map(line => {
+    const m = line.trim().match(/^(\d{1,2}(?::\d{2})?\s*(?:am|pm)?)\s*[-\u2013:]?\s+(.+)$/i), t = m && normTime_(m[1]);
+    return t && /^\d{2}:\d{2}$/.test(t) ? [t, m[2], /^leads/i.test(m[2]) ? 'Leads' : ''] : null;
+  }).filter(Boolean).sort((a, b) => by(a) < by(b) ? -1 : by(a) > by(b) ? 1 : 0);
+  return list.filter(r => key_(r[2]) !== 'leads').slice(0, 40).map(r => [String(r[0]), short_(r[1], 300)]);
+}
+/* "10:00" -> "10:00 AM", the way the page writes the timeline cell */
+function t12_(t) {
+  const p = String(t).split(':').map(Number);
+  return (p[0] % 12 || 12) + ':' + ('0' + p[1]).slice(-2) + ' ' + (p[0] >= 12 ? 'PM' : 'AM');
+}
+/* the size of a string in UTF-8, as the cache counts it */
+function bytes_(s) { return encodeURIComponent(s).replace(/%[0-9A-F]{2}/g, 'x').length; }
+/* The public view is about to change: forget the cached copy, and turn away one a visitor's call is putting together now. */
+function dropPublic_() {
+  const cache = CacheService.getScriptCache();
+  cache.remove(PUBLIC_KEY);
+  cache.put(PUBLIC_GEN, Utilities.getUuid(), 21600);
+}
+/* Organizer writes: under the lock, with the public copy dropped before and after, so a visitor's call that read
+   the Sheet halfway through the write never keeps what it read. */
+function writing_(fn) {
+  return locked_(() => { dropPublic_(); try { return fn(); } finally { dropPublic_(); } });
 }
 
 function signIn(code) {
@@ -170,13 +242,14 @@ function signIn(code) {
    After that SEEDED is TRUE, so an Events tab emptied by hand stays empty. */
 function seed(code, st) {
   check_(code);
-  return locked_(() => {
+  return writing_(() => {
     if (on_('SEEDED') || rows_('Events').length) return readAll_();
     st = st || {};
     (st.events || []).forEach(saveEvent_);
     if (!readTeam_().length) writeTeam_(st.team || []);
     if (!rows_('Volunteers').length) write_('Volunteers', (st.vols || []).map(volRow_));
     if (!rows_('Gardens').length) write_('Gardens', (st.gardens || []).map(g => [g.name, g.addr, g.what, g.lat, g.lng]));
+    try { geocodeGardens_(); } catch (e) { /* the hourly run tries again */ }
     setSetting_('SEEDED', 'TRUE');
     return readAll_();
   });
@@ -184,12 +257,12 @@ function seed(code, st) {
 
 function saveEvent(code, ev) {
   check_(code);
-  return locked_(() => { saveEvent_(ev); return true; });
+  return writing_(() => { saveEvent_(ev); return true; });
 }
 
 function saveTeam(code, team) {
   check_(code);
-  return locked_(() => { writeTeam_(team); return true; });
+  return writing_(() => { writeTeam_(team); return true; });
 }
 
 function addVolunteer(v) {
@@ -204,7 +277,7 @@ function addVolunteer(v) {
   if (on_('WELCOME_EMAILS')) {
     // the sign-up is saved already, so an email that fails is noted on the Reminders tab instead of failing the sign-up
     const tryMail = (to, subject, body, kind) => { try { mail_(to, subject, body, kind); } catch (e) { log_(kind, to, 'failed: ' + msg_(e)); } };
-    const next = upcoming_()[0];
+    const next = upcoming_()[0]; // published events only: a draft isn't announced to anyone yet
     if (/@/.test(contact)) tryMail(contact, 'Welcome to the East Bay Permaculture Guild',
       'Hi ' + name.split(' ')[0] + ',\n\nThanks for signing up to help' + (help.length ? ' with ' + help.join(', ').toLowerCase() : '') + '. An organizer will reach out soon.' +
       (next ? '\n\nOur next gathering: ' + next.title + ', ' + niceDate_(next.date) + ' at ' + niceTime_(next.start) + ', ' + next.place + '.' : '') +
@@ -224,7 +297,7 @@ function postTo(code, ev, channel, opts) {
   check_(code);
   opts = opts && typeof opts === 'object' ? opts : {};
   if (AUTO.indexOf(channel) < 0) throw new Error('That channel is copy and paste.');
-  return locked_(() => {
+  return writing_(() => {
     saveEvent_(ev);
     const id = String(ev.id || (ev.cols || {}).id);
     const e = readEvents_().find(r => r.cols.id === id);
@@ -297,6 +370,8 @@ function stamp_() {
    A send that fails is logged as "failed: ..." under a key that doesn't count as sent, so it's tried again next
    hour, and the rest still go out. If any failed, the lead gets one email about it (once a day). */
 function hourly() {
+  // gardens added to the Sheet by hand get their map points, whether or not reminders are on
+  try { if (locked_(geocodeGardens_)) dropPublic_(); } catch (e) { console.log('Gardens not looked up: ' + msg_(e)); }
   if (!on_('REMINDERS')) return 0;
   const tz = Session.getScriptTimeZone(), now = new Date();
   const hour = Number(Utilities.formatDate(now, tz, 'H'));
@@ -314,6 +389,7 @@ function hourly() {
   };
   let count = 0;
   readEvents_().forEach(({ cols: c }) => {
+    if (c.status === 'cancelled') return; // nobody is bringing anything to an event that isn't happening
     const kind = c.date === tomorrow && hour >= 18 ? 'evening before' : c.date === today && hour >= 8 && hour < 12 ? 'morning of' : '';
     if (!kind) return;
     const when = (kind === 'morning of' ? 'today' : 'tomorrow') + ' at ' + niceTime_(c.start) + ', ' + c.place;
@@ -591,6 +667,14 @@ function niceTime_(t) {
 }
 
 const EV_COLS = ['id', 'label', 'title', 'date', 'start', 'end', 'place', 'address', 'host', 'cohosts', 'about', 'bring', 'tags', 'notes', 'timeline'];
+/* An event's status, in the Events tab's status column. Draft: only organizers see it. Published: on the public page.
+   Cancelled: shown as cancelled, and no reminders. A blank cell is published, so rows from before the column keep
+   showing; a word the app doesn't know is a draft, so a typo never puts an event on the public page. */
+function evStatus_(v) {
+  const s = key_(v);
+  if (!s || s === 'published') return 'published';
+  return s === 'cancelled' || s === 'canceled' ? 'cancelled' : 'draft';
+}
 /* An event row whose date can't be read is left out, and said so in `problems` (when given) so an organizer can fix it. */
 function readEvents_(problems) {
   const out = [], dataAt = TABS.Events.indexOf(DATA_HEAD);
@@ -603,6 +687,8 @@ function readEvents_(problems) {
       return;
     }
     cols.date = normDate_(cols.date); cols.start = normTime_(cols.start); cols.end = normTime_(cols.end);
+    cols.status = evStatus_(r[TABS.Events.indexOf('status')]);
+    cols.rsvp = postUrl_(r[TABS.Events.indexOf('rsvp link')]); // a link typed by hand that isn't https:// is left out
     if (!isDate_(cols.date)) {
       const typed = cols.date.length > 40 ? cols.date.slice(0, 40) + '\u2026' : cols.date;
       if (problems) problems.push({ tab: 'Events', row: i + 2, what: typed ? "date '" + typed + "' not understood" : 'date is blank' });
@@ -617,7 +703,7 @@ function readEvents_(problems) {
 }
 function upcoming_() {
   const t = today_();
-  return readEvents_().map(r => r.cols).filter(c => c.date >= t).sort((a, b) => a.date < b.date ? -1 : 1);
+  return readEvents_().map(r => r.cols).filter(c => c.date >= t && c.status === 'published').sort((a, b) => a.date < b.date ? -1 : 1);
 }
 
 function saveEvent_(p) {
@@ -630,7 +716,7 @@ function saveEvent_(p) {
   const data = p.data && typeof p.data === 'object' && !Array.isArray(p.data) ? Object.assign({}, p.data) : {};
   data.id = id;
   if (data.photo !== undefined && PHOTOS.indexOf(data.photo) < 0) data.photo = 'none';
-  ['map', 'rsvp'].forEach(k => { if (data[k] !== undefined && !/^https:\/\/\S+$/.test(String(data[k]))) delete data[k]; });
+  if (data.map !== undefined && !/^https:\/\/\S+$/.test(String(data.map))) delete data.map;
   const tagOk = t => TAG_KEYS.indexOf(t) >= 0 || TAG_WORDS.test(t);
   if (data.tags !== undefined) data.tags = (Array.isArray(data.tags) ? data.tags : []).map(t => String(t).trim()).filter(tagOk);
   c.tags = String(c.tags == null ? '' : c.tags).split(',').map(t => t.trim()).filter(tagOk).join(', ');
@@ -638,12 +724,21 @@ function saveEvent_(p) {
     if (c[k] != null) c[k] = String(c[k]).slice(0, MAX_LEN[k]);
     if (typeof data[k] === 'string') data[k] = data[k].slice(0, MAX_LEN[k]);
   });
+  const all = rows_('Events', true), i = all.findIndex(r => r[0] === id), prev = i >= 0 ? all[i] : null;
+  const ST = TABS.Events.indexOf('status'), RSVP = TABS.Events.indexOf('rsvp link');
+  // status and RSVP link come from the page (in cols, or in the plan from an older page). A page that sends neither
+  // leaves the Sheet's as they are, so a tab from before these columns can't publish a draft; a new event is a draft.
+  const typed = v => v != null && String(v).trim() !== '';
+  const status = typed(c.status) ? evStatus_(c.status) : typed(data.status) ? evStatus_(data.status) : prev ? prev[ST] : 'draft';
+  const rsvp = c.rsvp !== undefined ? postUrl_(c.rsvp) : data.rsvp !== undefined ? postUrl_(data.rsvp) : prev ? prev[RSVP] : '';
+  if (data.status !== undefined) data.status = evStatus_(status);
+  if (data.rsvp !== undefined) data.rsvp = rsvp;
   // a cell holds 50,000 characters; never cut the plan short, since a cut-off plan can't be read back
   const json = JSON.stringify(data);
   if (json.length > 45000) throw new Error("This event's plan is too long to save. Shorten the notes.");
   const row = [id].concat(EV_COLS.slice(1).map(k => c[k] == null ? '' : c[k]));
   row[TABS.Events.indexOf(DATA_HEAD)] = json;
-  const all = rows_('Events', true), i = all.findIndex(r => r[0] === id);
+  row[ST] = status; row[RSVP] = rsvp;
   if (i >= 0) put_('Events', i + 2, [row]);
   else append_('Events', [row]);
   replaceFor_('Bringing', id, (p.tasks || []).map(t => [id, t.what, t.who || '', t.status || '', t.id || '', t.last || '']));
@@ -727,19 +822,26 @@ function readAll_() {
     problems: problems,
   };
 }
+/* Every garden with a name. lat and lng are null until the hourly run finds them, or when it couldn't ('not found'):
+   the garden is still in the list, just not on the map. */
 function readGardens_() {
-  return rows_('Gardens').map(r => ({ name: r[0], addr: r[1], what: r[2], lat: Number(r[3]), lng: Number(r[4]) })).filter(g => g.name && !isNaN(g.lat) && !isNaN(g.lng) && g.lat);
+  const num = v => { const t = String(v == null ? '' : v).trim(), n = Number(t); return t && !isNaN(n) ? n : null; };
+  return rows_('Gardens').map(r => ({ name: r[0], addr: r[1], what: r[2], lat: num(r[3]), lng: num(r[4]) })).filter(g => g.name);
 }
-/* Fill in lat/lng for gardens added by hand, using Google's free geocoder. */
+/* Fill in lat/lng for gardens added by hand, five at a time, using Google's free geocoder (from hourly and seed).
+   An address it can't find gets 'not found' in the lat cell, so it isn't looked up every hour; clear that cell, or fix
+   the address and clear it, to try again. When the geocoder doesn't answer, the row is tried next hour.
+   Returns how many rows it filled in. */
 function geocodeGardens_() {
-  const all = rows_('Gardens', true);
-  const todo = all.map((r, i) => [r, i]).filter(x => x[0][0] && x[0][1] && !x[0][3]);
-  if (!todo.length) return;
+  const todo = rows_('Gardens', true).map((r, i) => [r, i]).filter(x => x[0][0] && String(x[0][1]).trim() && !String(x[0][3]).trim());
+  let n = 0;
   todo.slice(0, 5).forEach(([r, i]) => {
-    try {
-      const res = Maps.newGeocoder().geocode(r[1]);
-      const loc = res.results && res.results[0] && res.results[0].geometry.location;
-      if (loc) put_('Gardens', i + 2, [[r[0], r[1], r[2], String(loc.lat), String(loc.lng)]], [3, 4]);
-    } catch (e) { /* leave it blank; the garden still shows in the list */ }
+    let res;
+    try { res = Maps.newGeocoder().geocode(r[1]); } catch (e) { return; }
+    const hit = res && res.results && res.results[0], loc = hit && hit.geometry && hit.geometry.location;
+    if (!loc && res && res.status && res.status !== 'ZERO_RESULTS') return; // over the limit or an error: next hour
+    put_('Gardens', i + 2, [[r[0], r[1], r[2], loc ? String(loc.lat) : 'not found', loc ? String(loc.lng) : '']], [3, 4]);
+    n++;
   });
+  return n;
 }

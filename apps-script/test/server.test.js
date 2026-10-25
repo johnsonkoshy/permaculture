@@ -9,7 +9,7 @@ const gas = (opts = {}) => makeGas({ settings: { ORGANIZER_CODE: CODE }, ...opts
 const ev = (over = {}) => ({
   id: 'w7',
   data: { id: 'w7', series: 'workday', photo: 'trellis', tags: ['beginner'], plan: { roles: [['Host', ['Jessie']]], notes: ['Bring gloves'], timeline: [['10:00', 'Garden work', '']] } },
-  cols: { label: 'Workday #7', title: 'OPC Garden Work Party', date: '2026-10-25', start: '10:00', end: '14:00', place: 'Oakland Peace Center', address: '111 Fairmount Ave, Oakland', host: 'Jessie', cohosts: 'Phil', about: 'Dig day.', bring: 'water', tags: 'beginner', notes: 'Bring gloves', timeline: '10:00 AM Garden work' },
+  cols: { label: 'Workday #7', title: 'OPC Garden Work Party', date: '2026-10-25', start: '10:00', end: '14:00', place: 'Oakland Peace Center', address: '111 Fairmount Ave, Oakland', host: 'Jessie', cohosts: 'Phil', about: 'Dig day.', bring: 'water', tags: 'beginner', notes: 'Bring gloves', timeline: '10:00 AM Garden work', status: 'published', rsvp: '' },
   tasks: [{ id: 't1', what: 'Plates and cups', who: 'Phil', status: 'asked' }, { id: 't2', what: 'Snacks', who: 'Karen', status: 'confirmed' }, { id: 't3', what: 'Parking sign', who: '', status: 'open' }],
   posts: [{ channel: 'ggroup', status: 'review', by: '', text: 'Subject: Sun 10/25: Work party\n\nHi all,\n\nCome dig.', edited: false }],
   log: [['Oct 11 · 10:00 AM', 'Jessie planned it']],
@@ -32,6 +32,8 @@ const approved = (channel, text) => ({ channel, status: 'approved', by: '', text
 const toPost = (over = {}) => ev({ posts: [approved('ggroup', GROUP_TEXT), approved('calendar', 'OPC Garden Work Party\nSee you there')], ...over });
 const postRowOf = (g, id, ch) => { const [head, ...rows] = g.tab('Posts'), r = rows.find(x => x[0] === id && x[1] === ch); return r && Object.fromEntries(head.map((h, i) => [h, r[i] == null ? '' : r[i]])); };
 const ISO = /^20\d\d-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z$/;
+// the morning before the fixture's event (Sun Oct 25), so it's still upcoming whatever day the tests run
+const BEFORE = '2026-10-24T10:00:00-07:00';
 
 test('first load makes every tab and the settings', () => {
   const g = gas();
@@ -43,7 +45,11 @@ test('first load makes every tab and the settings', () => {
   assert.ok(!out.content.includes('w7</script>'), 'deep link is escaped');
   assert.equal(g.ctx.getPublic().events.length, 0);
   g.ctx.doGet({ parameter: {} });
-  assert.equal(g.tab('Settings').length, 11, 'settings not duplicated on reload');
+  assert.equal(g.tab('Settings').length, 15, 'settings not duplicated on reload');
+  assert.deepEqual(['SCHEDULE_TEXT', 'WORKDAY_SCHEDULE', 'LINKTREE_URL', 'CONTACT_EMAIL'].map(k => g.tab('Settings').find(r => r[0] === k)[1]), [
+    'Garden work days at the Oakland Peace Center, plus community meetings with a potluck. Everyone is welcome, no experience needed.',
+    '4th Sundays, 10 AM', 'https://linktr.ee/eastbaypermacultureguild', '']);
+  assert.deepEqual(g.tab('Events')[0].slice(-3), ["data (don't edit)", 'status', 'rsvp link']);
   assert.equal(g.tab('Settings').find(r => r[0] === 'SEEDED')[1], '', 'an empty Sheet is not marked as filled');
 });
 
@@ -56,7 +62,7 @@ test('organizer code is checked', () => {
 });
 
 test('seed, read back, and the public view hides private bits', () => {
-  const g = seeded();
+  const g = seeded({ now: BEFORE });
   const st = g.ctx.signIn(CODE);
   assert.equal(st.empty, false);
   const e = st.events[0];
@@ -67,11 +73,11 @@ test('seed, read back, and the public view hides private bits', () => {
   assert.equal(st.team.find(t => t.name === 'Phil').perms.approve, true);
   assert.equal(st.team.find(t => t.name === 'Jessie').role, 'lead');
   assert.equal(st.vols[0].help[0], 'Garden work days');
-  const pub = g.ctx.getPublic();
-  assert.equal(pub.events[0].tasks.length, 0);
-  assert.equal(pub.events[0].data.plan.notes.length, 0);
-  assert.equal(pub.events[0].cols.notes, '');
-  assert.ok(pub.team.every(t => t.contact === '' && t.role !== 'vol'));
+  const pub = plain(g.ctx.getPublic());
+  assert.deepEqual(Object.keys(pub), ['events', 'team', 'gardens', 'settings']);
+  assert.equal(pub.events.length, 1);
+  for (const k of ['tasks', 'posts', 'log', 'plan', 'notes', 'data', 'cols']) assert.equal(pub.events[0][k], undefined, k);
+  assert.deepEqual(pub.team, [{ name: 'Jessie', role: 'lead' }, { name: 'Phil', role: 'co' }], 'organizers only, names and roles');
   assert.equal(pub.vols, undefined);
   // seeding again does nothing
   g.ctx.seed(CODE, { events: [ev({ id: 'x1', cols: { ...ev().cols, title: 'Other' } })] });
@@ -330,16 +336,20 @@ test('reminders: evening before, once only, phone-only people go to the host as 
   assert.equal(g.ctx.hourly(), 0, 'nothing in the afternoon');
 });
 
-test('gardens added by hand get map coordinates', () => {
-  const g = seeded();
+test('gardens added by hand get map coordinates from the hourly run, not from the public page', () => {
+  const g = seeded({ now: BEFORE });
   g.sheets.get('Gardens').set(3, 1, 'Dimond Park'); g.sheets.get('Gardens').set(3, 2, '3860 Hanly Rd, Oakland');
-  const pub = g.ctx.getPublic();
-  assert.equal(pub.gardens.length, 2);
-  assert.equal(pub.gardens[1].lat, 37.81);
+  let pub = plain(g.ctx.getPublic());
+  assert.deepEqual(g.geo.asked, [], 'a visitor never waits for the geocoder');
+  assert.deepEqual(pub.gardens[1], { name: 'Dimond Park', addr: '3860 Hanly Rd, Oakland', what: '', lat: null, lng: null }, 'in the list, not on the map yet');
+  g.ctx.hourly();
+  assert.deepEqual(g.geo.asked, ['3860 Hanly Rd, Oakland']);
+  pub = plain(g.ctx.getPublic());
+  assert.deepEqual([pub.gardens.length, pub.gardens[1].lat, pub.gardens[1].lng], [2, 37.81, -122.25], 'the hourly run cleared the cached public copy');
 });
 
 test('JSON API: only the page functions are callable, errors come back as JSON', () => {
-  const g = seeded();
+  const g = seeded({ now: BEFORE });
   const call = (fn, args) => JSON.parse(g.ctx.doPost({ postData: { contents: JSON.stringify({ fn, args }) } }).content);
   assert.equal(call('signIn', [CODE]).value.events.length, 1);
   assert.match(call('signIn', ['nope']).error, /organizer code/);
@@ -493,7 +503,7 @@ test('a column inserted by hand between notes and timeline: the plan, the timeli
 
   g.ctx.saveEvent(CODE, ev({ cols: { ...ev().cols, notes: 'Bring gloves and hats', timeline: '10:00 AM Mulching' }, data: { ...ev().data, photo: 'moat' } }));
   const [head, row] = g.tab('Events');
-  assert.deepEqual(head.slice(13), ['notes', 'Who to thank', 'timeline', "data (don't edit)"]);
+  assert.deepEqual(head.slice(13), ['notes', 'Who to thank', 'timeline', "data (don't edit)", 'status', 'rsvp link']);
   assert.equal(row[13], 'Bring gloves and hats');
   assert.equal(row[14], 'The OPC staff', 'the hand-added column is left alone');
   assert.equal(row[15], '10:00 AM Mulching');
@@ -503,7 +513,7 @@ test('a column inserted by hand between notes and timeline: the plan, the timeli
 });
 
 test('a column added by hand to Settings or Gardens: settings and map points still go in the right cells', () => {
-  const g = seeded();
+  const g = seeded({ now: BEFORE });
   const s = g.sheets.get('Settings');
   s.insertColumnsAfter(1, 1); s.set(1, 2, 'who set it');
   assert.equal(g.ctx.signIn(CODE).empty, false, 'the organizer code is read from its value column');
@@ -515,7 +525,7 @@ test('a column added by hand to Settings or Gardens: settings and map points sti
   const gs = g.sheets.get('Gardens');
   gs.insertColumnsAfter(3, 1); gs.set(1, 4, 'contact');
   gs.set(3, 1, 'Dimond Park'); gs.set(3, 2, '3860 Hanly Rd, Oakland'); gs.set(3, 4, 'Sky');
-  g.ctx.getPublic();
+  g.ctx.hourly();
   assert.deepEqual(g.tab('Gardens')[2], ['Dimond Park', '3860 Hanly Rd, Oakland', '', 'Sky', '37.81', '-122.25']);
 });
 
@@ -616,7 +626,7 @@ test("hand-typed dates like 'Oct 31, 2026' and times like 'noon' show up as the 
 });
 
 test("an event row with a date the app can't read is listed in signIn().problems, not dropped silently", () => {
-  const g = seeded();
+  const g = seeded({ now: BEFORE });
   g.ctx.saveEvent(CODE, ev({ id: 'm2', cols: { ...ev().cols, title: 'Meeting', date: '2026-11-12' } }));
   const sh = g.sheets.get('Events');
   sh.set(3, 4, 'the Saturday after');
@@ -714,7 +724,8 @@ test('a saved event keeps only safe values: known photos, https links, plain tag
   const row = g.tab('Events')[1], head = g.tab('Events')[0], data = JSON.parse(row[head.indexOf("data (don't edit)")]);
   assert.equal(data.photo, 'none', 'an unknown photo is stored as none');
   assert.equal(data.map, undefined, 'a javascript: map link is dropped');
-  assert.equal(data.rsvp, undefined, 'an http: RSVP link is dropped');
+  assert.ok(!data.rsvp, 'an http: RSVP link is dropped');
+  assert.equal(row[head.indexOf('rsvp link')], '', 'and not in the rsvp link column');
   assert.deepEqual(data.tags, ['beginner', 'Bring a hat']);
   assert.equal(row[head.indexOf('tags')], 'beginner, Bring a hat');
   assert.equal(row[head.indexOf('title')].length, 200);
@@ -723,9 +734,11 @@ test('a saved event keeps only safe values: known photos, https links, plain tag
   assert.deepEqual([data.title.length, data.about.length], [200, 4000], "the plan's copies are capped too");
   assert.ok(!JSON.stringify(g.tab('Events')).includes('<script>'));
 
-  g.ctx.saveEvent(CODE, ev({ data: { ...ev().data, photo: 'moat', map: 'https://maps.app.goo.gl/9jQkydC38eJrRScr6', rsvp: 'https://partiful.com/e/abc' } }));
+  // (an older page: the RSVP link in the plan, none in cols)
+  g.ctx.saveEvent(CODE, ev({ data: { ...ev().data, photo: 'moat', map: 'https://maps.app.goo.gl/9jQkydC38eJrRScr6', rsvp: 'https://partiful.com/e/abc' }, cols: { ...ev().cols, rsvp: undefined } }));
   const ok = JSON.parse(g.tab('Events')[1][head.indexOf("data (don't edit)")]);
   assert.deepEqual([ok.photo, ok.map, ok.rsvp], ['moat', 'https://maps.app.goo.gl/9jQkydC38eJrRScr6', 'https://partiful.com/e/abc'], 'good values are kept');
+  assert.equal(g.tab('Events')[1][head.indexOf('rsvp link')], 'https://partiful.com/e/abc', 'an RSVP link sent in the plan by an older page goes in its column');
 
   const before = ['Events', 'Bringing', 'Posts'].map(g.tab);
   assert.throws(() => g.ctx.saveEvent(CODE, ev({ id: 'w 7' })), /event id can only use letters, numbers/, 'an id with a space');
@@ -844,7 +857,7 @@ const reviewed = () => [
 ];
 
 test('the Posts trail columns round-trip through saveEvent and signIn', () => {
-  const g = seeded();
+  const g = seeded({ now: BEFORE });
   g.ctx.saveEvent(CODE, ev({ posts: reviewed() }));
   const [head, ...rows] = g.tab('Posts');
   assert.deepEqual(head, ['event id', 'channel', 'status', 'posted by', 'text', 'edited', ...TRAIL]);
@@ -858,7 +871,10 @@ test('the Posts trail columns round-trip through saveEvent and signIn', () => {
   const before = g.tab('Posts');
   g.ctx.saveEvent(CODE, ev({ posts: reviewed() }));
   assert.deepEqual(g.tab('Posts'), before);
-  assert.deepEqual(plain(g.ctx.getPublic().events[0].posts), {});
+  const pub = g.ctx.getPublic();
+  assert.equal(pub.events.length, 1);
+  assert.equal(pub.events[0].posts, undefined);
+  assert.ok(!/Come dig|Dig day\b.*Instagram|partiful\.com\/e|Sky/.test(JSON.stringify(pub)), 'no post text, links or approvers');
 });
 
 test('a post url is kept only when it starts with https://; names and times are capped', () => {
@@ -973,4 +989,190 @@ test('only postTo marks the Group or the Calendar as sent: a tab from before Dra
   assert.throws(() => g.ctx.postTo(CODE, toPost({ posts: [] }), 'calendar', { by: 'Phil' }), /Approve it first/);
   assert.equal(g.calendar.length, 0);
   assert.equal(g.mail.length, 1);
+});
+
+/* ---------- event status, the RSVP link, and the public API's allow-list ---------- */
+const evAt = (id, date, over = {}) => ev({ id, data: { ...ev().data, id }, cols: { ...ev().cols, title: 'Event ' + id, date, ...over }, tasks: [], posts: [], log: [] });
+const cellOf = (g, tab, id, head) => { const t = g.tab(tab); return t.find(r => r[0] === id)[t[0].indexOf(head)]; };
+const setCell = (g, tab, id, head, v) => { const t = g.tab(tab); g.sheets.get(tab).set(t.findIndex(r => r[0] === id) + 1, t[0].indexOf(head) + 1, v); };
+
+test('getPublic lists only published events from today on: no drafts, cancelled or past ones; a blank status is published', () => {
+  const g = seeded({ now: BEFORE });
+  g.ctx.saveEvent(CODE, evAt('m2', '2026-11-12', { status: 'draft' }));
+  g.ctx.saveEvent(CODE, evAt('c1', '2026-11-01', { status: 'cancelled' }));
+  g.ctx.saveEvent(CODE, evAt('p1', '2026-10-01', { status: 'published' }));
+  g.ctx.saveEvent(CODE, evAt('b1', '2026-11-22', { status: 'published' }));
+  g.ctx.saveEvent(CODE, evAt('t1', '2026-10-24', { status: 'published', start: '18:00' })); // today, this evening
+  g.ctx.saveEvent(CODE, evAt('x1', '2026-11-05', { status: 'published' }));
+  setCell(g, 'Events', 'b1', 'status', ''); // a row from before the status column
+  setCell(g, 'Events', 'x1', 'status', 'not yet'); // a word the app doesn't know
+  assert.deepEqual(plain(g.ctx.getPublic().events.map(e => e.id)), ['t1', 'w7', 'b1'], 'sorted by date');
+  const st = g.ctx.signIn(CODE);
+  assert.deepEqual(plain(Object.fromEntries(st.events.map(e => [e.cols.id, e.cols.status]))),
+    { w7: 'published', m2: 'draft', c1: 'cancelled', p1: 'published', b1: 'published', t1: 'published', x1: 'draft' }, 'organizers see every event and its status');
+  assert.equal(cellOf(g, 'Events', 'm2', 'status'), 'draft', 'the Sheet says it in words');
+});
+
+test("getPublic's JSON has only public fields: no plan, notes, tasks, posts, activity, contacts or permissions", () => {
+  const g = gas({ now: BEFORE });
+  g.ctx.doGet({});
+  const plan = { roles: [['Host', ['Jessie']], ['Co-hosts', ['Phil']]], leadStart: '09:00', leadEnd: '14:30', leadNote: 'Phil has a hard out at 2:30', pending: ['Sky', 'Rob'],
+    food: { who: 'Phil', items: 'Plates', menu: 'Saag' }, notes: ['Bring gloves'], debrief: [{ text: 'Buy cattle fence', used: false }],
+    timeline: [['09:00', 'Leads set up: snacks and tools', 'Leads'], ['10:00', 'Garden work', ''], ['12:15', 'Lunch', 'Phil']] };
+  const w7 = ev({ data: { ...ev().data, plan, map: 'https://maps.app.goo.gl/9jQkydC38eJrRScr6' },
+    cols: { ...ev().cols, host: 'Jessie Smith', timeline: '9:00 AM Leads set up: snacks and tools\n10:00 AM Garden work\n12:15 PM Lunch', tags: 'beginner, tools, Bring a hat', rsvp: 'https://partiful.com/e/abc' } });
+  g.ctx.seed(CODE, { events: [w7], team, vols: [{ name: 'Alex R.', contact: 'alex@example.org', help: [], note: '' }], gardens: [{ name: 'OPC garden', addr: '111 Fairmount Ave', what: 'Work days', lat: 37.8136, lng: -122.2589 }] });
+  const pub = g.ctx.getPublic(), json = JSON.stringify(pub);
+  for (const word of ['plan', 'perms', 'leadNote', 'pending', 'food', 'notes', 'contact']) assert.ok(!json.includes(word), word + ' is not in the public JSON');
+  for (const text of ['hard out', 'Bring gloves', 'Plates and cups', 'Karen', 'Saag', 'cattle fence', 'Leads set up', 'jessie@example.org', 'alex@example.org', 'Smith', CODE, 'docs.google.com', 'Come dig', "Jessie planned it"])
+    assert.ok(!json.includes(text), JSON.stringify(text) + ' is not in the public JSON');
+  assert.deepEqual(plain(pub.events[0]), {
+    id: 'w7', label: 'Workday #7', title: 'OPC Garden Work Party', date: '2026-10-25', start: '10:00', end: '14:00', place: 'Oakland Peace Center', address: '111 Fairmount Ave, Oakland',
+    about: 'Dig day.', bring: 'water', tags: ['beginner', 'tools'], photo: 'trellis', type: 'workday', host: 'Jessie',
+    timeline: [['10:00', 'Garden work'], ['12:15', 'Lunch']], map: 'https://maps.app.goo.gl/9jQkydC38eJrRScr6', rsvp: 'https://partiful.com/e/abc',
+  });
+  assert.deepEqual(plain(pub.team), [{ name: 'Jessie', role: 'lead' }, { name: 'Phil', role: 'co' }]);
+  assert.deepEqual(plain(pub.gardens), [{ name: 'OPC garden', addr: '111 Fairmount Ave', what: 'Work days', lat: 37.8136, lng: -122.2589 }]);
+  // settings: an allow-list, so the organizer code and the switches never leave the Sheet
+  assert.deepEqual(plain(pub.settings), {
+    SCHEDULE_TEXT: 'Garden work days at the Oakland Peace Center, plus community meetings with a potluck. Everyone is welcome, no experience needed.',
+    WORKDAY_SCHEDULE: '4th Sundays, 10 AM', LINKTREE_URL: 'https://linktr.ee/eastbaypermacultureguild', CONTACT_EMAIL: '' });
+  assert.ok(!/ORGANIZER_CODE|TEST_MODE|GROUP_EMAIL|owner@example\.com/.test(json));
+  setSetting(g, 'CONTACT_EMAIL', 'hello@eastbaypermaculture.org');
+  setSetting(g, 'LINKTREE_URL', 'javascript:alert(1)');
+  g.ctx.saveTeam(CODE, team); // clears the cached copy
+  assert.deepEqual([g.ctx.getPublic().settings.CONTACT_EMAIL, g.ctx.getPublic().settings.LINKTREE_URL], ['hello@eastbaypermaculture.org', ''], 'only an https Linktree');
+});
+
+test('values typed into the Sheet are checked again for the public: unknown photos are none, javascript: maps and http RSVPs are dropped', () => {
+  const g = seeded({ now: BEFORE });
+  g.ctx.saveEvent(CODE, ev({ data: { ...ev().data, photo: '"><img onerror=x>' } }));
+  assert.equal(g.ctx.getPublic().events[0].photo, 'none', 'a photo saved from the page');
+  const data = JSON.parse(cellOf(g, 'Events', 'w7', "data (don't edit)"));
+  setCell(g, 'Events', 'w7', "data (don't edit)", JSON.stringify({ ...data, photo: '"><img onerror=x>', map: 'javascript:alert(1)', series: '<b>' }));
+  setCell(g, 'Events', 'w7', 'rsvp link', 'http://partiful.com/e/abc');
+  setCell(g, 'Events', 'w7', 'start', 'whenever');
+  setCell(g, 'Events', 'w7', 'timeline', '9:30am Leads arrive\n10 AM Dig\n11:45 Lunch on the patio\nnot a time');
+  g.ctx.saveTeam(CODE, team); // the hand edits show once the cached copy goes
+  const e = plain(g.ctx.getPublic().events[0]);
+  assert.deepEqual([e.photo, e.map, e.rsvp, e.type, e.start], ['none', undefined, undefined, '', '']);
+  assert.deepEqual(e.timeline, [['10:00', 'Dig'], ['11:45', 'Lunch on the patio']], 'a timeline changed by hand is read from its cell, without the leads-only rows');
+  assert.equal(g.ctx.signIn(CODE).events[0].cols.rsvp, '', 'organizers get the same safe link');
+});
+
+test('getPublic is cached for 5 minutes; saving an event, the team, seed and reset clear it at once', () => {
+  const g = seeded({ now: BEFORE });
+  assert.equal(g.ctx.getPublic().events[0].title, 'OPC Garden Work Party');
+  assert.ok(g.cache['public:v1'], 'kept in the script cache');
+  setCell(g, 'Events', 'w7', 'title', 'Typed by hand');
+  assert.equal(g.ctx.getPublic().events[0].title, 'OPC Garden Work Party', 'the cached copy, for up to 5 minutes');
+  g.ctx.saveEvent(CODE, ev({ cols: { ...ev().cols, title: 'Fall Planting Work Party' } }));
+  assert.equal(g.ctx.getPublic().events[0].title, 'Fall Planting Work Party', 'a save clears the cache');
+  setCell(g, 'Events', 'w7', 'title', 'Typed by hand');
+  g.clock.now += 301e3;
+  assert.equal(g.ctx.getPublic().events[0].title, 'Typed by hand', 'after 5 minutes it reads the Sheet again');
+  // publishing a draft shows it right away
+  g.ctx.saveEvent(CODE, evAt('m2', '2026-11-12', { status: 'draft' }));
+  assert.deepEqual(plain(g.ctx.getPublic().events.map(e => e.id)), ['w7']);
+  g.ctx.saveEvent(CODE, evAt('m2', '2026-11-12', { status: 'published' }));
+  assert.deepEqual(plain(g.ctx.getPublic().events.map(e => e.id)), ['w7', 'm2']);
+  // the other organizer writes clear it too
+  for (const [what, run] of [['saveTeam', () => g.ctx.saveTeam(CODE, team)], ['postTo', () => g.ctx.postTo(CODE, toPost(), 'ggroup', { by: 'Phil' })],
+    ['seed', () => g.ctx.seed(CODE, {})], ['resetStarterData', () => g.ctx.resetStarterData()]]) {
+    g.ctx.getPublic();
+    assert.ok(g.cache['public:v1'], 'cached before ' + what);
+    run();
+    assert.equal(g.cache['public:v1'], undefined, what + ' clears it');
+  }
+  assert.equal(g.ctx.getPublic().events.length, 0, 'after the reset');
+});
+
+test("a save while getPublic is reading the Sheet: the older copy isn't cached", () => {
+  const g = seeded({ now: BEFORE });
+  const read = g.ctx.readTeam_;
+  g.ctx.readTeam_ = () => { g.ctx.readTeam_ = read; g.ctx.saveEvent(CODE, ev({ cols: { ...ev().cols, title: 'Saved mid-read' } })); return read(); };
+  assert.equal(g.ctx.getPublic().events[0].title, 'OPC Garden Work Party', 'that call read the events before the save');
+  assert.equal(g.cache['public:v1'], undefined, 'so it is not kept');
+  assert.equal(g.ctx.getPublic().events[0].title, 'Saved mid-read');
+  assert.ok(g.cache['public:v1']);
+});
+
+test('a public view over 90 KB is not cached, and getPublic reads only the Events, Team, Gardens and Settings tabs', () => {
+  const g = seeded({ now: BEFORE });
+  const read = g.ctx.rows_, tabs = new Set();
+  g.ctx.rows_ = (name, keep) => { tabs.add(name); return read(name, keep); };
+  g.ctx.getPublic();
+  g.ctx.rows_ = read;
+  assert.deepEqual([...tabs].sort(), ['Events', 'Gardens', 'Settings', 'Team']);
+  for (let i = 0; i < 24; i++) g.ctx.saveEvent(CODE, evAt('big' + i, '2026-11-' + String(i + 1).padStart(2, '0'), { about: 'Mulch and compost. '.repeat(210) }));
+  const pub = g.ctx.getPublic();
+  assert.equal(pub.events.length, 25);
+  assert.ok(JSON.stringify(pub).length > 90 * 1024);
+  assert.equal(g.cache['public:v1'], undefined, 'too big for the cache, so read each time');
+  assert.equal(g.ctx.getPublic().events.length, 25);
+});
+
+test('new events are drafts; a page that sends no status or RSVP link leaves the Sheet\'s; the RSVP link takes only https', () => {
+  const g = seeded({ now: BEFORE });
+  const fresh = evAt('n1', '2026-11-08');
+  delete fresh.cols.status; delete fresh.cols.rsvp;
+  g.ctx.saveEvent(CODE, fresh);
+  assert.deepEqual([cellOf(g, 'Events', 'n1', 'status'), cellOf(g, 'Events', 'n1', 'rsvp link')], ['draft', ''], 'a new event with no status is a draft');
+  // the page publishes it and adds the Partiful link
+  g.ctx.saveEvent(CODE, evAt('n1', '2026-11-08', { status: 'published', rsvp: '  https://partiful.com/e/seedswap  ' }));
+  assert.deepEqual([cellOf(g, 'Events', 'n1', 'status'), cellOf(g, 'Events', 'n1', 'rsvp link')], ['published', 'https://partiful.com/e/seedswap']);
+  // a tab from before these columns saves it: both stay as they are
+  g.ctx.saveEvent(CODE, fresh);
+  assert.deepEqual([cellOf(g, 'Events', 'n1', 'status'), cellOf(g, 'Events', 'n1', 'rsvp link')], ['published', 'https://partiful.com/e/seedswap']);
+  for (const bad of ['http://partiful.com/e/x', 'javascript:alert(1)', 'partiful.com/e/x', 'https://x.org/"><b>']) {
+    g.ctx.saveEvent(CODE, evAt('n1', '2026-11-08', { status: 'published', rsvp: bad }));
+    assert.equal(cellOf(g, 'Events', 'n1', 'rsvp link'), '', bad + ' is not kept');
+  }
+  // the page's own copy in the plan says published, its status says Draft: the column wins, and the plan follows it
+  g.ctx.saveEvent(CODE, { ...evAt('n1', '2026-11-08', { status: 'Draft' }), data: { ...ev().data, id: 'n1', status: 'published' } });
+  assert.equal(cellOf(g, 'Events', 'n1', 'status'), 'draft');
+  const e = plain(g.ctx.signIn(CODE).events.find(x => x.cols.id === 'n1'));
+  assert.deepEqual([e.cols.status, e.cols.rsvp, e.data.status], ['draft', '', 'draft'], 'the plan keeps the same status as its column');
+});
+
+test('a cancelled event gets no reminders, and a new volunteer hears only about a published event', () => {
+  const g = seeded({ now: '2026-10-24T19:30:00-07:00' }); // Sat 7:30 PM, the event is Sun
+  setCell(g, 'Events', 'w7', 'status', 'cancelled');
+  assert.equal(g.ctx.hourly(), 0);
+  assert.equal(g.mail.length, 0);
+  setCell(g, 'Events', 'w7', 'status', 'draft');
+  g.ctx.addVolunteer({ name: 'Sam Lee', contact: 'sam@example.org', help: [], note: '' });
+  assert.ok(!/next gathering|OPC Garden Work Party/.test(g.mail.find(m => /Welcome/.test(m.subject)).body), 'the draft is not announced');
+  setCell(g, 'Events', 'w7', 'status', 'published');
+  g.ctx.addVolunteer({ name: 'Ana Ruiz', contact: 'ana@example.org', help: [], note: '' });
+  assert.match(g.mail.filter(m => /Welcome/.test(m.subject)).at(-1).body, /Our next gathering: OPC Garden Work Party/);
+  assert.equal(g.ctx.hourly(), 2, 'reminders go out for a published event');
+});
+
+test("gardens the geocoder can't find say 'not found', aren't looked up again, and stay in the list", () => {
+  const g = seeded({ now: BEFORE });
+  g.geo.find = addr => /Nowhere/.test(addr) ? null : { lat: 37.79, lng: -122.21 };
+  const gs = g.sheets.get('Gardens');
+  gs.set(3, 1, 'Dimond Park'); gs.set(3, 2, '3860 Hanly Rd, Oakland');
+  gs.set(4, 1, 'Mystery plot'); gs.set(4, 2, '1 Nowhere Lane');
+  gs.set(5, 1, 'No address yet');
+  g.ctx.hourly();
+  assert.deepEqual(g.tab('Gardens').slice(2).map(r => [r[3] || '', r[4] || '']), [['37.79', '-122.21'], ['not found', ''], ['', '']]);
+  g.ctx.hourly();
+  assert.deepEqual(g.geo.asked, ['3860 Hanly Rd, Oakland', '1 Nowhere Lane'], 'looked up once each');
+  const pub = plain(g.ctx.getPublic());
+  assert.deepEqual(pub.gardens.map(x => [x.name, x.lat]), [['OPC garden', 37.8136], ['Dimond Park', 37.79], ['Mystery plot', null], ['No address yet', null]]);
+  // when the geocoder doesn't answer, the row stays blank and is tried again next hour
+  g.geo.down = true;
+  gs.set(6, 1, 'Lake Merritt garden'); gs.set(6, 2, '666 Bellevue Ave, Oakland');
+  g.ctx.hourly();
+  assert.equal(g.tab('Gardens')[5][3] || '', '');
+  g.geo.down = false;
+  g.ctx.hourly();
+  assert.equal(g.tab('Gardens')[5][3], '37.79');
+  // seed looks up a starter garden that came without a map point
+  const h = gas({ now: BEFORE });
+  h.ctx.doGet({});
+  h.ctx.seed(CODE, { events: [ev()], team, vols: [], gardens: [{ name: 'OPC garden', addr: '111 Fairmount Ave', what: '', lat: '', lng: '' }] });
+  assert.deepEqual(h.tab('Gardens')[1].slice(3, 5), ['37.81', '-122.25']);
 });
