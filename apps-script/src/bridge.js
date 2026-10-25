@@ -8,11 +8,11 @@ if (window.EBPG_GAS) {
   let leaving = false; // set while the page is closing, so its last saves go out with keepalive
   // On Netlify the page calls the Apps Script web app's JSON API; inside Google it uses google.script.run.
   // text/plain keeps the request "simple", so the browser sends it without a CORS preflight.
-  // A call gets 30 seconds. Only a JSON answer counts: Apps Script sometimes answers with an HTML error page.
-  async function post(fn, args) {
+  // A call gets 30 seconds (see LIMIT). Only a JSON answer counts: Apps Script sometimes answers with an HTML error page.
+  async function post(fn, args, ms) {
     const body = JSON.stringify({ fn, args });
     const ac = typeof AbortController === 'function' ? new AbortController() : null;
-    const t = ac && setTimeout(() => ac.abort(), 30000);
+    const t = ac && setTimeout(() => ac.abort(), ms);
     let out;
     try {
       const r = await fetch(G.api, { method: 'POST', body, keepalive: leaving && body.length < 60000, signal: ac ? ac.signal : undefined });
@@ -24,8 +24,8 @@ if (window.EBPG_GAS) {
     if (out.error) throw new Error(out.error);
     return out.value;
   }
-  const viaGoogle = (fn, args) => new Promise((ok, no) => {
-    const t = setTimeout(() => no(noAnswer()), 30000);
+  const viaGoogle = (fn, args, ms) => new Promise((ok, no) => {
+    const t = setTimeout(() => no(noAnswer()), ms);
     google.script.run
       .withSuccessHandler(v => { clearTimeout(t); ok(v); })
       .withFailureHandler(e => {
@@ -34,7 +34,10 @@ if (window.EBPG_GAS) {
         no(/^NetworkError|HTTP \d+|^ScriptError/.test(m) ? noAnswer() : new Error(m));
       })[fn](...args);
   });
-  const run = (fn, ...a) => G.api ? post(fn, a) : viaGoogle(fn, a);
+  // A sleeping Apps Script can be slow to start, so signing in gets 45 seconds, and filling an empty Sheet
+  // (every starter event written under the lock) gets 90.
+  const LIMIT = { signIn: 45000, seed: 90000 };
+  const run = (fn, ...a) => G.api ? post(fn, a, LIMIT[fn] || 30000) : viaGoogle(fn, a, LIMIT[fn] || 30000);
 
   // The organizer code: kept for this tab, or on this device for 30 days when "Remember this device" is ticked.
   const REM = 'ebpg-remember', DAYS30 = 30 * 864e5;
@@ -155,7 +158,7 @@ if (window.EBPG_GAS) {
   }
   function retryNow(byHand) {
     clearTimeout(retryTimer); retryTimer = 0;
-    manual = !!byHand;
+    if (byHand) manual = true; // the chip says Saving… until it's back (a retry on its own doesn't undo that)
     flush();
   }
   function noteFailure(er) {
@@ -168,22 +171,27 @@ if (window.EBPG_GAS) {
   sync = () => { if (!live) return; clearTimeout(timer); timer = setTimeout(flush, 800); status(); };
   whenSaved = f => {
     if (!live) return f();
-    if (failedKeys().length) return; // the chip already says "Not saved"
-    waits.push(f); sync();
+    waits.push(f);
+    // saving again while earlier saves are failing tries them all now, so the chip says Saving…, then how it went
+    if (failedKeys().length) retryNow(true); else sync();
   };
 
-  /* the status chip in the top bar */
+  /* the status chip: one in the top bar (#savest), and one in the event pop-up's bar (#m-savest), since the
+     page behind an open pop-up is inert. Only one can be seen or heard at a time. */
   const CHIP = { saving: ['loader', 'Saving…'], saved: ['check', 'All changes saved'], failed: ['alert-triangle', 'Not saved'] };
   let chipState = 'idle', fadeT = 0, failedIds = '';
   function chip(st) {
     if (st === chipState) return;
-    const el = $('#savest'), btn = $('#savest-retry'), hadFocus = document.activeElement === btn;
-    clearTimeout(fadeT); el.classList.remove('fade');
-    chipState = st; el.dataset.state = st;
-    $('#savest-t').innerHTML = CHIP[st] ? ic(CHIP[st][0]) + esc(CHIP[st][1]) : '';
-    btn.hidden = st !== 'failed';
-    if (hadFocus && btn.hidden) el.focus(); // keep keyboard focus nearby while it retries
-    if (st === 'saved') fadeT = setTimeout(() => { el.classList.add('fade'); fadeT = setTimeout(() => chip('idle'), 650); }, 3000);
+    clearTimeout(fadeT);
+    chipState = st;
+    $$('.savest').forEach(el => {
+      const btn = el.querySelector('button'), hadFocus = document.activeElement === btn;
+      el.classList.remove('fade'); el.dataset.state = st;
+      el.firstElementChild.innerHTML = CHIP[st] ? ic(CHIP[st][0]) + esc(CHIP[st][1]) : '';
+      btn.hidden = st !== 'failed';
+      if (hadFocus && btn.hidden) el.focus(); // keep keyboard focus nearby while it retries
+    });
+    if (st === 'saved') fadeT = setTimeout(() => { $$('.savest').forEach(el => el.classList.add('fade')); fadeT = setTimeout(() => chip('idle'), 650); }, 3000);
   }
   function status() {
     const ks = keys(), out = ks.some(busy), bad = failedKeys();
@@ -202,7 +210,7 @@ if (window.EBPG_GAS) {
     const ids = bad.filter(k => k !== 'team').sort().join(',');
     if (ids !== failedIds) { failedIds = ids; markUnsaved(); }
   }
-  $('#savest-retry').addEventListener('click', () => retryNow(true));
+  $$('.savest button').forEach(b => b.addEventListener('click', () => retryNow(true)));
   window.addEventListener('online', () => { if (live && failedKeys().length) retryNow(false); });
   // closing the tab: send what's left; if anything still isn't saved, the browser asks first
   window.addEventListener('beforeunload', e => {
@@ -247,6 +255,8 @@ if (window.EBPG_GAS) {
     try {
       const st = await run('signIn', code);
       if (g === gen && live && !st.empty && merge(st, t0)) toast('Updated with the latest changes', 'check');
+      // the Sheet is answering again: send what didn't go through now, not at the next retry (up to a minute away)
+      if (g === gen && live && failedKeys().length) retryNow(false);
     } catch {} finally { reading = false; }
   }
   function merge(st, t0) {
@@ -291,7 +301,7 @@ if (window.EBPG_GAS) {
     if (evs) {
       taskSeq = Math.max(taskSeq, ...EVENTS.flatMap(e => e.tasks.map(t => +String(t.id).replace(/\D/g, '') || 0)));
       const ft = document.activeElement?.closest?.('#tiles [data-open]')?.dataset.open;
-      renderAttn(); renderTiles(); renderMaterials(); renderLanding();
+      renderAttn(); renderTiles(); renderMaterials(); redrawLanding();
       if (ft) $$('#tiles [data-open]').find(t => t.dataset.open === ft)?.focus();
       if (openRedo) renderDetail();
     }
@@ -304,11 +314,32 @@ if (window.EBPG_GAS) {
   document.addEventListener('visibilitychange', () => {
     if (!live) return;
     if (document.hidden) { leaving = true; flush(); leaving = false; } // a phone may close the page without warning
-    else refresh();
+    else { if (failedKeys().length) retryNow(false); refresh(); } // back on the tab: try failed saves again now
   });
 
   /* ---------- signing in and out ---------- */
-  let signing = false;
+  // while a sign-in is going: who it's for, and the line under the name picker
+  let signing = false, signingAs = '', waitLine = '';
+  const WAKING = 'Waking up the Guild Sheet. This can take a few seconds.';
+  // the name picker shows the sign-in that's going: that name says "Signing in…", the others wait.
+  // Run again after the picker is redrawn (the Sheet's team can arrive mid sign-in), so it isn't lost.
+  function showSigning() {
+    $$('#si-pick button').forEach(b => {
+      const me = signing && b.dataset.as === signingAs, small = b.querySelector('small');
+      if (small && small.dataset.role === undefined) small.dataset.role = small.textContent;
+      b.disabled = signing && !me;
+      if (me) { b.setAttribute('aria-busy', 'true'); b.setAttribute('aria-disabled', 'true'); }
+      else { b.removeAttribute('aria-busy'); b.removeAttribute('aria-disabled'); }
+      if (small) small.textContent = me ? 'Signing in…' : small.dataset.role;
+    });
+    $('#si-wait').textContent = signing ? waitLine : '';
+  }
+  // redraw the landing page without losing a sign-in that's going, or the name that has keyboard focus
+  function redrawLanding() {
+    const f = document.activeElement?.closest?.('#si-pick [data-as]')?.dataset.as;
+    renderLanding(); showSigning();
+    if (f) $$('#si-pick [data-as]').find(b => b.dataset.as === f)?.focus();
+  }
   remote = {
     // resume: signing back in with the stored code after a reload
     async signIn(name, resume) {
@@ -317,15 +348,16 @@ if (window.EBPG_GAS) {
       const c = typed || code;
       if (!c) { err.textContent = 'Type the organizer code first.'; err.hidden = false; $('#si-code').focus(); return; }
       err.hidden = true;
-      signing = true;
-      const btns = $$('#si-pick button'), btn = btns.find(b => b.dataset.as === name), small = btn && btn.querySelector('small'), role = small ? small.textContent : '';
-      btns.forEach(b => { if (b !== btn) b.disabled = true; });
-      if (btn) { btn.setAttribute('aria-busy', 'true'); btn.setAttribute('aria-disabled', 'true'); if (small) small.textContent = 'Signing in…'; }
-      $('#si-wait').textContent = 'Waking up the Guild Sheet. This can take a few seconds.';
+      signing = true; signingAs = name; waitLine = WAKING;
+      showSigning();
       try {
         let st = await run('signIn', c);
         sheetUrl = st.sheetUrl || '';
-        if (st.empty) st = await run('seed', c, SEED);
+        if (st.empty) {
+          waitLine = 'Setting up the Guild Sheet for the first time. This can take up to a minute.';
+          showSigning();
+          st = await run('seed', c, SEED);
+        }
         code = c; reset(); load(st); live = true;
         renderVols(); renderMaterials(); renderLanding();
         if (!person(name) || person(name).role === 'vol') name = (organizers()[0] || TEAM[0]).name;
@@ -340,10 +372,8 @@ if (window.EBPG_GAS) {
         err.hidden = false;
         if (!$('#p-signin').hidden || !typed) goSignIn();
       } finally {
-        signing = false;
-        btns.forEach(b => { b.disabled = false; b.removeAttribute('aria-busy'); b.removeAttribute('aria-disabled'); });
-        if (small) small.textContent = role;
-        $('#si-wait').textContent = '';
+        signing = false; signingAs = '';
+        showSigning();
       }
     },
     // post after the event's own save is in, so the Sheet has what's being posted
@@ -377,6 +407,7 @@ if (window.EBPG_GAS) {
     flush();
     if (failedKeys().length && !confirm("Some changes haven't reached the Guild Sheet yet. Sign out anyway and lose them?")) return false;
     live = false; code = ''; sheetUrl = ''; problems = []; store.clear(); reset();
+    $('#si-rem').checked = false; // this device is forgotten, so the box starts unticked for whoever signs in next
     return true;
   };
 
@@ -390,12 +421,14 @@ if (window.EBPG_GAS) {
   const boot = () => {
     renderAs(); render(); renderMaterials(); renderTeam(); renderLanding(); bindJoin(); renderVols();
     const user = AUTH.get() || store.kept().name;
+    // a remembered device stays remembered when signing back in fails and someone picks their name again
+    if (store.kept().code) $('#si-rem').checked = true;
     document.body.classList.add('out');
     if (user && code) { showTab('resume'); remote.signIn(user, true); } // not the landing page: we're signing straight back in
     else showTab(G.ev ? 'signin' : 'landing');
   };
   // show the page right away, then swap in what's in the Sheet (Apps Script can take a few seconds to wake up)
   boot();
-  run('getPublic').then(st => { if (live) return; load(st); render(); renderMaterials(); renderLanding(); })
+  run('getPublic').then(st => { if (live) return; load(st); render(); renderMaterials(); redrawLanding(); })
     .catch(er => toast(er.net ? "Couldn't reach the Guild Sheet. Refresh the page to try again." : "Couldn't reach the Sheet: " + er.message));
 }

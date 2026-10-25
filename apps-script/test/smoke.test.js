@@ -844,9 +844,123 @@ test("this page's own save coming back from the Sheet is not news", async t => {
   p.noErrors();
 });
 
+test('a save that fails with the event pop-up open: the pop-up shows Not saved with a Retry that works', async t => {
+  const p = await openPage(t);
+  await signIn(p);
+  p.api.fail = 'saveEvent';
+  await editTitle(p, 'w7', 'Rain Plan Work Party');
+  const chip = p.$('#m-savest'), retry = chip.querySelector('button'), say = () => chip.firstElementChild.textContent;
+  await waitFor(() => chip.dataset.state === 'failed', 3000, 'Not saved in the pop-up');
+  assert.ok(p.shown('#modal') && p.$('header.top').hasAttribute('inert'), 'the pop-up is still open over an inert page');
+  assert.ok(p.$('#modal .mbar').contains(chip) && !chip.closest('[inert]') && p.visible(chip), "in the pop-up's bar, outside the inert page");
+  assert.ok(!chip.contains(p.$('#m-x')) && p.visible('#m-x'), 'Close is still there');
+  assert.equal(chip.getAttribute('role'), 'status');
+  assert.equal(say(), 'Not saved');
+  assert.ok(chip.querySelector('use[href="#i-alert-triangle"]'));
+  assert.ok(!retry.hidden && p.visible(retry) && retry.textContent === 'Retry' && retry.querySelector('use[href="#i-rotate-ccw"]'), 'a Retry button');
+  assert.equal(p.$('#savest').dataset.state, 'failed', 'the top bar chip agrees, for when the pop-up closes');
+
+  // a second Save while it's failing tries again at once and says how it went
+  p.api.latency = 400;
+  await editTitle(p, 'w7', 'Rain Plan Work Party, take two');
+  assert.equal(say(), 'Saving…', 'Save shows Saving… again');
+  await waitFor(() => say() === 'Not saved', 3000, 'Not saved again');
+
+  // the Sheet answers again; Retry in the pop-up sends it and leaves the pop-up open
+  p.api.fail = '';
+  retry.focus();
+  retry.click();
+  assert.equal(say(), 'Saving…');
+  assert.equal(p.d.activeElement, chip, 'focus stays on the note in the pop-up while it retries');
+  await waitFor(() => say() === 'All changes saved', 3000, 'All changes saved');
+  assert.ok(p.shown('#modal'), 'the pop-up stays open');
+  assert.equal(rowOf(p, 'w7')[titleCol(p)], 'Rain Plan Work Party, take two', 'the Sheet has the newest edit');
+  await waitFor(p.idle, 2000, 'saves to finish');
+  assert.deepEqual(p.api.errors, []);
+});
+
+test('Signing in… stays on the name when the public events arrive while it signs in', async t => {
+  // the public read is still out when the name is picked, and comes back before the sign-in does
+  const p = loadPage(t, SITE, 'http://localhost:8766/site', (w, g, api) => { g.ctx.getPublic(); api.latency = 300; });
+  p.api.latency = 1500;
+  p.$('#signin-top').click();
+  p.set('#si-code', p.code());
+  const pick = p.$('#si-pick button[data-as="Jessie"]');
+  pick.focus();
+  pick.click();
+  assert.equal(pick.getAttribute('aria-busy'), 'true');
+  p.api.latency = 500; // for the seed that follows
+  await waitFor(() => !pick.isConnected, 3000, 'the picker to be redrawn with what the Sheet has');
+  assert.ok(!p.api.done.some(c => c.fn === 'signIn'), 'the sign-in is still going');
+  const btn = p.$('#si-pick button[data-as="Jessie"]');
+  assert.equal(btn.getAttribute('aria-busy'), 'true', 'the redrawn name is still busy');
+  assert.match(btn.textContent, /Jessie\s*Signing in…$/);
+  assert.ok(!btn.disabled && p.d.activeElement === btn, 'and keeps keyboard focus');
+  assert.ok(p.$$('#si-pick button').filter(b => b !== btn).every(b => b.disabled), 'the other names still wait');
+  assert.equal(p.$('#si-wait').textContent, 'Waking up the Guild Sheet. This can take a few seconds.');
+  btn.click(); // still does nothing while it works
+  // an empty Sheet gets filled first, and the line says so
+  await waitFor(() => p.api.out.seed === 1, 3000, 'the Sheet to be filled');
+  assert.equal(p.$('#si-wait').textContent, 'Setting up the Guild Sheet for the first time. This can take up to a minute.');
+  await waitFor(() => p.shown('#p-events') && !p.d.body.classList.contains('out'), 4000, 'the events page');
+  await waitFor(p.idle, 2000, 'calls to finish');
+  assert.equal(p.api.calls.filter(c => c === 'signIn').length, 1, 'one sign-in call');
+  assert.ok(p.$$('#si-pick button').every(b => !b.disabled && !b.hasAttribute('aria-busy')), 'the names are back to normal');
+  assert.ok(!p.$$('#si-pick small').some(s => /Signing in/.test(s.textContent)));
+  assert.equal(p.$('#si-wait').textContent, '');
+  p.noErrors();
+});
+
+test('a remembered device stays remembered when signing back in fails and the name is picked again', async t => {
+  const p = loadPage(t, SITE, 'http://localhost:8766/site', (w, g, api) => { withCode('device', 'Kalynn', 864e5)(w, g, api); api.fail = 'signIn'; });
+  assert.ok(p.shown('#p-resume'), 'the signing-back-in card');
+  await waitFor(() => p.shown('#p-signin') && p.shown('#si-err'), 3000, 'the sign-in card after the Sheet did not answer');
+  assert.equal(p.$('#si-rem').checked, true, 'Remember this device is still ticked');
+  p.api.fail = '';
+  p.$('#si-pick button[data-as="Kalynn"]').click();
+  await waitFor(() => p.shown('#p-events') && !p.d.body.classList.contains('out'), 4000, 'the events page');
+  const kept = JSON.parse(p.w.localStorage.getItem('ebpg-remember'));
+  assert.equal(kept && kept.code, p.code(), 'the device still has the code');
+  p.$('#signout').click();
+  assert.equal(p.w.localStorage.getItem('ebpg-remember'), null, 'signing out forgets the device');
+  assert.equal(p.$('#si-rem').checked, false, 'and unticks the box for whoever signs in next');
+  await waitFor(p.idle, 2000, 'calls to finish');
+  assert.deepEqual(p.api.errors, []);
+});
+
+test('coming back to the tab retries a failed save right away, without waiting for the next retry', async t => {
+  const p = await openPage(t);
+  await signIn(p);
+  p.api.fail = 'saveEvent';
+  await editTitle(p, 'w7', 'Rain Plan Work Party');
+  p.$('#m-x').click();
+  await waitFor(() => p.$('#savest').dataset.state === 'failed', 3000, 'Not saved');
+  p.api.fail = '';
+  p.d.dispatchEvent(new p.w.Event('visibilitychange'));
+  // the next retry on its own is 2 s away
+  await waitFor(() => chipText(p) === 'All changes saved', 1000, 'All changes saved soon after coming back');
+  assert.equal(rowOf(p, 'w7')[titleCol(p)], 'Rain Plan Work Party');
+  await waitFor(p.idle, 2000, 'calls to finish');
+  assert.deepEqual(p.api.errors, []);
+});
+
+test('signing in gets 45 seconds and filling an empty Sheet 90; other calls get 30', async t => {
+  const p = await openPage(t, (w, g, api) => {
+    const later = w.setTimeout;
+    api.limits = [];
+    w.setTimeout = (f, ms, ...a) => { if (ms >= 30000) api.limits.push(ms); return later.call(w, f, ms, ...a); };
+  });
+  assert.deepEqual(p.api.limits, [30000], 'the public read');
+  await signIn(p);
+  assert.ok(p.api.calls.includes('seed'));
+  assert.deepEqual(p.api.limits.slice(0, 3), [30000, 45000, 90000], 'getPublic, signIn, seed');
+  p.noErrors();
+});
+
 test('the status chip and the Not saved mark are live-only: the artifact never shows them', () => {
   const src = fs.readFileSync(ARTIFACT, 'utf8');
   assert.match(src, /<div class="savest live" id="savest" role="status"/);
+  assert.match(src, /<div class="savest live" id="m-savest" role="status"/);
   assert.match(src, /<label class="chk live" id="si-remw">/);
   assert.match(src, /<div id="p-resume" data-page="resume" class="signin live" hidden>/);
 });

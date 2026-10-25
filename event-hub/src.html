@@ -98,6 +98,9 @@ a { color: var(--fern); }
 .top .wrap { position: relative; }
 .savest { position: absolute; top: 100%; right: max(16px, env(safe-area-inset-right, 0px)); z-index: 1; display: flex; align-items: center; gap: 6px; padding: 5px 12px 6px; border: 1px solid var(--line); border-top: 0; border-radius: 0 0 12px 12px; background: var(--surface); color: var(--ink-2); font-size: 13px; font-weight: 700; line-height: 1.2; white-space: nowrap; box-shadow: 0 8px 18px rgba(27, 42, 33, .08); transition: opacity .6s; }
 .savest:focus { outline: none; }
+.savest:focus-visible { outline: 2px solid var(--fern); outline-offset: 2px; }
+/* the event pop-up has its own copy, hanging from the pop-up's bar under Close, since the page's bar is behind the pop-up */
+.mbar .savest { right: 16px; }
 .savest[data-state="idle"] { opacity: 0; pointer-events: none; padding: 0; border: 0; box-shadow: none; }
 .savest.fade { opacity: 0; }
 .savest > span { display: inline-flex; align-items: center; gap: 6px; }
@@ -1510,7 +1513,7 @@ await supabase.from('volunteers').insert({
     <div class="helpg">
       <section aria-labelledby="hp-data">
         <h2 id="hp-data">Where everything is saved</h2>
-        <p>Everything you do here is saved to the Guild's Google Sheet a moment after you change it. A note under the top bar says <b>Saving…</b>, then <b>All changes saved</b>. If the Sheet doesn't answer, it says <b>Not saved</b>, keeps trying on its own, and has a Retry button; your browser also asks before you close the tab. Each tab holds one kind of thing: Events, Bringing, Posts, Team, Volunteers, Activity and Gardens. Settings holds the organizer code and switches like <code>TEST_MODE</code> and <code>REMINDERS</code>.</p>
+        <p>Everything you do here is saved to the Guild's Google Sheet a moment after you change it. A note under the top bar (or the event pop-up's bar, while one is open) says <b>Saving…</b>, then <b>All changes saved</b>. If the Sheet doesn't answer, it says <b>Not saved</b>, keeps trying on its own, and has a Retry button; your browser also asks before you close the tab. Each tab holds one kind of thing: Events, Bringing, Posts, Team, Volunteers, Activity and Gardens. Settings holds the organizer code and switches like <code>TEST_MODE</code> and <code>REMINDERS</code>.</p>
         <div id="help-sheet"></div>
       </section>
       <section aria-labelledby="hp-code">
@@ -1538,7 +1541,8 @@ await supabase.from('volunteers').insert({
 </main>
 
 <div class="modal" id="modal" hidden><div class="mbox" role="dialog" aria-modal="true" aria-labelledby="m-title">
-  <div class="mbar"><span class="eyebrow" id="m-title">Event</span><div class="grp"><a class="btn ghost sm" id="m-tab" href="#" target="_blank" rel="noopener">New tab<svg class="ic" aria-hidden="true" focusable="false"><use href="#i-out"/></svg></a><button class="btn primary sm" type="button" id="m-x"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-x"/></svg>Close</button></div></div>
+  <div class="mbar"><span class="eyebrow" id="m-title">Event</span><div class="grp"><a class="btn ghost sm" id="m-tab" href="#" target="_blank" rel="noopener">New tab<svg class="ic" aria-hidden="true" focusable="false"><use href="#i-out"/></svg></a><button class="btn primary sm" type="button" id="m-x"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-x"/></svg>Close</button></div>
+    <div class="savest live" id="m-savest" role="status" tabindex="-1" data-state="idle"><span></span><button type="button" hidden><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-rotate-ccw"/></svg>Retry</button></div></div>
   <div class="mbody" id="m-body"></div>
 </div></div>
 <div id="drawer"></div>
