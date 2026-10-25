@@ -430,8 +430,8 @@ if (window.EBPG_GAS) {
       base.team = rawTeam; saved.team = snapTeam();
       if (saved.team !== before) { team = true; if (!ours) news = true; }
     }
-    const rawVols = JSON.stringify(st.vols || []);
-    if (st.vols && rawVols !== base.vols) { base.vols = rawVols; VOLS.splice(0, VOLS.length, ...vols(st.vols)); vl = news = true; }
+    const rawVols = JSON.stringify(st.vols || []), ourVols = mine.delete('vols'); // a sign-up from this page isn't news here
+    if (st.vols && rawVols !== base.vols) { base.vols = rawVols; VOLS.splice(0, VOLS.length, ...vols(st.vols)); vl = true; if (!ourVols) news = true; }
     problems = st.problems || [];
     renderProblems();
     // the Channels tab changed: the attention bar, and the open event unless something in it is being typed
@@ -633,13 +633,19 @@ if (window.EBPG_GAS) {
       if (stale) return Promise.reject(new Error(STALE));
       return now || !busy(k) ? go() : settled(k).then(go);
     },
-    /* the volunteer form: resolves once the Sheet has the sign-up. A failure is thrown, for the form to show with Try again. */
+    /* the volunteer form: resolves once the Sheet has the sign-up. A failure is thrown for the form to show: with Try
+       again when the Sheet wasn't reached (net: true), or the Sheet's own words. */
     join: async v => {
-      try { return await run('addVolunteer', { ...v, help: v.help.map(k => Object.fromEntries(HELP)[k] || k) }); }
+      let out;
+      try { out = await run('addVolunteer', { ...v, help: v.help.map(k => Object.fromEntries(HELP)[k] || k) }); }
       catch (er) {
         if (!er.net) throw er; // the Sheet's own words, e.g. "That email address doesn't look right."
         throw Object.assign(new Error("We couldn't reach the Guild Sheet, so your sign-up didn't go through. Your answers are still here."), { net: true });
       }
+      // an organizer signed in here: the Volunteer list reads the Sheet again, which has the row as it was kept
+      // (a new row, or someone's own row with these answers added), and that's no news to toast about
+      if (live && !stale) { mine.add('vols'); setTimeout(() => refresh(true), 0); }
+      return out;
     },
   };
   // signing out with changes the Sheet doesn't have yet asks first

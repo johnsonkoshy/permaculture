@@ -1345,7 +1345,7 @@ td code, .code code { font: 400 13px/1.5 var(--mono); }
         <fieldset><legend>When are you usually free? <span class="hint">optional</span></legend><div class="picks" id="vj-free"></div></fieldset>
         <label class="fld">How did you hear about us? <span class="hint">optional</span><select id="vj-heard" name="heard"><option value="">Choose one</option></select></label>
         <label class="fld">Anything else? <span class="hint">optional</span><textarea id="vj-note" name="note" rows="2" maxlength="1000" placeholder="Skills, languages you speak, anything we should know"></textarea></label>
-        <label class="chk vj-list"><input type="checkbox" id="vj-list" name="list"><span>Add me to the Guild email list<span class="hint">News about work days and meetings, a few times a month.</span></span></label>
+        <label class="chk vj-list"><input type="checkbox" id="vj-list" name="list"><span>Add me to the Guild email list<span class="hint">News about work days and meetings.</span></span></label>
         <p class="err" id="vj-err" role="alert" hidden></p>
         <p class="vh" id="vj-status" role="status"></p>
         <div class="joinrow"><button class="btn primary lg" type="submit" id="vj-send"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-user-plus"/></svg>Join the list</button>
@@ -1832,7 +1832,7 @@ await supabase.from('volunteers').insert({
       <section aria-labelledby="hp-vols">
         <h2 id="hp-vols">Volunteer sign-ups</h2>
         <p>The form on the home page asks for a name, an email or phone (and which is best), how they'd like to help, when they're usually free, how they heard about the Guild and whether to add them to the Guild email list. Each sign-up is a row on the <b>Volunteers</b> tab, with an <code>event</code> column when they signed up from an event's page. The <b>Volunteer list</b> on the Team page shows them all.</p>
-        <p>The volunteer gets a welcome email about the next event (replies go to <code>REPLY_TO</code>), and the lead organizer gets one with every answer. Someone who signs up again with the same email or phone gets their row updated, with <i>Signed up again</i> and the date in the note, and no second welcome. People who ask for the email list aren't added to the Google Group automatically: add them there by hand.</p>
+        <p>The volunteer gets a welcome email about the next event (replies go to <code>REPLY_TO</code>), and the lead organizer gets one with every answer. Someone who signs up again with the same email or phone and the same first name gets their row updated, with <i>Signed up again</i> and the date in the note, and no second welcome. Someone else on a shared email or phone (a household, a group's address) gets a row of their own. People who ask for the email list aren't added to the Google Group automatically: add them there by hand.</p>
       </section>
       <section aria-labelledby="hp-edit">
         <h2 id="hp-edit">Fixing things in the Sheet</h2>
@@ -3560,18 +3560,19 @@ const mdy = s => D(s).toLocaleDateString('en-US', { month: 'short', day: 'numeri
 /* ---------- the volunteer form ----------
    Sending it waits for the Sheet: the thank-you shows only once the sign-up is saved. If it doesn't go through,
    everything typed stays, and Try again sends it with the same id, so the Sheet keeps it once however often it's sent.
-   #vj-opened: when the form was opened (the Sheet ignores a form sent within 3 seconds: that's a bot), and #vj-website
-   is a box only bots fill in. */
+   #vj-opened: when the form was opened, on performance.now()'s clock, which never goes back when the device's clock is
+   changed (the Sheet ignores a form sent within 3 seconds: that's a bot), and #vj-website is a box only bots fill in. */
 const NOTE_PH = 'Skills, languages you speak, anything we should know';
 const NOTE_ASK = { host: 'Tell us about your project: what it is, where it is, and the help it needs', partner: 'Tell us about your group and how you would like to work with the Guild' };
 const NAME_OK = /^\p{L}[\p{L}\p{M} .'’-]{0,79}$/u, EMAIL_OK = /^[^\s@<>"'(),;:]+@[^\s@<>"'(),;:]+\.[^\s@<>"'(),;:.]{2,}$/; // as Code.js checks them
+const tick = () => (window.performance && performance.now ? performance.now() : Date.now());
 const newId = () => { try { if (window.crypto && crypto.randomUUID) return crypto.randomUUID(); } catch {} return 'j' + Date.now().toString(36) + Math.random().toString(36).slice(2, 12).padEnd(10, '0'); };
 let joinId = '', joinBusy = false, joinEv = null;
 // a fresh, empty form (after a sign-up, for the next person)
 function newJoin() {
   $('#joinf').reset(); $('#vj-err').hidden = true; $('#vj-err').textContent = ''; $('#vj-status').textContent = '';
   $('#joinf').hidden = false; $('#joined').hidden = true; $('#joined').innerHTML = '';
-  $('#vj-note').placeholder = NOTE_PH; $('#vj-opened').value = String(Date.now()); joinId = '';
+  $('#vj-note').placeholder = NOTE_PH; $('#vj-opened').value = String(tick()); joinId = '';
 }
 const joinErr = (msg, el) => { const e = $('#vj-err'); e.textContent = msg; e.hidden = false; if (el) el.focus(); };
 // what the form says, or what's missing (with the field to go to)
@@ -3599,23 +3600,29 @@ async function sendJoin() {
   const { v, bad } = joinForm();
   if (bad) return joinErr(bad[0], $(bad[1]));
   joinId = joinId || newId(); // the same id until it's saved, so Try again never adds a second row
-  const btn = $('#vj-send'), opened = Number($('#vj-opened').value) || 0;
+  const btn = $('#vj-send'), opened = $('#vj-opened').value;
   joinBusy = true; $('#vj-err').hidden = true;
   btn.disabled = true; btn.setAttribute('aria-busy', 'true'); btn.innerHTML = ic('loader') + 'Sending…';
   $('#vj-status').textContent = 'Sending your sign-up…';
+  let fail = null;
   try {
-    if (remote) await remote.join({ ...v, id: joinId, elapsed: opened ? Date.now() - opened : '', website: $('#vj-website').value });
-    else VOLS.push({ ...v, contact: v.email || v.phone, date: TODAY }); // the artifact keeps sign-ups in this tab
-  } catch (er) {
-    const e = $('#vj-err');
-    e.innerHTML = `<span>${esc(er && er.message ? er.message : "Your sign-up didn't go through.")}</span><button class="btn ghost sm" type="button" id="vj-retry">${ic('rotate-ccw')}Try again</button>`;
-    e.hidden = false; $('#vj-status').textContent = '';
-    $('#vj-retry').focus();
-    return;
-  } finally {
+    if (remote) await remote.join({ ...v, id: joinId, elapsed: opened === '' ? '' : Math.round(tick() - Number(opened)), website: $('#vj-website').value });
+  } catch (er) { fail = er || new Error(''); } finally {
     joinBusy = false; btn.disabled = false; btn.removeAttribute('aria-busy'); btn.innerHTML = ic('user-plus') + 'Join the list';
   }
+  if (fail) {
+    const e = $('#vj-err'), said = String(fail.message || ''), m = esc(said || "Your sign-up didn't go through.");
+    $('#vj-status').textContent = '';
+    // Try again only when the send never reached the Sheet; its own words (a choice that's gone, too many sign-ups
+    // right now) aren't fixed by sending the same answers again, so focus goes back to the form
+    e.innerHTML = fail.net ? `<span>${m}</span><button class="btn ghost sm" type="button" id="vj-retry">${ic('rotate-ccw')}Try again</button>` : `<span>${m}</span>`;
+    e.hidden = false;
+    const at = /\bname\b/i.test(said) ? '#vj-name' : /\bemail\b/i.test(said) ? '#vj-email' : /\bphone\b/i.test(said) ? '#vj-phone' : /\bnote\b/i.test(said) ? '#vj-note' : '#vj-send';
+    (fail.net ? $('#vj-retry') : $(at)).focus();
+    return;
+  }
   joinId = ''; $('#vj-status').textContent = '';
+  VOLS.push({ ...v, contact: v.email || v.phone, date: TODAY }); // on the Volunteer list here now; the live page reads the Sheet again too
   renderVols();
   showJoined(v);
 }
@@ -3645,7 +3652,7 @@ function bindJoin() {
   $('#vj-picks').innerHTML = HELP.map(([k, l]) => chip('vj-help', k, l)).join('');
   $('#vj-free').innerHTML = FREE.map(l => chip('vj-free', l, l)).join('');
   $('#vj-heard').innerHTML = '<option value="">Choose one</option>' + HEARD.map(l => `<option>${esc(l)}</option>`).join('');
-  $('#vj-opened').value = String(Date.now());
+  $('#vj-opened').value = String(tick());
   // the "Coming to <event>" chip's x: a sign-up for no event in particular
   $('#vj-for').addEventListener('click', e => {
     if (!e.target.closest('#vj-for-x')) return;

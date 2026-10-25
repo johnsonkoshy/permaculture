@@ -245,8 +245,9 @@ test('editing an event title saves it to the Events tab', async t => {
   p.noErrors();
 });
 
-/* the volunteer form opened 10 seconds ago: the Sheet ignores one sent within 3 seconds of opening (a bot) */
-const settled = p => { p.$('#vj-opened').value = String(p.w.Date.now() - 10000); };
+/* the volunteer form opened 10 seconds ago: the Sheet ignores one sent within 3 seconds of opening (a bot).
+   The page times it with performance.now(), which a change to the device's clock doesn't move. */
+const settled = p => { p.$('#vj-opened').value = String(p.w.performance.now() - 10000); };
 
 test('the volunteer form adds a row to the Volunteers tab', async t => {
   const p = await openPage(t);
@@ -3517,7 +3518,8 @@ test('volunteer form: name, email and phone, the best way to reach you, its choi
   const hp = p.$('#joinf input[name=website]');
   assert.deepEqual([hp.tabIndex, hp.getAttribute('autocomplete'), !!hp.closest('[aria-hidden="true"]')], [-1, 'off', true]);
   assert.equal(p.w.getComputedStyle(hp.closest('.vj-hp')).left, '-10000px', 'off the screen');
-  assert.ok(p.$('#vj-opened').type === 'hidden' && Number(p.$('#vj-opened').value) > START - 1000, 'when the form was opened');
+  const opened = Number(p.$('#vj-opened').value);
+  assert.ok(p.$('#vj-opened').type === 'hidden' && p.$('#vj-opened').value !== '' && opened >= 0 && opened <= p.w.performance.now(), 'when the form was opened, on a clock that never goes back');
   checkIcons(p, 'the volunteer form');
   // what the page checks before sending
   const submit = () => p.$('#joinf button[type=submit]').click(), err = () => p.$('#vj-err').textContent;
@@ -3627,10 +3629,76 @@ test("when the Sheet doesn't answer, the form keeps everything with Try again, w
   p.set('#vj-name', 'Ana Ruiz'); p.set('#vj-email', 'ana@example.org'); p.$('#vj-picks input').click();
   p.g.cache['joins:' + Math.floor(p.w.Date.now() / 6e5)] = { v: '60', until: Number.MAX_SAFE_INTEGER };
   p.$('#vj-send').click();
-  await waitFor(() => p.$('#vj-retry'), 3000, 'the error');
+  await waitFor(() => p.shown('#vj-err') && p.idle(), 3000, 'the error');
   assert.equal(p.$('#vj-err > span').textContent, 'Lots of sign-ups right now. Please try again in a few minutes.');
+  assert.ok(!p.$('#vj-retry'), "no Try again: sending the same answers right now wouldn't help");
+  assert.equal(p.d.activeElement, p.$('#vj-send'), 'focus back on the form');
+  assert.ok(p.shown('#joinf') && p.$('#vj-name').value === 'Ana Ruiz', 'still all there');
   assert.notEqual(joinCalls(p).at(-1).id, ids[0], 'a new sign-up has a new id');
+  // a choice the Sheet doesn't have any more: its words, and focus on the form
+  delete p.g.cache['joins:' + Math.floor(p.w.Date.now() / 6e5)];
+  p.$('#vj-picks input').value = 'gone';
+  p.$('#vj-send').click();
+  await waitFor(() => p.idle() && /isn't on the form anymore/.test(p.$('#vj-err').textContent), 3000, 'the error');
+  assert.equal(p.$('#vj-err > span').textContent, "One of your choices isn't on the form anymore. Please refresh the page and try again.");
+  assert.ok(!p.$('#vj-retry'));
+  assert.equal(p.d.activeElement, p.$('#vj-send'));
+  // and a problem only the Sheet sees in one answer (a phone over 30 characters) puts focus on that box
+  p.$('#vj-picks input').value = 'setup';
+  p.set('#vj-phone', '510' + ' '.repeat(15) + '555' + ' '.repeat(15) + '0101');
+  p.$('#vj-send').click();
+  await waitFor(() => p.idle() && /phone number/.test(p.$('#vj-err').textContent), 3000, 'the error');
+  assert.ok(!p.$('#vj-retry'));
+  assert.equal(p.d.activeElement, p.$('#vj-phone'));
+  assert.equal(volRowsOf(p.g).length, 1, 'only the first sign-up was kept');
   await waitFor(p.idle, 2000, 'calls to finish');
+  p.noErrors();
+});
+
+test("a device clock set back while the form is open doesn't make a sign-up look like a bot", async t => {
+  const p = await openPage(t, null, await seededSheet(t));
+  settled(p);
+  const real = p.w.Date.now;
+  p.w.Date.now = () => real() - 3600e3; // the clock was put back an hour (a time sync, or by hand)
+  p.set('#vj-name', 'Lee Park'); p.set('#vj-email', 'lee@example.org'); p.$('#vj-picks input').click();
+  p.$('#vj-send').click();
+  await waitFor(() => p.shown('#joined'), 3000, 'the thank-you');
+  const took = joinCalls(p)[0].elapsed;
+  assert.ok(took >= 10000 && took < 60000, 'how long it was really open: ' + took);
+  assert.ok(volRowsOf(p.g).some(r => r.name === 'Lee Park'), 'kept');
+  await waitFor(p.idle, 2000, 'calls to finish');
+  p.noErrors();
+});
+
+test('an organizer signed in on this tab sees a sign-up on the Volunteer list at once, then as the Sheet kept it', async t => {
+  const p = await openPage(t, null, await seededSheet(t));
+  await signIn(p, 'Jessie');
+  p.api.latency = 200; // so the list can be seen before the Sheet is read again
+  const names = () => p.$$('#vol-tbl tbody tr .nm b').map(b => b.textContent).filter(n => /Smith/.test(n)).sort();
+  const reads = () => p.api.calls.filter(c => c === 'signIn').length;
+  const join = async (name, pick) => {
+    const before = reads();
+    if (p.shown('#joined')) p.$('#vj-again').click();
+    settled(p);
+    p.set('#vj-name', name); p.set('#vj-email', 'smiths@example.org'); p.$(`#vj-picks input[value=${pick}]`).click();
+    p.$('#vj-send').click();
+    await waitFor(() => p.shown('#joined'), 3000, 'the thank-you');
+    const now = names();
+    await waitFor(() => reads() > before && p.idle(), 3000, 'the Sheet read again');
+    return now;
+  };
+  assert.deepEqual(await join('Ana Smith', 'workdays'), ['Ana Smith'], 'on the list right away');
+  assert.deepEqual(names(), ['Ana Smith']);
+  // someone else on the same household email: a row of their own
+  await join('Ben Smith', 'teach');
+  assert.deepEqual(names(), ['Ana Smith', 'Ben Smith']);
+  // Ana again: shown at once, then her one row as the Sheet has it, with both choices
+  await join('Ana Smith', 'host');
+  assert.deepEqual(names(), ['Ana Smith', 'Ben Smith']);
+  const ana = p.$$('#vol-tbl tbody tr').find(tr => tr.querySelector('.nm b').textContent === 'Ana Smith');
+  assert.equal(ana.cells[2].textContent.trim(), 'Garden work days Host a project');
+  assert.deepEqual(volRowsOf(p.g).filter(r => /Smith/.test(r.name)).map(r => r.name), ['Ana Smith', 'Ben Smith']);
+  assert.ok(!p.api.toasts.includes('Updated with the latest changes'), 'their own sign-ups are no news here');
   p.noErrors();
 });
 

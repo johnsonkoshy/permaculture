@@ -101,6 +101,7 @@ function makeGas({ page, now, url = 'http://localhost:8766/', activeUser = 'owne
       const p = parts(d);
       if (fmt === 'yyyy-MM-dd') return `${p.year}-${p.month}-${p.day}`;
       if (fmt === 'H') return String(Number(p.hour));
+      if (fmt === 'HH:mm') return `${p.hour}:${p.minute}`;
       if (fmt === 'EEEE, MMMM d') return `${p.weekday}, ${new Intl.DateTimeFormat('en-US', { timeZone: TZ, month: 'long' }).format(d)} ${Number(p.day)}`;
       if (fmt === 'MMM d') return `${new Intl.DateTimeFormat('en-US', { timeZone: TZ, month: 'short' }).format(d)} ${Number(p.day)}`;
       if (fmt === 'h:mm a') return `${Number(p.hour) % 12 || 12}:${p.minute} ${Number(p.hour) < 12 ? 'AM' : 'PM'}`;

@@ -65,6 +65,8 @@ const CAN_WAIT = ['welcome', 'lead-alert', 'thanks', 'steward', 'invite'];
 /* The volunteer form's choices, in the words the Volunteers tab keeps. The same lists as HELP, FREE, HEARD and the
    'Best way to reach you' buttons on the page (a test checks they match). Anything else is a hand-made request. */
 const VOL_HELP = ['Meeting setup', 'Garden work days', 'Partner projects', 'Outreach & photos', 'Teaching a skill', 'Adopt a plant', 'Host a project', 'Partner organization'];
+// how the welcome email says each one, in VOL_HELP order: "Thanks for signing up to help with garden work days and hosting a project."
+const VOL_HELP_SAY = ['setting up for meetings', 'garden work days', 'partner projects', 'outreach and photos', 'teaching a skill', 'adopting a plant', 'hosting a project', 'partnering as an organization'];
 const VOL_FREE = ['Weekend mornings', 'Weekday evenings', 'One-off projects'];
 const VOL_HEARD = ['Instagram', 'Partiful', 'Google Group', 'Facebook', 'A friend', 'Walked by the garden', 'A flyer', 'Other'];
 const VOL_BEST = ['Email', 'Text'];
@@ -384,17 +386,21 @@ function saveTeam(code, team) {
 /* The volunteer form, for anyone (no organizer code). v: { name, email, phone, best, help, free, heard, note, list,
    event, id, elapsed, website }. help, free and heard are the words on the form's choices; id is the page's own id for
    this sign-up, sent again when the visitor presses Try again; elapsed is how long the form was open, in ms, measured on
-   the visitor's device (so a clock that's off doesn't matter); website is a box only bots can see.
-   A bot (the hidden box filled in, or the form sent within 3 seconds of opening), a second send of the same id within
-   10 minutes, and the same email or phone again within the hour are told all went well and change nothing.
-   Someone already on the Volunteers tab (the same email or phone) gets their row updated, not a second row, and no
-   second welcome email. Returns true. */
+   the visitor's device with a clock that never goes back (so a clock that's off doesn't matter); website is a box only
+   bots can see.
+   A bot (the hidden box filled in, or the form sent within 3 seconds of opening) and a second send of the same id
+   within 10 minutes are told all went well and change nothing.
+   The same person is the same email or phone with the same first name. Someone already on the Volunteers tab gets
+   their row updated, not a second row, and no second welcome email; within the hour of their last sign-up their
+   answers are still kept, with no email at all. Someone else who shares an email or phone (a household, a group's
+   info@ address) gets a row of their own, and no welcome when that email is on the tab already, so a stranger's
+   inbox can't be flooded. Returns true. */
 function addVolunteer(v) {
   v = v && typeof v === 'object' ? v : {};
   const s = x => String(x == null ? '' : x).trim();
   if (s(v.website)) return true;
   const took = Number(v.elapsed);
-  if (s(v.elapsed) !== '' && !isNaN(took) && took < 3000) return true;
+  if (s(v.elapsed) !== '' && !isNaN(took) && took >= 0 && took < 3000) return true; // below 0: the visitor's clock went back
   const name = s(v.name).replace(/\s+/g, ' ');
   if (!name) throw new Error('Add your name so we know who to welcome.');
   if (!VOL_NAME.test(name)) throw new Error("Please write your name with letters, spaces and . ' - only (80 characters at most).");
@@ -425,30 +431,39 @@ function addVolunteer(v) {
   const cid = /^[A-Za-z0-9-]{8,64}$/.test(s(v.id)) ? s(v.id) : '';
 
   const cache = CacheService.getScriptCache(), today = today_();
-  const mail = email.toLowerCase(), tel = phoneKey_(phone);
-  const cool = [mail && 'join-e:' + mail, tel && 'join-p:' + tel].filter(Boolean);
+  const mail = email.toLowerCase(), tel = phoneKey_(phone), who = firstName_(name);
+  // the same person: this email or phone with this first name, so two people on one household email stay two people
+  const cool = [mail && 'join-e:' + mail + '|' + who, tel && 'join-p:' + tel + '|' + who].filter(Boolean);
   const bucket = 'joins:' + Math.floor(Date.now() / 6e5);
   const done = locked_(() => {
     if (cid && cache.get('join-id:' + cid)) return null; // Try again, after a send the Sheet did get
-    if (cool.some(k => cache.get(k))) return null; // this email or phone signed up within the hour
     const n = Number(cache.get(bucket) || 0);
     if (n >= JOIN_LIMIT) throw new Error('Lots of sign-ups right now. Please try again in a few minutes.');
+    const quiet = cool.some(k => cache.get(k)); // they signed up within the hour: their answers are kept, with no email
     const all = rows_('Volunteers', true), C = VCOL;
-    const i = all.findIndex(r => {
-      if (!r.some(String)) return false;
-      const was = volContact_(r);
-      return (mail && was.email.toLowerCase() === mail) || (tel && phoneKey_(was.phone) === tel);
-    });
-    let id, again = i >= 0;
-    if (again) {
+    const byMail = r => !!mail && volContact_(r).email.toLowerCase() === mail, byTel = r => !!tel && phoneKey_(volContact_(r).phone) === tel;
+    const theirs = r => r.some(String) && (byMail(r) || byTel(r)) && firstName_(r[C.name]) === who;
+    let i = all.findIndex(theirs), r = null, line = '';
+    if (i >= 0) {
       // already on the list: their row, with the new choices added and a line in the note. The name stays as it is.
-      const r = all[i].slice(), was = volContact_(r), also = [];
-      const merge = (cell, add) => { const had = String(cell || '').split(',').map(x => x.trim()).filter(String); add.forEach(x => { if (had.indexOf(x) < 0) had.push(x); }); return had.join(', '); };
+      const was = volContact_(all[i]), also = [];
+      r = all[i].slice();
       if (email && was.email && was.email.toLowerCase() !== mail) also.push('email ' + email);
       if (phone && was.phone && phoneKey_(was.phone) !== tel) also.push('phone ' + phone);
+      line = 'Signed up again ' + today + (key_(r[C.name]) !== key_(name) ? ' as ' + name : '') + (also.length ? ' with ' + also.join(' and ') : '') + (note ? ': ' + note : '');
+      if (String(r[C.note] || '').length + line.length > 45000) i = -1; // a cell holds 50,000 characters: a new row for them
+    }
+    // others with this email or phone (a household, a group's address): the lead hears who, and a welcome only to a new email
+    const others = test => all.filter(x => x.some(String) && test(x) && firstName_(x[C.name]) !== who).map(x => s(x[C.name])).filter((x, j, a) => x && a.indexOf(x) === j);
+    const shared = i >= 0 ? { mail: [], tel: [] } : { mail: others(byMail), tel: others(byTel) };
+    const known = all.some(x => x.some(String) && byMail(x));
+    let id;
+    if (i >= 0) {
+      const merge = (cell, add) => { const had = String(cell || '').split(',').map(x => x.trim()).filter(String); add.forEach(x => { if (had.indexOf(x) < 0) had.push(x); }); return had.join(', '); };
+      const was = volContact_(r), said = String(r[C.note] || '').split('\n');
       r[C['wants to help with']] = merge(r[C['wants to help with']], help);
       r[C.free] = merge(r[C.free], free);
-      r[C.note] = (r[C.note] ? r[C.note] + '\n' : '') + 'Signed up again ' + today + (also.length ? ' with ' + also.join(' and ') : '') + (note ? ': ' + note : '');
+      if (said[said.length - 1] !== line) r[C.note] = (r[C.note] ? r[C.note] + '\n' : '') + line; // the same answers twice: one line
       r[C.email] = was.email || email; r[C.phone] = was.phone || phone;
       if (!String(r[C.contact]).trim()) r[C.contact] = r[C.email] || r[C.phone];
       r[C['best way']] = best;
@@ -466,19 +481,20 @@ function addVolunteer(v) {
     cache.put(bucket, String(n + 1), 600);
     if (cid) cache.put('join-id:' + cid, id, 600);
     cool.forEach(k => cache.put(k, id, 3600));
-    return { again: again };
+    return { again: i >= 0, quiet: quiet, known: known, shared: shared };
   });
-  if (!done || !on_('WELCOME_EMAILS')) return true;
+  if (!done || done.quiet || !on_('WELCOME_EMAILS')) return true;
   // the sign-up is saved already, so an email that fails is noted on the Reminders tab instead of failing the sign-up
   const tryMail = (to, subject, body, kind) => { try { mail_(to, subject, body, kind); } catch (e) { log_(kind, to, 'failed: ' + msg_(e)); } };
   const ups = upcoming_(), coming = evId ? ups.find(e => e.id === evId) : null, next = coming || ups[0]; // published events only
   const when = e => e.title + ', ' + niceDate_(e.date) + (/^\d{2}:\d{2}$/.test(e.start) ? ' at ' + niceTime_(e.start) : '') + (e.place ? ', ' + e.place : '');
-  if (email && !done.again) {
+  const and = l => l.length > 1 ? l.slice(0, -1).join(', ') + ' and ' + l[l.length - 1] : l.join('');
+  if (email && !done.again && !done.known) {
     // the greeting is the first name only when it's plain letters: a name can't carry a link or a message to a stranger
     const first = name.split(' ')[0], hi = /^[\p{L}\p{M}-]{1,30}$/u.test(first) ? first : 'there';
-    const link = next ? eventLink_(next.id) : '';
+    const link = next ? eventLink_(next.id) : '', says = help.map(h => VOL_HELP_SAY[VOL_HELP.indexOf(h)] || h.toLowerCase());
     tryMail(email, 'Welcome to the East Bay Permaculture Guild',
-      'Hi ' + hi + ',\n\nThanks for signing up to help' + (help.length ? ' with ' + help.join(', ').toLowerCase() : '') + '. An organizer will reach out soon.' +
+      'Hi ' + hi + ',\n\nThanks for signing up to help' + (says.length ? ' with ' + and(says) : '') + '. An organizer will reach out soon.' +
       (next ? '\n\n' + (coming ? 'See you at ' : 'Our next gathering: ') + when(next) + '.' + (link ? '\nDetails and directions: ' + link : '') : '') +
       '\n\nSee you in the garden,\nThe East Bay Permaculture Guild\n\nJust reply to this email if you have questions.', 'welcome');
   }
@@ -487,11 +503,15 @@ function addVolunteer(v) {
     email && 'Email: ' + email, phone && 'Phone: ' + phone, 'Best way to reach them: ' + (best === 'Text' ? 'a text' : 'email'),
     'Wants to help with: ' + (help.join(', ') || '-'), free.length && 'Usually free: ' + free.join(', '), heard && 'Heard about us from: ' + heard,
     list && 'Guild email list: yes, please add them', coming && 'Coming to: ' + when(coming), note && 'Note: ' + note,
+    done.shared.mail.length && 'Shares this email with ' + and(done.shared.mail) + '. They have a row of their own, and no second welcome went to that address.',
+    done.shared.tel.length && 'Shares this phone with ' + and(done.shared.tel) + '. They have a row of their own.',
   ].filter(Boolean);
   tryMail(leadEmail_() || owner_(), (done.again ? 'Volunteer signed up again: ' : 'New volunteer: ') + name,
     lines.join('\n') + '\n\nThey are on the Volunteers tab of the Event Hub Sheet.', 'lead-alert');
   return true;
 }
+/* a name's first word, as the Sheet compares names: 'Maya O' and 'maya ortiz' are both 'maya' */
+function firstName_(n) { return key_(n).split(' ')[0]; }
 /* digits only, without a leading US 1, so (510) 555-0101 and +1 510 555 0101 are the same phone; '' when too short */
 function phoneKey_(p) {
   const d = String(p == null ? '' : p).replace(/\D/g, '');
@@ -935,9 +955,14 @@ function readEvents_(problems) {
   });
   return out;
 }
+/* Published events from today on, soonest first, as the page lists them: today's go once their end time has passed,
+   and a day with two is in start-time order. */
 function upcoming_() {
-  const t = today_();
-  return readEvents_().map(r => r.cols).filter(c => c.date >= t && c.status === 'published').sort((a, b) => a.date < b.date ? -1 : 1);
+  const t = today_(), now = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'HH:mm');
+  const over = c => c.date === t && /^\d{2}:\d{2}$/.test(c.end || '') && c.end <= now;
+  const at = c => c.date + ' ' + (c.start || '');
+  return readEvents_().map(r => r.cols).filter(c => c.date >= t && c.status === 'published' && !over(c))
+    .sort((a, b) => at(a) < at(b) ? -1 : at(a) > at(b) ? 1 : 0);
 }
 
 /* Save one event as the page has it. A new row is added only when the page says the event is new (created: true,
