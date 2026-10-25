@@ -337,6 +337,18 @@ test('reminders: evening before, once only, phone-only people go to the host as 
   assert.equal(g.ctx.hourly(), 0, 'nothing in the afternoon');
 });
 
+test("reminders: a status typed into the Bringing tab in the page's words counts the same ('Done', \"Can't make it\")", () => {
+  const g = seeded({ now: '2026-10-24T19:30:00-07:00' }); // Sat 7:30 PM, event is Sun
+  const sh = g.sheets.get('Bringing'), rows = g.tab('Bringing'), st = rows[0].indexOf('status') + 1;
+  const words = { Phil: ' Done ', Karen: 'Can\u2019t  make it' };
+  rows.forEach((r, i) => { if (i && words[r[2]]) sh.set(i + 1, st, words[r[2]]); });
+  assert.equal(g.ctx.hourly(), 0, 'nobody reminded');
+  assert.equal(g.mail.length, 0);
+  // 'Not asked yet' and 'Confirmed' typed by hand still get reminders
+  rows.forEach((r, i) => { if (i && words[r[2]]) sh.set(i + 1, st, r[2] === 'Phil' ? 'Not asked yet' : 'CONFIRMED'); });
+  assert.equal(g.ctx.hourly(), 2);
+});
+
 test('gardens added by hand get map coordinates from the hourly run, not from the public page', () => {
   const g = seeded({ now: BEFORE });
   g.sheets.get('Gardens').set(3, 1, 'Dimond Park'); g.sheets.get('Gardens').set(3, 2, '3860 Hanly Rd, Oakland');

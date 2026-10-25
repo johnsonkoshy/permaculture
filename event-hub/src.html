@@ -2105,14 +2105,14 @@ function cantNote(p) {
 
 /* tasks: what kind each one is (the Bringing tab's type column) and where it stands (its status column).
    open: nobody yet, or someone who hasn't been asked yet. A task counts as open (needs someone) while nobody is on it,
-   or when the person on it can't make it. */
+   or when the person on it can't make it, unless it's done. */
 const TASK_TYPES = ['food', 'water', 'tools', 'setup', 'cleanup', 'greet', 'photos', 'signin', 'lead', 'notes', 'other'];
 const taskType = v => TASK_TYPES.includes(v) ? v : 'other';
 const TSTATUS = { open: 'Needs someone', asked: 'Asked', confirmed: 'Confirmed', cant: "Can't make it", done: 'Done' };
-const needsSomeone = t => !t.who || t.status === 'cant';
+const needsSomeone = t => t.status !== 'done' && (!t.who || t.status === 'cant');
 const isStatus = k => Object.keys(TSTATUS).includes(k);
-// a status as the Sheet has it ('Confirmed', "can't make it", or blank) as the app names it
-const taskStatus = (v, who) => { const k = String(v ?? '').trim().toLowerCase().replace(/[\u2018\u2019]/g, "'"); return isStatus(k) ? k : Object.keys(TSTATUS).find(x => TSTATUS[x].toLowerCase() === k) || (who ? 'asked' : 'open'); };
+// a status as the Sheet has it ('Confirmed', "can't make it", 'Not asked yet', or blank) as the app names it
+const taskStatus = (v, who) => { const k = String(v ?? '').replace(/[\u2018\u2019]/g, "'").replace(/\s+/g, ' ').trim().toLowerCase(); return isStatus(k) ? k : k === 'not asked yet' ? 'open' : Object.keys(TSTATUS).find(x => TSTATUS[x].toLowerCase() === k) || (who ? 'asked' : 'open'); };
 const TASKS = {
   w2: [['food', 'Cook lunch: basmati rice, saag, veggie korma, turmeric potato and cabbage', 'Phil', 'done'], ['greet', 'Neighborhood outreach', 'Marissa', 'done']],
   w5: [['food', 'Bring plates, cups, napkins, utensils', 'Phil', 'done'], ['tools', 'Ask neighbors for wheelbarrows', 'Ajay', 'done']],
@@ -2538,6 +2538,8 @@ const counts = ev => { const c = { off: 0, review: 0, approved: 0, posted: 0, te
 /* tabs */
 function showTab(t) {
   if (t !== 'event' && S.mode === 'page') { DETAIL.remove(); S.mode = null; }
+  // leaving the Team page drops a contact change that wasn't saved, so the Sheet's Team tab is read again
+  if (t !== 'team' && (S.pedit || S.prm)) { S.pedit = S.prm = null; renderTeam(); }
   if (t !== 'pubevent') document.title = TITLE0;
   if (t === 'landing') planAfter = '';
   $$('[data-page]').forEach(p => p.hidden = p.dataset.page !== t);
@@ -3183,10 +3185,11 @@ function remindLine(ev, t) {
 const statusOf = t => isStatus(t.status) ? t.status : 'open';
 // "Needs someone" while nobody's on it; once someone is, "Not asked yet" until they're asked
 const statusName = (t, k = statusOf(t)) => k === 'open' && t.who ? 'Not asked yet' : TSTATUS[k];
+const twhatHTML = t => `<button class="twhat" type="button" data-twhat="${esc(t.id)}"><span class="vh">Edit </span>${esc(t.text)}${ic('pencil')}</button>`;
 function taskRow(ev, t, live) {
   const id = esc(t.id), what = esc(t.text), st = statusOf(t), cant = !!t.who && st === 'cant';
   const whatCell = live && S.tedit === t.id ? `<input class="twin" id="tw-${id}" data-twin="${id}" value="${what}" maxlength="200" autocomplete="off" aria-label="What">`
-    : live ? `<button class="twhat" type="button" data-twhat="${id}"><span class="vh">Edit </span>${what}${ic('pencil')}</button>` : what;
+    : live ? twhatHTML(t) : what;
   // who did it last time, and a one-tap Ask again while it needs someone
   const again = live && t.last && t.last !== t.who && needsSomeone(t) && person(t.last) ? (() => {
     const href = askHref(ev, t, t.last), label = `Ask ${esc(firstName(t.last))} again`;
@@ -3422,7 +3425,6 @@ function bindTasks(ev) {
     }
   });
   // the words of a task, changed in place: Enter or leaving the box keeps them, Escape puts them back
-  const KEYS = ['data-twho', 'data-tstat', 'data-tdel', 'data-ask', 'data-again'];
   const rename = (i, keep, to) => {
     if (i.dataset.done) return;
     i.dataset.done = '1';
@@ -3430,10 +3432,14 @@ function bindTasks(ev) {
     S.tedit = null;
     if (t && keep && v && v !== t.text) { log(`changed "${t.text}" to "${v}"`); t.text = v; }
     if (to === 'key' || !t || !row) return redraw('data-twhat', t && t.id);
-    // focus went to another control in this row: redraw once it's there, and keep it there
-    if (to && row.contains(to)) { const k = KEYS.find(a => to.hasAttribute(a)); return later(() => redraw(k, k && to.getAttribute(k))); }
-    // or somewhere else: redraw only this row, so whatever was clicked is still there
-    row.outerHTML = taskRow(ev, t, true);
+    // focus went somewhere else (maybe another control in this row, or nowhere, as Safari does for a tapped button):
+    // put the words back in place and redraw nothing else, so whatever was pressed still gets the press
+    i.outerHTML = twhatHTML(t);
+    const lab = (sel, words) => row.querySelector(sel)?.setAttribute('aria-label', words);
+    lab('[data-twho]', `Who for ${t.text}`); lab('[data-tstat]', `Status of ${t.text}`); lab('[data-tdel]', `Remove ${t.text}`);
+    const a = row.querySelector('a[data-ask]'), ag = row.querySelector('a[data-again]');
+    if (a) { a.href = askHref(ev, t); a.setAttribute('aria-label', `Ask ${firstName(t.who)} about ${t.text} by ${reachOf(t.who)?.kind === 'email' ? 'email' : 'text'}`); }
+    if (ag) ag.href = askHref(ev, t, t.last);
     sync();
   };
   box.addEventListener('keydown', e => {

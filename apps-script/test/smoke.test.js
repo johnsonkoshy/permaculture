@@ -4230,6 +4230,13 @@ test("Who's bringing what: pick someone, set where it stands, and it's in the Br
   assert.equal(row().querySelector('[data-again]').textContent, 'Ask Phil again');
   assert.deepEqual(groupsOf(row().querySelector('[data-twho]')), [['Team', TEAM_NAMES]], 'no sign-ups yet, so only the team');
   assert.ok(!row().querySelector('.rline'), 'no reminders for nobody');
+  // done with nobody on it: no longer open, and nothing to ask again
+  p.set(`[data-tstat="${id}"]`, 'done');
+  assert.equal(p.$('#dt-plan .n').textContent, '3 open');
+  assert.ok(!row().querySelector('[data-again]'), 'no Ask again once it is done');
+  p.set(`[data-tstat="${id}"]`, 'open');
+  assert.equal(p.$('#dt-plan .n').textContent, '4 open');
+  assert.equal(row().querySelector('[data-again]').textContent, 'Ask Phil again');
 
   p.set(`[data-twho="${id}"]`, 'Phil');
   assert.equal(p.d.activeElement, row().querySelector('[data-twho]'), 'focus stays on Who');
@@ -4289,6 +4296,18 @@ test("Who's bringing what: pick someone, set where it stands, and it's in the Br
   assert.equal(qrow().querySelector('[data-twhat]').textContent, 'Edit Plates, cups and napkins');
   assert.equal(q.d.activeElement, q.$('#nt-text'));
   await waitFor(() => bringRow(q, 'w7', id).what === 'Plates, cups and napkins' && q.idle(), 3000, 'the new words in the Bringing tab');
+  // or to another control in the same row: the words change in place, and that control stays put, focused
+  qrow().querySelector('[data-twhat]').click();
+  inp = q.$(`#tasks-body [data-twin="${id}"]`);
+  inp.value = 'Plates and napkins';
+  const sel = qrow().querySelector('[data-tstat]');
+  sel.focus();
+  await sleep(20);
+  assert.equal(qrow().querySelector('[data-tstat]'), sel, 'the status menu was not redrawn');
+  assert.equal(q.d.activeElement, sel);
+  assert.equal(qrow().querySelector('[data-twhat]').textContent, 'Edit Plates and napkins');
+  assert.equal(sel.getAttribute('aria-label'), 'Status of Plates and napkins');
+  await waitFor(() => bringRow(q, 'w7', id).what === 'Plates and napkins' && q.idle(), 3000, 'those words in the Bringing tab');
   assert.ok(activity(q, 'w7').includes(`Jessie changed "${PLATES}" to "Plates and cups"`));
   checkIcons(q, "who's bringing what");
   p.noErrors(); q.noErrors();
@@ -4367,6 +4386,30 @@ test('Team: tap a row to add how to reach someone; it persists, and the Ask link
   q.set(`[data-tstat="${sid}"]`, 'done');
   assert.ok(!taskTr(q, sid).querySelector('[data-ask]') && !taskTr(q, sid).querySelector('.rline'));
   p.noErrors(); q.noErrors();
+});
+
+test("Team: a contact form left open when going to another tab doesn't stop the Team tab being read, or undo a contact typed into it", async t => {
+  const p = await openPage(t);
+  await signIn(p, 'Jessie');
+  p.$('.tabs a[data-tab=team]').click();
+  teamTr(p, 'Phil').querySelector('[data-pedit]').click();
+  await waitFor(() => p.$('#pe-form'), 2000, "Phil's contact form");
+  p.$('.tabs a[data-tab=events]').click(); // no Cancel
+  const team = p.g.sheets.get('Team'), karen = p.g.tab('Team').findIndex(r => r[0] === 'Karen') + 1;
+  team.set(karen, p.g.tab('Team')[0].indexOf('email or phone') + 1, 'karen@example.org');
+  const reads = () => p.api.done.filter(c => c.fn === 'signIn').length, before = reads();
+  p.d.dispatchEvent(new p.w.Event('visibilitychange'));
+  await waitFor(() => reads() === before + 1 && p.idle(), 3000, 'the Sheet to be read again');
+  p.$('.tabs a[data-tab=team]').click();
+  assert.ok(!p.$('#pe-form'), 'the form left open is closed');
+  assert.match(teamTr(p, 'Karen').textContent, /karen@example\.org/, "Karen's contact from the Sheet shows");
+  // a team save from here keeps it
+  teamTr(p, 'Phil').querySelector('[data-pedit]').click();
+  p.set('#pe-contact', 'phil@example.org');
+  p.$('#pe-form button[type=submit]').click();
+  await waitFor(() => teamRow(p, 'Phil')['email or phone'] === 'phil@example.org' && p.idle(), 3000, "Phil's email in the Team tab");
+  assert.equal(teamRow(p, 'Karen')['email or phone'], 'karen@example.org', "Karen's hand-typed contact is kept");
+  p.noErrors();
 });
 
 test("a sign-up from the home page is in the Who list under New volunteers; picking her puts her on the Team tab as a volunteer", async t => {

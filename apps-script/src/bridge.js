@@ -430,8 +430,9 @@ if (window.EBPG_GAS) {
       evs = news = true;
     }
     const rawTeam = JSON.stringify(st.team || []);
-    // (not while someone's contact is being changed on the Team page: that waits for the next read)
-    if (st.team?.length && rawTeam !== base.team && !held('team') && !S.pedit) {
+    // (not while someone's contact is being changed on the Team page, form on screen: that waits for the next read)
+    const teamOpen = !!(S.pedit && document.getElementById('pe-form') && !document.getElementById('p-team')?.hidden);
+    if (st.team?.length && rawTeam !== base.team && !held('team') && !teamOpen) {
       const before = snapTeam(), ours = mine.delete('team');
       TEAM.splice(0, TEAM.length, ...st.team);
       base.team = rawTeam; saved.team = snapTeam();

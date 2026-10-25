@@ -888,7 +888,7 @@ function hourly() {
     if (!kind) return;
     const when = (kind === 'morning of' ? 'today' : 'tomorrow') + ' at ' + niceTime_(c.start) + ', ' + c.place;
     const toText = [];
-    bringing.filter(r => r[0] === c.id && r[2] && r[3] !== 'done' && r[3] !== 'cant').forEach(r => {
+    bringing.filter(r => r[0] === c.id && r[2] && ['done', 'cant'].indexOf(taskStatus_(r[3])) < 0).forEach(r => {
       const key = [c.id, r[4] || r[1], kind].join('|');
       if (sent.has(key)) return;
       const p = team.find(t => t.name === r[2]);
@@ -1302,6 +1302,12 @@ function postRow_(id, x, was) {
   return row;
 }
 function short_(v, n) { return String(v == null ? '' : v).trim().slice(0, n); }
+/* A Bringing status as the app reads it, whether the page wrote it ('cant') or someone typed the page's words into the
+   Sheet ("Can't make it", 'Done', 'Not asked yet'), in any case or spacing. Matches taskStatus() in the page.
+   A blank cell or another word: '' (the page shows it as asked or needs someone, by whether someone is on it). */
+const TASK_WORDS_ = { open: 'open', 'needs someone': 'open', 'not asked yet': 'open', asked: 'asked', confirmed: 'confirmed',
+  cant: 'cant', "can't make it": 'cant', done: 'done' };
+function taskStatus_(v) { const k = key_(v); return Object.prototype.hasOwnProperty.call(TASK_WORDS_, k) ? TASK_WORDS_[k] : ''; }
 /* A task's type, as the page names it (food, tools, setup, other...): plain lowercase words only. */
 function taskType_(v) { return String(v == null ? '' : v).trim().toLowerCase().replace(/[^a-z-]/g, '').slice(0, 20); }
 /* A link to a post on Partiful, Instagram and so on: kept only when it's a plain https:// link. */
