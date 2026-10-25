@@ -1,0 +1,19 @@
+<!doctype html>
+<html><head><title>Create an event</title></head>
+<body>
+<!-- Mimics Partiful's create page: big title box, custom date button, location input,
+     rich-text description, hidden image input behind a button. -->
+<header class="topbar"><a href="/">partiful</a><button type="button">Sign out</button></header>
+<main id="root">
+  <form id="create">
+    <div class="cover"><button type="button" class="pick">Choose image</button>
+      <input type="file" accept="image/*" style="display:none" aria-label="Upload a cover image"></div>
+    <textarea class="title" placeholder="Untitled Event" maxlength="120" rows="1"></textarea>
+    <button type="button" class="date">Set a date…</button>
+    <div class="field"><div class="lbl">Location</div><input type="text" placeholder="Place name, address, or link"></div>
+    <div class="field"><div class="lbl">Max capacity</div><input type="text" inputmode="numeric" name="capacity"></div>
+    <div class="desc"><div contenteditable="true" role="textbox" aria-multiline="true"><p data-placeholder="Add a description of your event…"></p></div></div>
+    <button type="submit" id="publish">Publish</button>
+  </form>
+</main>
+</body></html>

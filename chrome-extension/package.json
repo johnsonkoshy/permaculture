@@ -1,0 +1,18 @@
+{
+  "name": "ebpg-posting-helper",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Chrome extension that fills the East Bay Permaculture Guild's event drafts into Partiful, Luma, Meetup, Facebook and Hylo. You review and publish.",
+  "license": "MIT",
+  "scripts": {
+    "test": "node --test \"tests/*.test.js\"",
+    "icons": "node tools/make-icons.js",
+    "zip": "node tools/build-zip.js"
+  },
+  "engines": {
+    "node": "^22.22.2 || ^24.15.0 || >=26.0.0"
+  },
+  "devDependencies": {
+    "jsdom": "30.1.2"
+  }
+}

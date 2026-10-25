@@ -1,0 +1,21 @@
+<!doctype html>
+<html><head><title>East Bay Permaculture Guild | Facebook</title></head>
+<body>
+<!-- Mimics a Facebook group page with the "Create post" dialog open: a Lexical-style
+     editor with its placeholder drawn in a sibling, a comment box, and the site search. -->
+<div role="banner"><input type="search" aria-label="Search Facebook" placeholder="Search Facebook"></div>
+<div role="main">
+  <div role="dialog" aria-label="Create post">
+    <h2>Create post</h2>
+    <div class="editor">
+      <div contenteditable="true" role="textbox" spellcheck="true" data-lexical-editor="true" aria-describedby="ph1"><p><br></p></div>
+      <div class="xph placeholder" id="ph1">Create a public post…</div>
+    </div>
+    <input type="file" accept="image/*,image/heif,image/heic,video/*" multiple style="display:none">
+    <div role="button" tabindex="0" aria-label="Post" id="post">Post</div>
+  </div>
+  <div class="feed">
+    <div class="comment"><div contenteditable="true" role="textbox" aria-label="Write a comment…"></div></div>
+  </div>
+</div>
+</body></html>

@@ -1,0 +1,15 @@
+<!doctype html>
+<html><head><title>Hylo</title></head>
+<body>
+<!-- Mimics Hylo's post editor in Event mode: datetime-local pickers and a TipTap editor. -->
+<nav><input placeholder="Search Hylo"></nav>
+<main>
+  <div class="post-editor">
+    <input type="text" name="title" placeholder="Your event's name">
+    <div class="ProseMirror tiptap" contenteditable="true"><p class="is-editor-empty" data-placeholder="Add a description..."></p></div>
+    <div class="when"><input type="datetime-local" aria-label="Start time"><input type="datetime-local" aria-label="End time"></div>
+    <input type="text" placeholder="Where is your event?">
+    <button type="button" id="post">Post</button>
+  </div>
+</main>
+</body></html>

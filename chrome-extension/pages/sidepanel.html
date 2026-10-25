@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EBPG Posting Helper</title>
+<link rel="stylesheet" href="ui.css">
+</head>
+<body class="sp">
+<header class="brand"><svg viewBox="0 0 64 64" aria-hidden="true" focusable="false"><circle cx="32" cy="32" r="32" fill="#2F5D46"/><circle cx="45" cy="20" r="6.5" fill="#F2C14E"/><g fill="none" stroke="#F7F3E8" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 45 C20 40 27 40 33 43 C40 46 47 45 54 41"/><path d="M29 41 V24"/><path d="M29 29 C29 22.5 33.5 19 39.5 19 C39.5 25 35 29 29 29Z" fill="#A8C49A"/><path d="M29 33 C29 27.5 24.5 24 18.5 24.5 C18.5 30 23 33 29 33Z" fill="#A8C49A"/></g></svg><div><b>EBPG Posting Helper</b><span>East Bay Permaculture Guild</span></div></header>
+<main>
+  <section id="empty" class="card" hidden>
+    <h1>No event yet</h1>
+    <p class="muted" style="margin-top:6px">In the Event Hub, open an event's posts and choose <b>Open &amp; fill</b> next to Partiful, Luma, Meetup, Facebook, Hylo or Instagram. The event shows up here with a Copy button for every field.</p>
+  </section>
+  <section id="draft" class="card" hidden aria-labelledby="d-title">
+    <p class="eyebrow" id="d-meta"></p>
+    <h1 id="d-title"></h1>
+    <p id="d-when"></p>
+    <p class="notice" id="d-ig" hidden style="margin-top:12px">Instagram can't be filled automatically. Copy the caption, download the image, then post from the Instagram app.</p>
+    <figure id="d-img" hidden>
+      <img alt="Event image" id="d-img-el">
+      <figcaption><span>Event image</span><a class="btn" id="d-dl" download></a></figcaption>
+    </figure>
+    <ul class="rows" id="d-rows" aria-label="Event details" style="margin-top:8px"></ul>
+  </section>
+  <section id="open" class="card" aria-labelledby="open-h">
+    <h2 id="open-h">Open a site and fill it</h2>
+    <p class="muted" style="margin-top:4px;font-size:14px">Opens a new tab and fills the form with this event. You check it and publish.</p>
+    <div class="grid" id="targets"></div>
+    <div id="fill-wrap" style="margin-top:12px;display:flex;flex-direction:column;gap:6px">
+      <button type="button" id="fill-tab"></button>
+      <p class="muted" style="font-size:13px">Already on the form? This fills the tab you're looking at.</p>
+    </div>
+    <p class="status" id="status" aria-live="polite" style="margin-top:8px"></p>
+  </section>
+</main>
+<footer>
+  <p>Nothing leaves your browser. The helper fills forms but never clicks Publish.</p>
+  <p class="links"><button type="button" class="link" id="forget">Forget this event</button><button type="button" class="link" id="opts">Options</button></p>
+</footer>
+<script src="../src/shared.js"></script>
+<script src="common.js"></script>
+<script src="sidepanel.js"></script>
+</body>
+</html>

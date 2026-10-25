@@ -1,0 +1,20 @@
+<!doctype html>
+<html><head><title>Create Event</title></head>
+<body>
+<!-- Mimics Luma's create page: unlabeled date/time inputs in Start and End rows,
+     a location search box, a ProseMirror description, a time zone select. -->
+<nav class="top"><input type="search" placeholder="Search" aria-label="Search events"></nav>
+<main>
+  <div class="event-form">
+    <textarea placeholder="Event Name" rows="1" autocapitalize="words"></textarea>
+    <div class="dt">
+      <div class="dt-row"><div class="dt-label">Start</div><input type="date" value="2026-10-25"><input type="time" value="18:00"></div>
+      <div class="dt-row"><div class="dt-label">End</div><input type="date" value="2026-10-25"><input type="time" value="19:00"></div>
+      <select aria-label="Time zone"><option value="America/Los_Angeles">GMT-07:00 Los Angeles</option><option value="America/New_York">GMT-04:00 New York</option></select>
+    </div>
+    <div class="loc"><input type="text" role="combobox" aria-autocomplete="list" placeholder="Add Event Location"></div>
+    <div class="desc-wrap"><div class="ProseMirror" contenteditable="true" translate="no"><p class="is-empty" data-placeholder="Add Description"><br></p></div></div>
+    <button type="button" class="primary" id="create-event">Create Event</button>
+  </div>
+</main>
+</body></html>

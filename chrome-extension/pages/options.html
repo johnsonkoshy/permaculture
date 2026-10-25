@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EBPG Posting Helper options</title>
+<link rel="stylesheet" href="ui.css">
+</head>
+<body>
+<main class="opt">
+  <header class="brand"><svg viewBox="0 0 64 64" aria-hidden="true" focusable="false"><circle cx="32" cy="32" r="32" fill="#2F5D46"/><circle cx="45" cy="20" r="6.5" fill="#F2C14E"/><g fill="none" stroke="#F7F3E8" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 45 C20 40 27 40 33 43 C40 46 47 45 54 41"/><path d="M29 41 V24"/><path d="M29 29 C29 22.5 33.5 19 39.5 19 C39.5 25 35 29 29 29Z" fill="#A8C49A"/><path d="M29 33 C29 27.5 24.5 24 18.5 24.5 C18.5 30 23 33 29 33Z" fill="#A8C49A"/></g></svg><div><b>EBPG Posting Helper</b><span>East Bay Permaculture Guild</span></div></header>
+  <p class="notice" id="notice" role="status" hidden></p>
+
+  <section class="card">
+    <h1>Group links</h1>
+    <p class="muted" style="margin-top:6px">The helper opens Partiful and Luma by itself. For Meetup, Facebook and Hylo it opens the Guild's group, so paste those links here once.</p>
+    <form id="form" novalidate style="margin-top:16px">
+      <div class="field">
+        <label for="meetupUrl">Meetup group URL</label>
+        <input id="meetupUrl" name="meetupUrl" type="url" inputmode="url" autocomplete="off" spellcheck="false" placeholder="https://www.meetup.com/your-group/" aria-describedby="meetupUrl-hint meetupUrl-err">
+        <p class="hint" id="meetupUrl-hint">The group's page on meetup.com. If you paste the link of the group's Create event page instead, the helper lands right on the form.</p>
+        <p class="err" id="meetupUrl-err" hidden></p>
+      </div>
+      <div class="field">
+        <label for="facebookUrl">Facebook group URL</label>
+        <input id="facebookUrl" name="facebookUrl" type="url" inputmode="url" autocomplete="off" spellcheck="false" placeholder="https://www.facebook.com/groups/your-group" aria-describedby="facebookUrl-hint facebookUrl-err">
+        <p class="hint" id="facebookUrl-hint">The helper fills the group's post box when you open it. For a Facebook event, click Create event, then Fill again on the helper's panel.</p>
+        <p class="err" id="facebookUrl-err" hidden></p>
+      </div>
+      <div class="field">
+        <label for="hyloUrl">Hylo group URL</label>
+        <input id="hyloUrl" name="hyloUrl" type="url" inputmode="url" autocomplete="off" spellcheck="false" placeholder="https://www.hylo.com/groups/your-group" aria-describedby="hyloUrl-hint hyloUrl-err">
+        <p class="hint" id="hyloUrl-hint">Open the group's new post or event form, then click Fill again on the helper's panel if it didn't fill by itself.</p>
+        <p class="err" id="hyloUrl-err" hidden></p>
+      </div>
+      <div class="row"><button type="submit" class="primary">Save links</button><p class="status" id="status" aria-live="polite"></p></div>
+    </form>
+  </section>
+
+  <section class="card">
+    <h2>How it works</h2>
+    <ol>
+      <li>In the Event Hub, choose <b>Open &amp; fill</b> next to a site.</li>
+      <li>The helper opens that site in a new tab and fills in the title, date, time, place, description and image wherever it can find the boxes.</li>
+      <li>A small panel on the page lists every field with a Copy button, for anything it couldn't fill.</li>
+      <li>You check everything and click Publish yourself. The helper never publishes.</li>
+    </ol>
+  </section>
+
+  <section class="card">
+    <h2>Privacy</h2>
+    <p class="muted" style="margin-top:6px">The event you send stays in this browser. The helper has no server, sends nothing anywhere, and only runs on the Event Hub, Partiful, Luma, Meetup, Facebook and Hylo. Your group links are saved in your Chrome profile.</p>
+    <div class="row" style="margin-top:12px"><button type="button" id="forget">Forget the saved event</button><p class="status" id="forget-status" aria-live="polite"></p></div>
+  </section>
+</main>
+<script src="../src/shared.js"></script>
+<script src="common.js"></script>
+<script src="options.js"></script>
+</body>
+</html>

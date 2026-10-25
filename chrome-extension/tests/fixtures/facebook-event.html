@@ -1,0 +1,18 @@
+<!doctype html>
+<html><head><title>Create event | Facebook</title></head>
+<body>
+<!-- Mimics Facebook's "Create event" form: aria-labelled inputs and a details textarea. -->
+<div role="banner"><input type="search" aria-label="Search Facebook"></div>
+<div role="main">
+  <div role="dialog" aria-label="Create event">
+    <label><span>Event name</span><input type="text" dir="ltr"></label>
+    <label><span>Start date</span><input type="text" value="Oct 25, 2026"></label>
+    <label><span>Start time</span><input type="text" value="6:00 PM"></label>
+    <label><span>End date</span><input type="text"></label>
+    <label><span>End time</span><input type="text"></label>
+    <label><span>Location</span><input type="text" role="combobox"></label>
+    <label><span>What are the details?</span><textarea></textarea></label>
+    <div role="button" tabindex="0" id="create">Create event</div>
+  </div>
+</div>
+</body></html>

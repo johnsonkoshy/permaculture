@@ -1,0 +1,20 @@
+<!doctype html>
+<html><head><title>Create event | Meetup</title></head>
+<body>
+<!-- Mimics Meetup's create-event form: real <label for> labels, text date box with a
+     format placeholder, a 12-hour time box, an end-time <select>, a venue search box. -->
+<header role="banner"><input type="text" placeholder="Search events" name="keywords"></header>
+<main>
+  <form id="event-form" action="/create" method="post">
+    <label for="title">Title</label><input id="title" name="title" maxlength="80">
+    <label for="date">Date</label><input id="date" name="date" placeholder="MM/DD/YYYY">
+    <label for="startTime">Start time</label><input id="startTime" name="startTime" placeholder="hh:mm AM">
+    <label for="endTime">End time</label>
+    <select id="endTime" name="endTime"></select>
+    <label for="venue">Location</label><input id="venue" name="venue" placeholder="Search for a venue">
+    <label for="description">Description</label><textarea id="description" name="description" rows="8"></textarea>
+    <label for="photo">Add a photo</label><input id="photo" type="file" accept="image/png,image/jpeg" hidden>
+    <button type="submit" id="publish">Publish</button>
+  </form>
+</main>
+</body></html>
