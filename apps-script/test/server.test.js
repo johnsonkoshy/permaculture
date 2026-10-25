@@ -901,7 +901,7 @@ test('signIn says whether test mode is on, who gets the emails, whether the Grou
 });
 
 /* ---------- outreach review: who approved, who posted, when, and the link ---------- */
-const TRAIL = ['approved by', 'approved at', 'posted at', 'post url', 'calendar id', 'stale'];
+const TRAIL = ['approved by', 'approved at', 'posted at', 'post url', 'calendar id', 'stale', 'original post'];
 const reviewed = () => [
   { channel: 'partiful', status: 'posted', by: 'Phil', text: 'Come dig', edited: false, approvedBy: 'Sky', approvedAt: '2026-10-24T17:05:00.000Z', at: '2026-10-25T16:30:00.000Z', url: 'https://partiful.com/e/abc' },
   { channel: 'ggroup', status: 'approved', by: '', text: 'Subject: Sun 10/25: Work party\n\nHi all,\n\nCome dig.', edited: true, approvedBy: 'Phil', approvedAt: '2026-10-24T18:00:00.000Z', at: '', url: '' },
@@ -913,10 +913,10 @@ test('the Posts trail columns round-trip through saveEvent and signIn', () => {
   g.ctx.saveEvent(CODE, ev({ posts: reviewed() }));
   const [head, ...rows] = g.tab('Posts');
   assert.deepEqual(head, ['event id', 'channel', 'status', 'posted by', 'text', 'edited', ...TRAIL]);
-  assert.deepEqual(rows.find(r => r[1] === 'partiful'), ['w7', 'partiful', 'posted', 'Phil', 'Come dig', '', 'Sky', '2026-10-24T17:05:00.000Z', '2026-10-25T16:30:00.000Z', 'https://partiful.com/e/abc', '', '']);
-  assert.deepEqual(rows.find(r => r[1] === 'ggroup').slice(2), ['approved', '', 'Subject: Sun 10/25: Work party\n\nHi all,\n\nCome dig.', 'yes', 'Phil', '2026-10-24T18:00:00.000Z', '', '', '', '']);
+  assert.deepEqual(rows.find(r => r[1] === 'partiful'), ['w7', 'partiful', 'posted', 'Phil', 'Come dig', '', 'Sky', '2026-10-24T17:05:00.000Z', '2026-10-25T16:30:00.000Z', 'https://partiful.com/e/abc', '', '', '']);
+  assert.deepEqual(rows.find(r => r[1] === 'ggroup').slice(2), ['approved', '', 'Subject: Sun 10/25: Work party\n\nHi all,\n\nCome dig.', 'yes', 'Phil', '2026-10-24T18:00:00.000Z', '', '', '', '', '']);
   const posts = plain(g.ctx.signIn(CODE).events.find(e => e.cols.id === 'w7').posts);
-  assert.deepEqual(posts.partiful, { channel: 'partiful', status: 'posted', by: 'Phil', text: 'Come dig', edited: false, approvedBy: 'Sky', approvedAt: '2026-10-24T17:05:00.000Z', at: '2026-10-25T16:30:00.000Z', url: 'https://partiful.com/e/abc', stale: false });
+  assert.deepEqual(posts.partiful, { channel: 'partiful', status: 'posted', by: 'Phil', text: 'Come dig', edited: false, approvedBy: 'Sky', approvedAt: '2026-10-24T17:05:00.000Z', at: '2026-10-25T16:30:00.000Z', url: 'https://partiful.com/e/abc', stale: false, orig: '' });
   assert.deepEqual([posts.ggroup.status, posts.ggroup.approvedBy, posts.ggroup.approvedAt, posts.ggroup.at, posts.ggroup.url], ['approved', 'Phil', '2026-10-24T18:00:00.000Z', '', '']);
   assert.deepEqual([posts.instagram.status, posts.instagram.approvedBy, posts.instagram.url], ['review', '', '']);
   // saving the same again changes nothing, and the public view never sees any of it
@@ -956,7 +956,7 @@ test('a Posts tab from before the trail columns gets them at the right end, and 
   assert.equal(g.tab('Posts')[1][6], 'ask Jessie first', 'nothing moved');
   g.ctx.saveEvent(CODE, ev({ posts: [reviewed()[1]] }));
   const row = g.tab('Posts')[1];
-  assert.deepEqual(row.slice(7), ['Phil', '2026-10-24T18:00:00.000Z', '', '', '', '']);
+  assert.deepEqual(row.slice(7), ['Phil', '2026-10-24T18:00:00.000Z', '', '', '', '', '']);
 });
 
 /* ---------- a tab left open from before a post can't bring the Post button back ---------- */
@@ -1600,16 +1600,30 @@ test('Cancel event: off the public page, no reminders, the Calendar entry delete
   assert.deepEqual([cal.status, cal['calendar id'], cal.stale, cal['posted by']], ['posted', '', '', 'Phil']);
   // the Group and Partiful get a notice to approve and post; the Instagram draft goes
   const group = postRowOf(g, 'w7', 'ggroup'), pf = postRowOf(g, 'w7', 'partiful');
-  assert.deepEqual([group.status, group.edited, group['posted by'], group['approved by']], ['review', 'yes', '', '']);
+  assert.deepEqual([group.status, group.edited, group['posted by'], group['approved by'], group['original post']], ['review', 'yes', '', '', '']);
   assert.equal(group.text, 'Subject: Cancelled: OPC Garden Work Party on Sunday, October 25\n\nHi all,\n\n' + NOTICE + '\n\nThe East Bay Permaculture Guild');
   assert.deepEqual([pf.status, pf.text, pf.edited], ['review', NOTICE, 'yes']);
+  // the Partiful event's link stays in the Sheet, on the notice, so organizers can open it and cancel it there
+  assert.equal(pf['original post'], 'https://partiful.com/e/w7');
   assert.equal(postRowOf(g, 'w7', 'instagram'), undefined, 'the draft nobody posted is gone');
-  assert.deepEqual(rowsFor(g, 'Activity', 'w7').slice(-3).map(r => r[2]),
-    ['Jessie cancelled the event: Heavy rain is forecast', 'Took it off the Calendar', 'Drafted a cancellation notice for Partiful, Google Group email']);
+  // and Activity keeps who posted each one, when, and the link
+  assert.deepEqual(rowsFor(g, 'Activity', 'w7').slice(-5).map(r => r[2]),
+    ['Jessie cancelled the event: Heavy rain is forecast', 'Took it off the Calendar', 'Partiful was posted by Phil on Oct 20: https://partiful.com/e/w7',
+      'Google Group email was posted by Phil on Oct 24', 'Drafted a cancellation notice for Partiful, Google Group email']);
   // the answer is the event as signIn reads it
   const e = plain(out.event);
-  assert.deepEqual([e.cols.status, e.posts.ggroup.status, e.posts.partiful.text, e.posts.instagram], ['cancelled', 'review', NOTICE, undefined]);
-  assert.equal(e.log.at(-3)[1], 'Jessie cancelled the event: Heavy rain is forecast');
+  assert.deepEqual([e.cols.status, e.posts.ggroup.status, e.posts.partiful.text, e.posts.partiful.orig, e.posts.instagram], ['cancelled', 'review', NOTICE, 'https://partiful.com/e/w7', undefined]);
+  assert.equal(e.log.at(-5)[1], 'Jessie cancelled the event: Heavy rain is forecast');
+  // the page approves the notice and saves: the link stays, and a page from before the column (no orig) leaves it too
+  const notice = { channel: 'partiful', status: 'approved', by: '', text: NOTICE, edited: true, approvedBy: 'Jessie', approvedAt: '2026-10-24T20:00:00.000Z', at: '', url: '' };
+  const cancelled = posts => ev({ cols: { ...ev().cols, status: 'cancelled' }, posts: [{ ...approved('ggroup', group.text), edited: true }, ...posts] });
+  g.ctx.saveEvent(CODE, cancelled([{ ...notice, orig: e.posts.partiful.orig }]));
+  assert.deepEqual([postRowOf(g, 'w7', 'partiful').status, postRowOf(g, 'w7', 'partiful')['original post']], ['approved', 'https://partiful.com/e/w7']);
+  g.ctx.saveEvent(CODE, cancelled([notice]));
+  assert.equal(postRowOf(g, 'w7', 'partiful')['original post'], 'https://partiful.com/e/w7');
+  // marked as posted with the notice's own link: both are kept
+  g.ctx.saveEvent(CODE, cancelled([{ ...notice, status: 'posted', by: 'Jessie', at: '2026-10-24T20:05:00.000Z', url: 'https://partiful.com/e/w7/update', orig: 'https://partiful.com/e/w7' }]));
+  assert.deepEqual([postRowOf(g, 'w7', 'partiful')['post url'], postRowOf(g, 'w7', 'partiful')['original post']], ['https://partiful.com/e/w7/update', 'https://partiful.com/e/w7']);
 
   // the public page: not listed, and its id is there so the event's link can say it was cancelled
   const pub = plain(g.ctx.getPublic());
@@ -1623,7 +1637,7 @@ test('Cancel event: off the public page, no reminders, the Calendar entry delete
   // the Calendar can't get it back; the Group gets the notice once it's approved
   assert.throws(() => g.ctx.postTo(CODE, { ...ev(), cols: { ...ev().cols, status: 'cancelled' }, posts: [approved('calendar', 'x')] }, 'calendar', { by: 'Phil' }), /^Error: This event is cancelled, so it stays off the calendar\.$/);
   assert.equal(g.calendar.length, 0);
-  g.ctx.postTo(CODE, { ...ev(), cols: { ...ev().cols, status: 'cancelled' }, posts: [{ ...approved('ggroup', group.text), edited: true }] }, 'ggroup', { by: 'Jessie' });
+  g.ctx.postTo(CODE, cancelled([]), 'ggroup', { by: 'Jessie' });
   assert.deepEqual([g.mail.at(-1).to, g.mail.at(-1).subject, g.mail.at(-1).body], ['ebpg@googlegroups.com', 'Cancelled: OPC Garden Work Party on Sunday, October 25', 'Hi all,\n\n' + NOTICE + '\n\nThe East Bay Permaculture Guild']);
   // pressed again: nothing more happens
   const lines = rowsFor(g, 'Activity', 'w7').length;
@@ -1633,7 +1647,9 @@ test('Cancel event: off the public page, no reminders, the Calendar entry delete
 
 test("a tab that hasn't seen the cancel can save its edits, but the event stays cancelled and its notices and Activity stay", () => {
   const g = seeded({ now: BEFORE });
-  g.ctx.postTo(CODE, toPost(), 'ggroup', { by: 'Phil' }); // test mode: Test sent
+  setSetting(g, 'TEST_MODE', 'FALSE');
+  setSetting(g, 'GROUP_EMAIL', 'ebpg@googlegroups.com');
+  g.ctx.postTo(CODE, toPost(), 'ggroup', { by: 'Phil' });
   g.ctx.cancelEvent(CODE, 'w7', '', 'Jessie');
   const notice = postRowOf(g, 'w7', 'ggroup');
   assert.equal(notice.text, 'Subject: Cancelled: OPC Garden Work Party on Sunday, October 25\n\nHi all,\n\nCancelled: OPC Garden Work Party on Sunday, October 25. Sorry for the change. We hope to see you at the next one.\n\nThe East Bay Permaculture Guild', 'no reason: no reason in it');
@@ -1659,6 +1675,18 @@ test('Cancel event in test mode takes the [TEST] entry off the owner calendar, a
   assert.equal(postRowOf(g, 'w7', 'calendar').status, 'test');
   assert.deepEqual(rowsFor(g, 'Activity', 'w7').slice(-2).map(r => r[2]), ['Phil cancelled the event: Rain', "Took the [TEST] entry off the Sheet owner's calendar"]);
   assert.equal(postRowOf(g, 'w7', 'ggroup'), undefined, 'the Group draft nobody sent goes');
+  // a Group email sent only as a test: just the Sheet owner got it, so the real Group gets no notice, even once test mode is off
+  g.ctx.saveEvent(CODE, evAt('m3', '2026-11-14', { status: 'published' }));
+  g.ctx.postTo(CODE, { ...evAt('m3', '2026-11-14', { status: 'published' }), created: false, posts: [approved('ggroup', 'Subject: Seed swap\n\nHi all')] }, 'ggroup', { by: 'Phil' });
+  assert.equal(postRowOf(g, 'm3', 'ggroup').status, 'test');
+  const mails = g.mail.length;
+  assert.equal(g.ctx.cancelEvent(CODE, 'm3', '', 'Phil').message, "Cancelled. It's off the public site. The Google Group email went only to the Sheet owner as a test, so it needs no notice.");
+  assert.equal(postRowOf(g, 'm3', 'ggroup'), undefined, 'no notice, and nothing left to Post for real');
+  assert.deepEqual(rowsFor(g, 'Activity', 'm3').slice(-2).map(r => r[2]), ['Phil cancelled the event', 'Google Group email went only to the Sheet owner as a test, so it needs no notice']);
+  setSetting(g, 'TEST_MODE', 'FALSE');
+  setSetting(g, 'GROUP_EMAIL', 'ebpg@googlegroups.com');
+  assert.throws(() => g.ctx.postTo(CODE, { ...evAt('m3', '2026-11-14', { status: 'cancelled' }), created: false, posts: [] }, 'ggroup', { by: 'Phil', force: true }), /Approve it first/);
+  assert.equal(g.mail.length, mails, 'the Group heard nothing');
   // an event nobody was told about: just cancelled
   g.ctx.saveEvent(CODE, evAt('m2', '2026-11-12', { status: 'published' }));
   assert.equal(g.ctx.cancelEvent(CODE, 'm2', '', 'Phil').message, "Cancelled. It's off the public site.");
@@ -1719,17 +1747,24 @@ test('only a draft nobody outside has seen can be deleted: published once, or an
 
 test('a save for an event whose row was taken out by hand is refused and adds nothing; created: true adds a new one', () => {
   const g = seeded({ now: BEFORE });
-  // created: true (a new event's first save) adds the row; the saves after it leave created out and update it
+  // created: true (a new event's first save) adds the row; the saves after it say created: false and update it
   g.ctx.saveEvent(CODE, evAt('m2', '2026-11-12'));
-  const { created, ...later } = evAt('m2', '2026-11-12', { title: 'Community Meeting' });
+  const later = { ...evAt('m2', '2026-11-12', { title: 'Community Meeting' }), created: false };
   g.ctx.saveEvent(CODE, later);
   assert.deepEqual(rowsFor(g, 'Events', 'm2').map(r => r[2]), ['Community Meeting'], 'one row, updated');
   // a second created: true (a retry after the Sheet's answer got lost) updates the same row
   g.ctx.saveEvent(CODE, { ...later, created: true });
   assert.equal(rowsFor(g, 'Events', 'm2').length, 1);
-  // an id the Sheet never had, without created
+  // an id the Sheet doesn't have, from a page that says it isn't new
   assert.throws(() => g.ctx.saveEvent(CODE, { ...later, id: 'zz9', data: { ...later.data, id: 'zz9' } }), /^Error: This event was removed from the Sheet\.$/);
   assert.equal(rowsFor(g, 'Events', 'zz9').length, 0);
+  // a tab opened before created existed says neither: an event it just made is still added, so it isn't stuck there
+  // (a deleted draft's tombstone still refuses it: see Delete draft)
+  const { created, ...old } = evAt('n4', '2026-11-20');
+  g.ctx.saveEvent(CODE, old);
+  assert.equal(rowsFor(g, 'Events', 'n4').length, 1, 'added');
+  g.ctx.saveEvent(CODE, { ...old, cols: { ...old.cols, title: 'Seed swap' } });
+  assert.deepEqual(rowsFor(g, 'Events', 'n4').map(r => r[2]), ['Seed swap'], 'and updated after');
   // the row's id cleared by hand (what /_set does on the dev server): a tab still showing it gets the words, and nothing is added
   setCell(g, 'Events', 'm2', 'id', '');
   const before = ['Events', 'Bringing', 'Posts', 'Activity'].map(t => g.tab(t).length);
@@ -1738,7 +1773,7 @@ test('a save for an event whose row was taken out by hand is refused and adds no
   assert.deepEqual(['Events', 'Bringing', 'Posts', 'Activity'].map(t => g.tab(t).length), before);
   assert.equal(rowsFor(g, 'Events', 'm2').length, 0, 'not added back');
   assert.equal(g.mail.length, 0, 'nothing posted');
-  assert.deepEqual(plain(g.ctx.signIn(CODE)).events.map(e => e.cols.id), ['w7']);
+  assert.deepEqual(plain(g.ctx.signIn(CODE)).events.map(e => e.cols.id), ['w7', 'n4']);
   // seed adds its events as new, whether or not the page says so
   const s = gas();
   s.ctx.doGet({});

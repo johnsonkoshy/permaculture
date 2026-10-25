@@ -17,7 +17,7 @@
   --sage: #8AA37C;
   --lemon: #F2C14E; --lemon-soft: #FBEFC7; --lemon-ink: #5A430B;
   --water: #3B6C8C; --water-soft: #DCE7EE;
-  --flag: #C24A22; --flag-soft: #F7E0D5;
+  --flag: #C24A22; --flag-soft: #F7E0D5; --flag-strong: #A93E1B; /* --flag-strong: under --paper text, 5.5:1 */
   --shadow: 0 1px 2px rgba(27, 42, 33, .06), 0 10px 30px rgba(27, 42, 33, .10);
   --mk-bg: #376451; --mk-line: #F6F1E3; --mk-lemon: #F2C14E;
   --display: "Young Serif", "Iowan Old Style", Georgia, serif;
@@ -34,7 +34,7 @@
     --paper: #0F1812; --surface: #151F18; --raised: #1B271F; --ink: #E5EADD; --ink-2: #AEBAA7; --ink-3: #849180;
     --line: #26352A; --line-2: #34463A; --fern: #86BC97; --fern-ink: #0F1A13; --fern-soft: #1D3125; --sage: #9DB58F;
     --lemon: #F2C14E; --lemon-soft: #3A3114; --lemon-ink: #F5DA92; --water: #8DBBD6; --water-soft: #172837;
-    --flag: #F08B62; --flag-soft: #3A2017; --shadow: 0 1px 2px rgba(0,0,0,.3), 0 10px 30px rgba(0,0,0,.35);
+    --flag: #F08B62; --flag-soft: #3A2017; --flag-strong: #F08B62; --shadow: 0 1px 2px rgba(0,0,0,.3), 0 10px 30px rgba(0,0,0,.35);
     --mk-bg: #2E5544; color-scheme: dark;
   }
 }
@@ -42,7 +42,7 @@
   --paper: #0F1812; --surface: #151F18; --raised: #1B271F; --ink: #E5EADD; --ink-2: #AEBAA7; --ink-3: #849180;
   --line: #26352A; --line-2: #34463A; --fern: #86BC97; --fern-ink: #0F1A13; --fern-soft: #1D3125; --sage: #9DB58F;
   --lemon: #F2C14E; --lemon-soft: #3A3114; --lemon-ink: #F5DA92; --water: #8DBBD6; --water-soft: #172837;
-  --flag: #F08B62; --flag-soft: #3A2017; --shadow: 0 1px 2px rgba(0,0,0,.3), 0 10px 30px rgba(0,0,0,.35);
+  --flag: #F08B62; --flag-soft: #3A2017; --flag-strong: #F08B62; --shadow: 0 1px 2px rgba(0,0,0,.3), 0 10px 30px rgba(0,0,0,.35);
   --mk-bg: #2E5544; color-scheme: dark;
 }
 * { box-sizing: border-box; }
@@ -290,7 +290,7 @@ legend { font-size: 13px; font-weight: 700; color: var(--ink-2); margin-bottom: 
 .dconfirm .fld .hint { font-weight: 400; }
 .dconfirm .btn[aria-busy="true"] { cursor: progress; }
 .dconfirm .btn[aria-busy="true"] .ic { animation: spin 1s linear infinite; }
-.btn.warn { background: var(--flag); color: var(--paper); }
+.btn.warn { background: var(--flag-strong); color: var(--paper); }
 .btn.warn:hover { filter: brightness(1.08); }
 .picks input:disabled + span { opacity: .45; cursor: not-allowed; }
 .editdoc legend .fl { display: inline-flex; align-items: center; gap: 6px; }
@@ -738,7 +738,8 @@ a.hint.nolink:hover { color: var(--fern); }
 .addch .hint { display: inline-flex; align-items: center; gap: 4px; }
 .addch .hint .ic { width: 14px; height: 14px; }
 .addch select { border: 1px solid var(--line-2); border-radius: 999px; padding: 6px 10px; background: var(--raised); font-size: 13px; }
-/* the Posting Helper: what Open & fill did, under its row, and the install steps for a browser without it */
+/* the Posting Helper: what Open & fill did, under its row (or, for a cancelled event's listing, how to cancel it there),
+   and the install steps for a browser without it */
 .ofill { grid-column: 2 / -1; margin: 0; display: flex; gap: 8px; align-items: flex-start; font-size: 13px; line-height: 1.45; color: var(--ink-2); }
 .ofill .ic { flex: none; width: 15px; height: 15px; margin-top: 1px; color: var(--fern); }
 .ofill.bad .ic { color: var(--flag); }
@@ -1862,7 +1863,7 @@ await supabase.from('volunteers').insert({
       <section aria-labelledby="hp-pub">
         <h2 id="hp-pub">Drafts and the public page</h2>
         <p>A new event starts as a <b>Draft</b>: only organizers see it, so you can plan it before anyone else does. When it's ready, click <b>Publish</b> at the top of the event, or pick <b>Published</b> in Edit event. Published events show on the public page from today on, with the RSVP link if you add one. In the Sheet, the Events tab's <code>status</code> column says <code>draft</code>, <code>published</code>, <code>cancelled</code> or <code>deleted</code>; a blank one counts as published. A change typed into the Sheet by hand can take up to 5 minutes to reach the public page.</p>
-        <p>When plans change, <b>Cancel event</b> at the top of the event takes it off the public page and the Guild calendar and stops its reminders. You can add a reason. Every channel it was already posted to gets a cancellation notice in Outreach, to approve and post like any other. The event moves under <b>Past</b>, and its link says it was cancelled. A draft made by mistake, never published and with nothing posted, can go with <b>Delete draft</b> instead; you have 10 seconds to undo it.</p>
+        <p>When plans change, <b>Cancel event</b> at the top of the event takes it off the public page and the Guild calendar and stops its reminders. You can add a reason. Every channel it was already posted to gets a cancellation notice in Outreach, to approve and post like any other, and Activity keeps who posted the original, when, and its link. On Partiful and other event sites, cancel the event on the site itself and paste the notice as your message to guests. Its row links straight to the event when the post's link was saved. A Google Group email that went out only as a test needs no notice. The event moves under <b>Past</b>, and its link says it was cancelled. A draft made by mistake, never published and with nothing posted, can go with <b>Delete draft</b> instead; you have 10 seconds to undo it, even if you look at another tab meanwhile.</p>
         <p>Each published event has its own page for newcomers: when and where, directions, what to bring, how the day goes and who to look for, with buttons to sign up, add it to a calendar and share it. <b>Copy link</b> at the top of an event copies its link for posts and flyers; a draft's link works once it's published. Organizers who open the link while signed in get the plan.</p>
       </section>
       <section aria-labelledby="hp-lead">
@@ -2714,7 +2715,7 @@ function renderDetail() {
   const ask = !S.editing && S.confirm && S.confirm.id === ev.id && (S.confirm.kind === 'cancel' ? cancellable(ev) || cancelling.has(ev.id) : deletable(ev)) ? S.confirm.kind : '';
   $('#detail').innerHTML = `
     <div class="hstrip" aria-label="Flyers and posts for this event">${MATS.map(([k, name, use, fn, icon]) => `<div class="hfig"><figure>${fn(ev)}<figcaption>${ic(icon)}<b>${name}</b> · ${use}</figcaption></figure>${outBtns(k, name, ev)}</div>`).join('')}</div>
-    <div class="dh"><div><div class="dk"><span class="eyebrow">${past ? 'Past event' : 'Upcoming'}</span>${evPill(ev)}</div><h2>${esc(ev.title)}</h2><div class="meta"><span class="fact">${ic('calendar')}${esc(longDate(ev.date))}</span><span class="fact">${ic('clock')}${t12(ev.start)}–${t12(ev.end)}</span><span class="fact">${ic('map-pin')}${esc(ev.place)}${safeUrl(ev.map) ? ` · <a href="${esc(safeUrl(ev.map))}" target="_blank" rel="noopener">Map${ic('out', 'out')}</a>` : ''}</span></div></div>
+    <div class="dh"><div><div class="dk">${ev.status === 'cancelled' ? '' : `<span class="eyebrow">${past ? 'Past event' : 'Upcoming'}</span>`}${evPill(ev)}</div><h2>${esc(ev.title)}</h2><div class="meta"><span class="fact">${ic('calendar')}${esc(longDate(ev.date))}</span><span class="fact">${ic('clock')}${t12(ev.start)}–${t12(ev.end)}</span><span class="fact">${ic('map-pin')}${esc(ev.place)}${safeUrl(ev.map) ? ` · <a href="${esc(safeUrl(ev.map))}" target="_blank" rel="noopener">Map${ic('out', 'out')}</a>` : ''}</span></div></div>
       <div class="actions">${S.editing ? '' : `${ev.status === 'draft' ? `<button class="btn primary sm" type="button" id="publish-ev" title="Put it on the public site">${ic('eye')}Publish</button>` : ''}<button class="btn ghost sm" type="button" id="edit-ev">${ic('pencil')}Edit event</button>`
         + (cancellable(ev) ? `<button class="btn ghost sm" type="button" id="cancel-ev" aria-expanded="${ask === 'cancel'}">${ic('calendar-x')}Cancel event</button>` : '')
         + (deletable(ev) ? `<button class="btn ghost sm" type="button" id="delete-ev" aria-expanded="${ask === 'delete'}">${ic('trash')}Delete draft</button>` : '')}</div>
@@ -2743,7 +2744,7 @@ function renderDetail() {
   sync();
 }
 // without the Posting Helper in this browser: under a list with a site it could fill, a link to how to get it
-const helperSpot = (ev, chs) => poster() || !can('approve') || !chs.some(ch => FILL[ch.id] && ev.posts[ch.id].status !== 'off' && !isSent(ev.posts[ch.id])) ? ''
+const helperSpot = (ev, chs) => poster() || !can('approve') || !chs.some(ch => fillable(ev, ch.id) && ev.posts[ch.id].status !== 'off' && !isSent(ev.posts[ch.id])) ? ''
   : `<div class="ohelp"><button class="ohelp-t" type="button" id="helper-tog" aria-expanded="${!!S.helper}" aria-controls="helper-body">${ic('wand')}Fill forms automatically with the Posting Helper</button>
     <div class="ohelp-b helper" id="helper-body" role="region" aria-labelledby="helper-h"${S.helper ? '' : ' hidden'}>${helperHTML(false)}</div></div>`;
 const fold = (k, label, cnt, icon) => `<button class="fold" type="button" data-fold="${k}" aria-expanded="${!S.fold[k]}" aria-controls="${k}-body">${icon ? ic(icon) : ''}${label}${cnt !== undefined ? `<span class="cnt">${cnt}</span>` : ''}</button>`;
@@ -2805,38 +2806,48 @@ function confirmHTML(ev, kind) {
   if (kind === 'delete') return `<div class="dconfirm" id="dconfirm" role="group" aria-labelledby="dc-h">
       <p id="dc-h">${ic('alert-triangle')}<span><b>Delete this draft?</b> It was never on the public site, so only organizers have seen it. Its tasks, post drafts and activity go too. You can undo it for 10 seconds.</span></p>
       <div class="omark-b"><button class="btn warn sm" type="button" id="dc-del">${ic('trash')}Delete draft</button>${no}</div></div>`;
-  const told = chList(ev).filter(c => c.id !== 'calendar' && isSent(ev.posts[c.id])).map(c => c.name);
+  // a notice for each channel already posted; one sent only as a test (just the Sheet owner got it) needs none
+  const sent = st => chList(ev).filter(c => c.id !== 'calendar' && (ev.posts[c.id] || {}).status === st).map(c => c.name);
+  const told = sent('posted'), tested = sent('test');
   const what = [onSite(ev) && 'comes off the public site', isSent(ev.posts.calendar || {}) && 'comes off the Guild calendar', 'gets no more reminders'].filter(Boolean);
   const busy = cancelling.has(ev.id);
   return `<form class="dconfirm" id="dconfirm" novalidate aria-labelledby="dc-h">
-      <p id="dc-h">${ic('alert-triangle')}<span><b>Cancel ${esc(ev.label || ev.title || 'this event')}?</b> It ${andList(what)}.${told.length ? ` A cancellation notice for ${esc(andList(told))} will wait in Outreach for you to approve and post.` : ''}</span></p>
+      <p id="dc-h">${ic('alert-triangle')}<span><b>Cancel ${esc(ev.label || ev.title || 'this event')}?</b> It ${andList(what)}.${told.length ? ` A cancellation notice for ${esc(andList(told))} will wait in Outreach for you to approve and post.` : ''}${tested.length ? ` The ${esc(andList(tested))} went only to the Sheet owner as a test, so ${tested.length === 1 ? 'it needs' : 'they need'} no notice.` : ''}</span></p>
       <label class="fld" for="dc-why">Reason <span class="hint">(optional, it goes in the notices)</span><input id="dc-why" maxlength="300" autocomplete="off" placeholder="e.g. Heavy rain is forecast" value="${esc(busy ? cancelling.get(ev.id) : '')}" ${busy ? 'readonly' : ''}></label>
       <p class="err" id="dc-err" role="alert" hidden></p>
       <div class="omark-b">${busy ? `<button class="btn warn sm" type="submit" disabled aria-busy="true">${ic('loader')}Cancelling…</button>` : `<button class="btn warn sm" type="submit">${ic('calendar-x')}Cancel event</button>`}${no}</div></form>`;
 }
 /*PROTO*/
 /* The prototype artifact has no Sheet, so it cancels here the way cancelEvent does in Code.js: each channel already
-   posted gets a notice (in the same words) to approve, the Calendar entry comes off, and the drafts nobody posted go. */
+   posted gets a notice (in the same words) to approve, keeping the post's link and a line in Activity about it; the
+   Calendar entry comes off; and the drafts nobody posted, or sent only as a test, go. */
 const cancelText = (ch, ev, reason) => {
   const why = reason ? ' ' + reason + (/[.!?]$/.test(reason) ? '' : '.') : '';
   const line = `Cancelled: ${ev.title} on ${longDate(ev.date)}.${why} Sorry for the change. We hope to see you at the next one.`;
   return ch === 'ggroup' ? `Subject: Cancelled: ${ev.title} on ${longDate(ev.date)}\n\nHi all,\n\n${line}\n\nThe East Bay Permaculture Guild` : line;
 };
 function cancelHere(ev, reason) {
-  const told = [];
+  const told = [], tested = [], record = [];
   let cal = false;
   ev.status = 'cancelled';
   CHANNELS.forEach(c => {
     const q = ev.posts[c.id];
-    if (!isSent(q)) { if (q.status !== 'off') Object.assign(q, NO_TRAIL, { status: 'off', text: draft(c.id, ev), edited: false, open: false, marking: false }); return; }
-    if (c.id === 'calendar') { cal = true; q.stale = false; return; }
-    Object.assign(q, NO_TRAIL, { status: 'review', text: cancelText(c.id, ev, reason), edited: true, open: false, marking: false });
+    if (c.id === 'calendar' && isSent(q)) { cal = true; q.stale = false; return; }
+    if (q.status === 'test') tested.push(c.name);
+    if (q.status !== 'posted') { if (q.status !== 'off') Object.assign(q, NO_TRAIL, { status: 'off', text: draft(c.id, ev), edited: false, open: false, marking: false }); return; }
+    const at = new Date(q.at || ''), url = safeUrl(q.url);
+    record.push(`${c.name} was posted${q.by ? ' by ' + q.by : ''}${isNaN(at) ? '' : ' on ' + at.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}${url ? ': ' + url : ''}`);
+    Object.assign(q, NO_TRAIL, { status: 'review', text: cancelText(c.id, ev, reason), edited: true, open: false, marking: false, orig: url || safeUrl(q.orig) });
     delete q.redo; told.push(c.name);
   });
+  const untold = tested.length ? `${tested.join(' and ')} went only to the Sheet owner as a test, so ${tested.length === 1 ? 'it needs' : 'they need'} no notice` : '';
   ev.log.push([nowStamp(), `${ME} cancelled the event${reason ? ': ' + reason : ''}`]);
   if (cal) ev.log.push([nowStamp(), 'Took it off the Calendar']);
+  if (untold) ev.log.push([nowStamp(), untold]);
+  record.forEach(l => ev.log.push([nowStamp(), l]));
   if (told.length) ev.log.push([nowStamp(), 'Drafted a cancellation notice for ' + told.join(', ')]);
-  return `Cancelled. It's off the public site${cal ? ' and the calendar' : ''}.` + (told.length ? ` ${told.length === 1 ? 'A cancellation notice is' : told.length + ' cancellation notices are'} waiting for review in Outreach.` : '');
+  return `Cancelled. It's off the public site${cal ? ' and the calendar' : ''}.` + (told.length ? ` ${told.length === 1 ? 'A cancellation notice is' : told.length + ' cancellation notices are'} waiting for review in Outreach.` : '')
+    + (untold ? ` The ${untold}.` : '');
 }
 /*/PROTO*/
 const MAXLEN = { 'ed-title': 200, 'ed-about': 4000, 'ed-bring': 500 };
@@ -3112,6 +3123,11 @@ const GOING = ['post', 'update', 'again'];
 const poster = () => document.documentElement.dataset.ebpgPoster || '';
 // the copy-and-paste channels it can fill: its name for the site, and the site's name as people know it
 const FILL = { partiful: ['partiful', 'Partiful'], luma: ['luma', 'Luma'], meetup: ['meetup', 'Meetup'], facebook: ['facebook', 'Facebook'], chats: ['hylo', 'Hylo'] };
+/* The sites where the helper makes a new event (Partiful, Luma, Meetup). A cancelled event's notice there isn't a new
+   listing: it's the existing event, cancelled on the site itself, so those get no Open & fill. Facebook and Hylo take a
+   post, which is how a cancellation reaches them, so they keep it. */
+const LISTING = ['partiful', 'luma', 'meetup'];
+const fillable = (ev, ch) => !!FILL[ch] && !(ev.status === 'cancelled' && LISTING.includes(ch));
 // the flyer it puts in the site's image box: Letter-shaped like the printed one, smaller so it travels quickly
 const FILL_IMG = { w: 1020, h: 1320 };
 // "eventId:channel" -> what Open & fill says while it works, and what the helper said last (for this approval)
@@ -3189,7 +3205,11 @@ function chRow(ev, ch) {
     : `<button class="btn ${kind} sm" type="button" data-act="${a}" data-ch="${id}">${ic(icon)}${label}</button>`;
   // with the Posting Helper, Open & fill opens the site and fills it in, so there's no separate Open <name>.
   // Instagram gets its square image and the caption; the chats can go straight to WhatsApp.
-  const fill = !!FILL[ch.id] && !!poster(), ig = ch.id === 'instagram';
+  const fill = fillable(ev, ch.id) && !!poster(), ig = ch.id === 'instagram';
+  // a cancelled event's notice for Partiful, Luma or Meetup: the event to cancel is the one already there, at the link
+  // the post it replaces had (orig), and its approved row opens that instead of a new listing
+  const orig = safeUrl(p.orig), listing = ev.status === 'cancelled' && LISTING.includes(ch.id) && !out;
+  const origBtn = ok && p.status === 'approved' && !auto && listing && !!orig;
   // what the helper said about this approval's Open & fill. Open & fill is the main action until it has opened the site;
   // then the next step, Mark as posted, is.
   const fn = ok && p.status === 'approved' && !auto ? fillNote.get(key) : null, said = fn && fn.at === p.approvedAt ? fn : null;
@@ -3200,13 +3220,15 @@ function chRow(ev, ch) {
     : (fill ? act('fill', 'wand', ch.id === 'chats' ? 'Open Hylo &amp; fill' : 'Open &amp; fill', opened ? 'ghost' : 'primary') : '')
       + (ig ? `<button class="btn ghost sm" type="button" data-dl="ig" data-ev="${esc(ev.id)}" title="PNG, ${OUTS.ig.w} × ${OUTS.ig.h} pixels">${ic('download')}Download image</button>` : '')
       + act('copy', 'copy', ig ? 'Copy caption' : 'Copy text')
-      + (site && !fill ? `<a class="btn ghost sm" href="${esc(site)}" target="_blank" rel="noopener">Open ${esc(ch.name)}${ic('out')}</a>` : '')
+      + (origBtn ? `<a class="btn ghost sm" href="${esc(orig)}" target="_blank" rel="noopener">${ic('calendar-x')}Open the ${esc(ch.name)} event${ic('out')}</a>`
+        : site && !fill ? `<a class="btn ghost sm" href="${esc(site)}" target="_blank" rel="noopener">Open ${esc(ch.name)}${ic('out')}</a>` : '')
       + (ch.id === 'chats' ? `<a class="btn ghost sm" href="${esc('https://wa.me/?text=' + encodeURIComponent(p.text))}" target="_blank" rel="noopener">${ic('message-circle')}Share to WhatsApp${ic('out')}</a>` : '')
-      + (p.marking ? '' : act('mark', 'check', 'Mark as posted', fill && !opened ? 'ghost' : 'primary')) + (site || fill ? '' : noSite);
+      + (p.marking ? '' : act('mark', 'check', 'Mark as posted', fill && !opened ? 'ghost' : 'primary')) + (site || fill || origBtn ? '' : noSite);
   else if (ok && out && auto && p.stale && !offCal) acts = ch.id === 'calendar' ? act('update', 'calendar', 'Update calendar', 'primary') : act('redraft', 'pencil', 'Draft an update', 'primary');
   else if (ok && auto && p.status === 'test' && remote && !testOn && !offCal) acts = act('again', 'send', 'Post for real', 'primary'); // test mode is off now
   else if (ok && p.status === 'posted' && !auto) acts = act('undo', 'rotate-ccw', 'Undo');
-  const note = said ? `<p class="ofill${said.ok ? '' : ' bad'}">${ic(said.ok ? 'wand' : 'alert-triangle')}<span>${esc(said.text)}</span></p>` : '';
+  const note = said ? `<p class="ofill${said.ok ? '' : ' bad'}">${ic(said.ok ? 'wand' : 'alert-triangle')}<span>${esc(said.text)}</span></p>`
+    : ok && p.status === 'approved' && listing ? `<p class="ofill">${ic('calendar-x')}<span>Cancel the event on ${esc(ch.name)} itself and use this text as your message to guests. Then mark it as posted here.</span></p>` : '';
   const mk = `mk-${esc(ev.id)}-${id}`;
   const mark = ok && p.status === 'approved' && p.marking ? `<form class="omark" data-mark="${id}" novalidate>
       <label class="fld" for="${mk}">Link to the post (optional, https)<input id="${mk}" type="url" inputmode="url" autocomplete="off" spellcheck="false" placeholder="https://" aria-describedby="${mk}-err"></label>
@@ -3218,7 +3240,7 @@ function chRow(ev, ch) {
   return `<li class="orow ${esc(p.status)}" data-row="${id}"><span class="logo" style="background:${esc(ch.color)}">${esc(ch.abbr)}</span>
     <div class="ohead"><button class="oname" type="button" data-act="toggle" data-ch="${id}" aria-expanded="${!!p.open}">${esc(ch.name)}<span class="hint">${out ? '' : 'Read draft · '}${auto ? 'posts automatically' : fill ? 'the Posting Helper fills it in' : 'copy and paste'}</span></button>
       <span class="ostat">${offCal ? `<span class="pill ${esc(p.status)}">${p.stale ? esc(postPill(p)) : `${ic('calendar-x')}Taken off the calendar`}</span>${p.stale ? `<span class="warnchip">${ic('alert-triangle')}Still on the calendar. Delete it there by hand</span>` : ''}`
-        : `<span class="pill ${esc(p.status)}"${p.status === 'test' ? ` title="${esc(TEST_TIP)}"` : ''}>${esc(postPill(p))}${p.status === 'test' ? `<span class="vh"> (${esc(TEST_TIP)})</span>` : ''}</span>${out && auto && p.stale ? `<span class="warnchip">${ic('alert-triangle')}Changed since posted</span>` : ''}`}${link ? `<a href="${esc(link)}" target="_blank" rel="noopener">View post${ic('out')}</a>` : ''}${!ok && p.status === 'review' ? `<span class="hint">${esc(whoApproves())}</span>` : ''}</span></div>
+        : `<span class="pill ${esc(p.status)}"${p.status === 'test' ? ` title="${esc(TEST_TIP)}"` : ''}>${esc(postPill(p))}${p.status === 'test' ? `<span class="vh"> (${esc(TEST_TIP)})</span>` : ''}</span>${out && auto && p.stale ? `<span class="warnchip">${ic('alert-triangle')}Changed since posted</span>` : ''}`}${link ? `<a href="${esc(link)}" target="_blank" rel="noopener">View post${ic('out')}</a>` : ''}${orig && orig !== link && !origBtn ? `<a href="${esc(orig)}" target="_blank" rel="noopener">Original post${ic('out')}</a>` : ''}${!ok && p.status === 'review' ? `<span class="hint">${esc(whoApproves())}</span>` : ''}</span></div>
     ${acts ? `<div class="oacts${ok && p.status === 'approved' && !auto ? ' wide' : ''}">${acts}</div>` : ''}${note}
     ${p.open ? `<div class="obody"><textarea id="ta-${esc(ev.id)}-${id}" data-ta="${id}" aria-label="${esc(ch.name)} text" ${out ? 'readonly' : ''}>${esc(p.text)}</textarea>${p.status !== 'review' ? '' : site ? `<a class="hint" href="${esc(site)}" target="_blank" rel="noopener">Open ${esc(ch.name)}${ic('out')}</a>` : auto ? '' : noSite}</div>` : ''}
     ${mark}${ask}</li>`;
@@ -3439,7 +3461,7 @@ function bindDetail(ev) {
       // Opening is not posting either: it stays approved until someone marks it as posted.
       case 'fill': {
         const f = FILL[id], key = ev.id + ':' + id;
-        if (!f || !can('approve') || p.status !== 'approved' || !poster() || filling.has(key)) return;
+        if (!f || !fillable(ev, id) || !can('approve') || p.status !== 'approved' || !poster() || filling.has(key)) return;
         if (filling.size) { toast('Still opening the last one. Try again in a moment.'); return; }
         const busy = t => {
           filling.set(key, t);
@@ -3521,7 +3543,7 @@ function bindDetail(ev) {
       err.textContent = 'Use the full link, starting with https://, or leave it blank.'; err.hidden = false;
       inp.setAttribute('aria-invalid', 'true'); inp.focus(); return;
     }
-    const ask = !!url && RSVP_CH.includes(id) && !ev.rsvp && can('edit'); // the event has no RSVP link yet: offer this one
+    const ask = !!url && RSVP_CH.includes(id) && !ev.rsvp && ev.status !== 'cancelled' && can('edit'); // the event has no RSVP link yet: offer this one
     Object.assign(p, { status: 'posted', by: ME, at: new Date().toISOString(), url, stale: false, marking: false, open: false, askRsvp: ask });
     ev.log.push([nowStamp(), `${ME} marked ${ch.name} as posted`]);
     toast(`${ch.name} marked as posted`, 'check');

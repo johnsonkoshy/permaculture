@@ -82,8 +82,9 @@ if (window.EBPG_GAS) {
       posts: CHANNELS.filter(c => posts[c.id] && posts[c.id].status !== 'off').map(c => {
         const q = posts[c.id];
         // stale: the title, date, time or place changed since it went out. redo: Draft an update names the post it replaces
+        // orig: a cancellation notice's link to the post it replaces (the Partiful event to cancel there)
         return { channel: c.id, status: q.status, by: q.by || '', text: q.text, edited: !!q.edited, approvedBy: q.approvedBy || '', approvedAt: q.approvedAt || '', at: q.at || '', url: q.url || '',
-          stale: !!q.stale, ...(q.redo ? { redo: q.redo } : {}) };
+          stale: !!q.stale, ...(q.redo ? { redo: q.redo } : {}), ...(q.orig ? { orig: q.orig } : {}) };
       }),
       log: log || [],
     };
@@ -127,7 +128,8 @@ if (window.EBPG_GAS) {
       const text = mine ? freshText(ch.id, ev, p) : (p && p.text) || draft(ch.id, ev);
       // who approved it and when, and who posted it, when and where: the Posts tab's own columns
       ev.posts[ch.id] = p ? { status: st, text, edited: !!p.edited || (review && !mine),
-        by: p.by || '', approvedBy: p.approvedBy || '', approvedAt: p.approvedAt || '', at: p.at || '', url: safeUrl(p.url), stale: !!p.stale, open: false }
+        by: p.by || '', approvedBy: p.approvedBy || '', approvedAt: p.approvedAt || '', at: p.at || '', url: safeUrl(p.url), stale: !!p.stale, open: false,
+        ...(safeUrl(p.orig) ? { orig: safeUrl(p.orig) } : {}) }
         : { status: 'off', text: draft(ch.id, ev), edited: false, ...NO_TRAIL, open: false };
     });
     ev.log = r.log;
@@ -214,7 +216,9 @@ if (window.EBPG_GAS) {
     if (stale) { q.failed = true; return; } // kept here until signed in with the new code
     q.busy = true; touched[k] = Date.now();
     const g = gen, ev = k === 'team' ? null : EVENTS.find(e => keyOf(e) === k), body = JSON.parse(s);
-    if (ev && ev.created) body.created = true; // new: the Sheet adds its row (only then, so nothing it lost comes back)
+    // new: the Sheet adds its row (only then, so nothing it lost comes back). Always said, either way: a save that
+    // doesn't say is from a page older than this, which the Sheet still lets add the events it makes
+    if (ev) body.created = !!ev.created;
     run(k === 'team' ? 'saveTeam' : 'saveEvent', code, body)
       .then(() => { if (g !== gen) return; saved[k] = s; q.failed = false; q.err = null; mine.add(k); if (ev) delete ev.created; },
         er => { if (g !== gen) return; q.failed = true; q.err = er; })
@@ -455,9 +459,15 @@ if (window.EBPG_GAS) {
   setInterval(() => refresh(true), 120000);
   document.addEventListener('visibilitychange', () => {
     if (!live || stale) return;
-    if (document.hidden) { leaving = true; commitDeletes(true); flush(); leaving = false; } // a phone may close the page without warning
+    // a phone may close the page without warning, so its saves go now. A draft deleted a moment ago keeps its
+    // 10 seconds to Undo: glancing at another tab or app shouldn't take them away (its timer goes on meanwhile)
+    if (document.hidden) { leaving = true; flush(); leaving = false; }
     else { if (failedKeys().length) retryNow(false); refresh(); } // back on the tab: try failed saves again now
   });
+  // the page really going (closed, reloaded, or put away by the browser): a draft deleted in the last 10 seconds goes now
+  const gone = () => { if (!live || stale) return; leaving = true; commitDeletes(true); flush(); leaving = false; };
+  window.addEventListener('pagehide', gone);
+  document.addEventListener('freeze', gone);
 
   /* ---------- test mode ----------
      While TEST_MODE is on, every page an organizer sees says where the emails go, with a link to the Sheet. */
@@ -572,7 +582,7 @@ if (window.EBPG_GAS) {
       const k = keyOf(ev), pl = payload(ev), sent = JSON.stringify(pl), n0 = (ev.log || []).length;
       const mineP = pl.posts.find(x => x.channel === ch);
       if (mineP && opts.text != null) mineP.text = opts.text;
-      if (ev.created) pl.created = true; // never saved yet: postTo saves it first, as a new row
+      pl.created = !!ev.created; // never saved yet: postTo saves it first, as a new row
       touched[k] = Date.now(); // a read of the Sheet that started before this is older than what's coming
       const g = gen;
       let out;

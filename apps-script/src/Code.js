@@ -7,7 +7,7 @@
 const TABS = {
   Events: ['id', 'label', 'title', 'date', 'start', 'end', 'place', 'address', 'host', 'co-hosts', 'description', 'bring', 'tags', 'notes', 'timeline', "data (don't edit)", 'status', 'rsvp link'],
   Bringing: ['event id', 'what', 'who', 'status', 'task id', 'last time', 'type'],
-  Posts: ['event id', 'channel', 'status', 'posted by', 'text', 'edited', 'approved by', 'approved at', 'posted at', 'post url', 'calendar id', 'stale'],
+  Posts: ['event id', 'channel', 'status', 'posted by', 'text', 'edited', 'approved by', 'approved at', 'posted at', 'post url', 'calendar id', 'stale', 'original post'],
   Team: ['name', 'role', 'email or phone', 'reminders by', 'create events', 'edit events', 'post', 'assign tasks', 'manage team'],
   Volunteers: ['signed up', 'name', 'contact', 'wants to help with', 'note', 'id', 'email', 'phone', 'best way', 'free', 'heard from', 'email list', 'event'],
   Activity: ['event id', 'when', 'what'],
@@ -294,7 +294,11 @@ function saveEvent(code, ev) {
 /* Cancel event: the event is off the public page and gets no reminders, and the people already told hear about it.
    The status turns cancelled; the Calendar entry, if one was posted, is deleted (a [TEST] one from the owner's calendar);
    each other channel already posted gets a cancellation notice as a draft, for an organizer to approve and post, and
-   the drafts nobody posted yet go, since there's nothing to announce. One line in Activity says who and why.
+   the drafts nobody posted yet go, since there's nothing to announce. The post a notice replaces stays on record:
+   Activity says who posted it, when and its link, and the notice keeps the link in 'original post', so the page can
+   open the Partiful event to cancel it there. A Google Group email sent only as a test (just the Sheet owner got it)
+   gets no notice, so the real Group never hears of an event it was never told about; its row goes like a draft.
+   One line in Activity says who cancelled it and why.
    by: who pressed it. reason: optional, in the notices and Activity. Pressed again, it changes nothing.
    Returns { message, event }: the event as signIn reads it. */
 function cancelEvent(code, id, reason, by) {
@@ -312,11 +316,11 @@ function cancelEvent(code, id, reason, by) {
     if (e.cols.status === 'cancelled') return { message: 'This event was already cancelled.', event: current() };
     const row = []; row[ST] = 'cancelled';
     put_('Events', i + 2, [row], [ST]);
-    const postRows = rows_('Posts'), names = {}, kept = [], told = [];
+    const postRows = rows_('Posts'), names = {}, kept = [], told = [], tested = [], record = [];
     readChannels_().forEach(c => { names[c.id] = c.name; });
     let cal = '';
     postRows.filter(r => r[0] === id).forEach(r => {
-      const ch = r[1], status = String(r[PCOL.status] || '');
+      const ch = r[1], status = String(r[PCOL.status] || ''), name = names[ch] || ch;
       if (SENT.indexOf(status) < 0) return; // a draft nobody posted: nothing to take back
       if (ch === 'calendar') {
         // the entry comes off the calendar it went on; the row stays as the record that it was posted
@@ -329,20 +333,35 @@ function cancelEvent(code, id, reason, by) {
         kept.push(out);
         return;
       }
+      if (status === 'test') { tested.push(name); return; } // only the Sheet owner got it: nobody to tell
+      record.push(postedLine_(name, r));
       // the notice is marked edited, so nothing in the page writes the announcement back over it
-      kept.push([id, ch, 'review', '', cancelText_(ch, e.cols, reason), 'yes', '', '', '', '', '', '']);
-      told.push(names[ch] || ch);
+      const out = TABS.Posts.map(() => '');
+      out[0] = id; out[1] = ch; out[PCOL.status] = 'review'; out[PCOL.text] = cancelText_(ch, e.cols, reason); out[PCOL.edited] = 'yes';
+      out[PCOL['original post']] = postUrl_(r[PCOL['post url']]) || postUrl_(r[PCOL['original post']]);
+      kept.push(out);
+      told.push(name);
     });
     replaceFor_('Posts', id, kept, postRows);
     const lines = [(by || 'An organizer') + ' cancelled the event' + (reason ? ': ' + reason : '')];
     if (cal) lines.push(cal);
+    const untold = tested.length ? tested.join(' and ') + ' went only to the Sheet owner as a test, so ' + (tested.length === 1 ? 'it needs' : 'they need') + ' no notice' : '';
+    if (untold) lines.push(untold);
+    lines.push.apply(lines, record);
     if (told.length) lines.push('Drafted a cancellation notice for ' + told.join(', '));
     append_('Activity', lines.map(l => [id, stamp_(), l]));
     const message = "Cancelled. It's off the public site" + (cal && !/^Couldn't/.test(cal) ? ' and the calendar' : '') + '.' +
       (told.length ? ' ' + (told.length === 1 ? 'A cancellation notice is' : told.length + ' cancellation notices are') + ' waiting for review in Outreach.' : '') +
+      (untold ? ' The ' + untold + '.' : '') +
       (/^Couldn't/.test(cal) ? ' ' + cal : '');
     return { message: message, event: current() };
   });
+}
+/* The record of a post a cancellation notice replaces, for Activity: "Partiful was posted by Phil on Oct 20: <link>". */
+function postedLine_(name, r) {
+  const by = short_(r[PCOL['posted by']], 60), at = new Date(String(r[PCOL['posted at']] || '')), url = postUrl_(r[PCOL['post url']]);
+  const when = isNaN(at.getTime()) ? '' : ' on ' + Utilities.formatDate(at, Session.getScriptTimeZone(), 'MMM d');
+  return name + ' was posted' + (by ? ' by ' + by : '') + when + (url ? ': ' + url : '');
 }
 /* A cancellation notice: "Cancelled: <title> on <date>. <reason>", and for the Google Group with a subject line.
    The page has the same words in cancelText, for when it runs without the Sheet. */
@@ -967,8 +986,10 @@ function upcoming_() {
 
 /* Save one event as the page has it. A new row is added only when the page says the event is new (created: true,
    sent until its first save gets through; seed sends it too). Any other save of an id the Events tab doesn't have
-   (its row deleted by hand, or its id cleared), or of a deleted draft, is refused, so a tab left open never brings
-   back an event someone took out of the Sheet. A cancelled event stays cancelled: only a hand edit in the Sheet
+   (its row deleted by hand, or its id cleared: the page sends created: false), or of a deleted draft, is refused, so a
+   tab left open never brings back an event someone took out of the Sheet. A page from before created (it sends no
+   created at all) can still add an event it just made, as long as the id was never deleted here: it would otherwise
+   keep that event to itself, retrying every minute. A cancelled event stays cancelled: only a hand edit in the Sheet
    un-cancels it. */
 function saveEvent_(p) {
   p = p || {};
@@ -991,7 +1012,7 @@ function saveEvent_(p) {
   const all = rows_('Events', true), i = all.findIndex(r => r[0] === id), prev = i >= 0 ? all[i] : null;
   const ST = TABS.Events.indexOf('status'), RSVP = TABS.Events.indexOf('rsvp link'), DAT = TABS.Events.indexOf(DATA_HEAD);
   const had = prev ? evStatus_(prev[ST]) : '';
-  if ((!prev && p.created !== true) || had === 'deleted') throw new Error('This event was removed from the Sheet.');
+  if ((!prev && p.created !== true && p.created !== undefined) || had === 'deleted') throw new Error('This event was removed from the Sheet.');
   // status and RSVP link come from the page (in cols, or in the plan from an older page). A page that sends neither
   // leaves the Sheet's as they are, so a tab from before these columns can't publish a draft; a new event is a draft.
   // Deleted comes only from deleteEvent, and a cancelled event stays cancelled.
@@ -1032,10 +1053,13 @@ function saveEvent_(p) {
    from before the post would otherwise bring the Post button back. The one way back to a draft is Draft an update,
    which names the post it replaces by its 'posted at' (redo; '-' when the Sheet has no time for it).
    The other way round too: only postTo marks them sent. A page that says sent when the Sheet doesn't (a tab from
-   before Draft an update) leaves the Sheet's row as it is, so the update draft isn't lost. */
+   before Draft an update) leaves the Sheet's row as it is, so the update draft isn't lost.
+   orig: a cancellation notice's link to the post it replaces ('original post'); a page that doesn't send it (one from
+   before the column) leaves the Sheet's as it is. */
 function postRow_(id, x, was) {
+  const orig = x.orig !== undefined ? postUrl_(x.orig) : was ? postUrl_(was[PCOL['original post']]) : '';
   const row = [id, x.channel, x.status, short_(x.by, 60), x.text || '', x.edited ? 'yes' : '',
-    short_(x.approvedBy, 60), short_(x.approvedAt, 40), short_(x.at, 40), postUrl_(x.url), '', x.stale ? 'yes' : ''];
+    short_(x.approvedBy, 60), short_(x.approvedAt, 40), short_(x.at, 40), postUrl_(x.url), '', x.stale ? 'yes' : '', orig];
   if (AUTO.indexOf(x.channel) < 0) return row;
   if (!was || SENT.indexOf(was[PCOL.status]) < 0) {
     if (SENT.indexOf(x.status) < 0) return row;
@@ -1099,7 +1123,8 @@ function readAll_() {
     return m;
   };
   const tasks = byEv('Bringing', r => ({ what: r[1], who: r[2], status: r[3], id: r[4], last: r[5], type: r[6] }));
-  const posts = byEv('Posts', r => ({ channel: r[1], status: r[2], by: r[3], text: r[4], edited: !!r[5], approvedBy: r[6], approvedAt: r[7], at: r[8], url: r[9], stale: !!r[11] }));
+  const posts = byEv('Posts', r => ({ channel: r[1], status: r[2], by: r[3], text: r[4], edited: !!r[5], approvedBy: r[6], approvedAt: r[7], at: r[8], url: r[9], stale: !!r[11],
+    orig: postUrl_(r[PCOL['original post']]) }));
   const log = byEv('Activity', r => [r[1], r[2]]);
   const problems = []; // rows an organizer needs to fix in the Sheet
   return {
