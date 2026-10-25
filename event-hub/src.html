@@ -1,0 +1,2192 @@
+<title>EBPG Event Hub</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Mono:wght@400;600&family=Atkinson+Hyperlegible+Next:wght@400;600;700&family=Young+Serif&display=swap">
+<style>
+/* Layout: one working screen. Event list on the left, the selected event's channels on the right; architecture lives on a second tab. */
+:root {
+  --paper: #F1F3EA; --surface: #FAFBF5; --raised: #FFFFFF;
+  --ink: #1B2A21; --ink-2: #4A5A4F; --ink-3: #737F75;
+  --line: #DADFCF; --line-2: #C5CCB9;
+  --fern: #376451; --fern-ink: #FFFFFF; --fern-soft: #E1EAD9;
+  --sage: #8AA37C;
+  --lemon: #F2C14E; --lemon-soft: #FBEFC7; --lemon-ink: #5A430B;
+  --water: #3B6C8C; --water-soft: #DCE7EE;
+  --flag: #C24A22; --flag-soft: #F7E0D5;
+  --shadow: 0 1px 2px rgba(27, 42, 33, .06), 0 10px 30px rgba(27, 42, 33, .10);
+  --mk-bg: #376451; --mk-line: #F6F1E3; --mk-lemon: #F2C14E;
+  --display: "Young Serif", "Iowan Old Style", Georgia, serif;
+  --body: "Atkinson Hyperlegible Next", "Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "Atkinson Hyperlegible Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  /* fixed brand colors for printed and social pieces */
+  --b-sage: #8AA37C; --b-sage-deep: #6E8962; --b-canopy: #1C3A2B; --b-fern: #376451; --b-cream: #F6F1E3; --b-lemon: #F2C14E; --b-soil: #5E4434;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #0F1812; --surface: #151F18; --raised: #1B271F; --ink: #E5EADD; --ink-2: #AEBAA7; --ink-3: #849180;
+    --line: #26352A; --line-2: #34463A; --fern: #86BC97; --fern-ink: #0F1A13; --fern-soft: #1D3125; --sage: #9DB58F;
+    --lemon: #F2C14E; --lemon-soft: #3A3114; --lemon-ink: #F5DA92; --water: #8DBBD6; --water-soft: #172837;
+    --flag: #F08B62; --flag-soft: #3A2017; --shadow: 0 1px 2px rgba(0,0,0,.3), 0 10px 30px rgba(0,0,0,.35);
+    --mk-bg: #2E5544; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #0F1812; --surface: #151F18; --raised: #1B271F; --ink: #E5EADD; --ink-2: #AEBAA7; --ink-3: #849180;
+  --line: #26352A; --line-2: #34463A; --fern: #86BC97; --fern-ink: #0F1A13; --fern-soft: #1D3125; --sage: #9DB58F;
+  --lemon: #F2C14E; --lemon-soft: #3A3114; --lemon-ink: #F5DA92; --water: #8DBBD6; --water-soft: #172837;
+  --flag: #F08B62; --flag-soft: #3A2017; --shadow: 0 1px 2px rgba(0,0,0,.3), 0 10px 30px rgba(0,0,0,.35);
+  --mk-bg: #2E5544; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { background: var(--paper); color: var(--ink); font: 400 15px/1.5 var(--body); }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 30; background: var(--surface); }
+h1, h2, h3 { font-family: var(--display); font-weight: 400; margin: 0; line-height: 1.15; text-wrap: balance; }
+p { margin: 0; }
+button, input, select, textarea { font: inherit; color: inherit; }
+:focus-visible { outline: 2.5px solid var(--lemon); outline-offset: 2px; border-radius: 4px; }
+a { color: var(--fern); }
+.wrap { max-width: 1240px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.eyebrow { font: 600 11px/1.2 var(--mono); letter-spacing: .09em; text-transform: uppercase; color: var(--ink-3); }
+.muted { color: var(--ink-2); }
+.tnum { font-variant-numeric: tabular-nums; }
+
+/* top bar */
+.top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; background: var(--surface); border-bottom: 1px solid var(--line); }
+.top .wrap { display: flex; align-items: center; gap: 16px; min-height: 58px; flex-wrap: wrap; padding-block: 8px; }
+.lock { display: flex; align-items: center; gap: 10px; }
+.lock svg { width: 32px; height: 32px; flex: none; }
+.lock b { font: 400 19px/1.1 var(--display); }
+.lock span { font: 600 11px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); border: 1px solid var(--line-2); padding: 4px 6px; border-radius: 4px; }
+.tabs { display: flex; gap: 4px; margin-left: auto; }
+.tabs a { text-decoration: none; color: var(--ink-2); font-weight: 700; font-size: 14px; padding: 7px 12px; border-radius: 999px; }
+.tabs a:hover { background: var(--fern-soft); color: var(--ink); }
+.tabs a[aria-current="page"] { background: var(--fern); color: var(--fern-ink); }
+.who { font-size: 13px; color: var(--ink-3); display: flex; align-items: center; gap: 6px; }
+.who i { width: 24px; height: 24px; border-radius: 50%; background: var(--lemon); color: #2A2208; font: 700 11px/24px var(--body); text-align: center; font-style: normal; }
+@media (max-width: 640px) { .tabs { margin-left: 0; } }
+
+/* buttons, pills */
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; border: 1px solid transparent; border-radius: 999px; padding: 8px 14px; font-weight: 700; font-size: 14px; cursor: pointer; text-decoration: none; line-height: 1.1; white-space: nowrap; }
+.btn svg { width: 15px; height: 15px; }
+.btn.primary { background: var(--fern); color: var(--fern-ink); }
+.btn.primary:hover { filter: brightness(1.08); }
+.btn.lemon { background: var(--lemon); color: #2A2208; }
+.btn.ghost { background: transparent; border-color: var(--line-2); color: var(--ink); }
+.btn.ghost:hover { border-color: var(--fern); }
+.btn.sm { padding: 6px 11px; font-size: 13px; }
+.btn[disabled] { opacity: .4; cursor: not-allowed; }
+.pill { font: 600 11px/1 var(--mono); letter-spacing: .05em; text-transform: uppercase; padding: 5px 8px; border-radius: 4px; white-space: nowrap; }
+.pill.review { background: var(--lemon-soft); color: var(--lemon-ink); }
+.pill.approved { background: var(--water-soft); color: var(--water); }
+.pill.posted { background: var(--fern-soft); color: var(--fern); }
+.pill.off { background: transparent; color: var(--ink-3); border: 1px dashed var(--line-2); }
+.mode { font: 600 11px/1 var(--mono); letter-spacing: .04em; padding: 4px 6px; border-radius: 4px; border: 1px solid var(--line-2); color: var(--ink-3); white-space: nowrap; }
+.mode.auto { border-color: transparent; background: var(--fern-soft); color: var(--fern); }
+.sample { font: 600 11px/1 var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); border: 1px dashed var(--line-2); padding: 5px 8px; border-radius: 4px; white-space: nowrap; }
+
+/* events page */
+main { padding-block: 24px 64px; }
+.pagehead { display: flex; justify-content: space-between; align-items: end; gap: 16px; flex-wrap: wrap; margin-bottom: 18px; }
+.pagehead h1 { font-size: clamp(28px, 4vw, 38px); }
+.pagehead p { color: var(--ink-2); margin-top: 4px; max-width: 62ch; }
+.attn { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 12px 14px; border-radius: 12px; background: var(--lemon-soft); color: var(--ink); margin-bottom: 18px; }
+.attn b { color: var(--lemon-ink); }
+.attn .grow { flex: 1; min-width: 200px; }
+.attn.ok { background: var(--fern-soft); }
+.attn.ok b { color: var(--fern); }
+.layout { display: grid; grid-template-columns: minmax(0, 360px) minmax(0, 1fr); gap: 18px; align-items: start; }
+@media (max-width: 960px) { .layout { grid-template-columns: 1fr; } }
+.listhead { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
+.seg { display: inline-flex; border: 1px solid var(--line-2); border-radius: 999px; padding: 2px; gap: 2px; }
+.seg button { border: 0; background: transparent; padding: 5px 11px; border-radius: 999px; font-size: 13px; font-weight: 700; color: var(--ink-2); cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--fern); color: var(--fern-ink); }
+.elist { display: grid; gap: 8px; }
+.ev { display: grid; grid-template-columns: 50px minmax(0, 1fr); gap: 12px; text-align: left; width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--raised); cursor: pointer; }
+.ev:hover { border-color: var(--line-2); }
+.ev[aria-selected="true"] { border-color: var(--fern); box-shadow: 0 0 0 1px var(--fern); }
+.cal { border-radius: 8px; background: var(--fern-soft); text-align: center; padding: 6px 0 5px; align-self: start; }
+.cal span { display: block; font: 600 10px/1 var(--mono); letter-spacing: .08em; color: var(--fern); }
+.cal b { display: block; font: 400 22px/1.1 var(--display); color: var(--ink); }
+.ev.past .cal { background: var(--line); }
+.ev.past .cal span { color: var(--ink-3); }
+.ev h3 { font: 700 15px/1.3 var(--body); }
+.ev .m { font-size: 13px; color: var(--ink-3); }
+.dots { display: flex; gap: 4px; margin-top: 8px; align-items: center; flex-wrap: wrap; }
+.dots i { width: 18px; height: 6px; border-radius: 3px; background: var(--line); }
+.dots i.review { background: var(--lemon); }
+.dots i.approved { background: var(--water); }
+.dots i.posted { background: var(--fern); }
+.dots span { font-size: 12px; color: var(--ink-2); margin-left: 6px; }
+.legend { display: flex; gap: 12px; flex-wrap: wrap; font-size: 12px; color: var(--ink-3); margin-top: 12px; }
+.legend span { display: inline-flex; align-items: center; gap: 5px; }
+.legend i { width: 14px; height: 6px; border-radius: 3px; display: inline-block; }
+
+.detail { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 20px; min-width: 0; display: grid; gap: 18px; }
+@media (max-width: 560px) { .detail { padding: 16px; } }
+.dh { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; align-items: start; }
+.dh h2 { font-size: clamp(24px, 3vw, 30px); }
+.dh .meta { color: var(--ink-2); margin-top: 6px; font-size: 14px; }
+.dh .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.about { color: var(--ink-2); max-width: 70ch; }
+.tags { display: flex; gap: 6px; flex-wrap: wrap; }
+.tag { font-size: 12px; font-weight: 700; padding: 3px 9px; border-radius: 999px; background: var(--fern-soft); color: var(--ink); }
+.flow { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+@media (max-width: 560px) { .flow { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.flow div { border-top: 4px solid var(--line); padding-top: 6px; }
+.flow b { font: 400 22px/1 var(--display); display: block; }
+.flow span { font-size: 12px; color: var(--ink-2); font-weight: 700; }
+.flow .f-off { border-color: var(--line-2); }
+.flow .f-review { border-color: var(--lemon); }
+.flow .f-approved { border-color: var(--water); }
+.flow .f-posted { border-color: var(--fern); }
+.chs { display: grid; gap: 8px; }
+.chs-h { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+.chs-h h3 { font: 700 16px/1.3 var(--body); }
+.ch { border: 1px solid var(--line); border-radius: 12px; background: var(--raised); }
+.ch.off { background: transparent; border-style: dashed; }
+.ch-row { display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 10px 12px; }
+@media (max-width: 620px) { .ch-row { grid-template-columns: 36px minmax(0, 1fr); } .ch-row .ca { grid-column: 1 / -1; justify-content: flex-start; } }
+.logo { width: 36px; height: 36px; border-radius: 9px; display: grid; place-items: center; font: 700 13px/1 var(--body); color: #fff; }
+.ch.off .logo { opacity: .4; }
+.ch-row b { font-size: 15px; display: block; }
+.ch-row .sub { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-top: 3px; font-size: 12px; color: var(--ink-3); }
+.ca { display: flex; gap: 6px; align-items: center; justify-content: flex-end; flex-wrap: wrap; }
+.tog { border: 0; background: transparent; color: var(--ink-2); font-size: 13px; font-weight: 700; cursor: pointer; padding: 6px 4px; text-decoration: underline; text-underline-offset: 3px; }
+.ch-body { border-top: 1px solid var(--line); padding: 12px; display: grid; gap: 8px; }
+.ch-body textarea { width: 100%; min-height: 140px; resize: vertical; border: 1px solid var(--line-2); border-radius: 10px; padding: 10px 12px; background: var(--surface); line-height: 1.5; font-size: 14px; }
+.ch-body textarea:focus { outline: none; border-color: var(--fern); box-shadow: 0 0 0 3px var(--fern-soft); }
+.ch-body .ml { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; font: 400 12px/1.4 var(--mono); color: var(--ink-3); }
+.log { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; font-size: 13px; color: var(--ink-2); }
+.log li { display: grid; grid-template-columns: 110px minmax(0, 1fr); gap: 10px; }
+.log li span:first-child { font: 400 12px/1.6 var(--mono); color: var(--ink-3); }
+
+/* create panel */
+.scrim { position: fixed; inset: 0; background: rgba(15, 24, 18, .45); z-index: 50; display: flex; justify-content: flex-end; }
+.panel { width: min(520px, 100%); height: 100%; background: var(--surface); box-shadow: var(--shadow); display: grid; grid-template-rows: auto minmax(0, 1fr) auto; padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); padding-right: env(safe-area-inset-right, 0px); }
+.panel header, .panel footer { padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.panel header { border-bottom: 1px solid var(--line); }
+.panel footer { border-top: 1px solid var(--line); flex-wrap: wrap; }
+.panel header h2 { font-size: 24px; }
+.panel form { overflow-y: auto; padding: 18px 20px; display: grid; gap: 14px; align-content: start; }
+.fld { display: grid; gap: 4px; font-size: 13px; font-weight: 700; color: var(--ink-2); }
+.fld input, .fld textarea, .fld select { border: 1px solid var(--line-2); border-radius: 8px; padding: 9px 10px; background: var(--raised); font-weight: 400; font-size: 15px; color: var(--ink); width: 100%; min-width: 0; }
+.fld textarea { min-height: 88px; resize: vertical; line-height: 1.45; }
+.fld input:focus, .fld textarea:focus, .fld select:focus { outline: none; border-color: var(--fern); }
+.r2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
+.r3 { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
+@media (max-width: 440px) { .r3 { grid-template-columns: 1fr 1fr; } .r3 .fld:first-child { grid-column: span 2; } }
+fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
+legend { font-size: 13px; font-weight: 700; color: var(--ink-2); margin-bottom: 6px; padding: 0; }
+.picks { display: flex; flex-wrap: wrap; gap: 6px; }
+.picks label { position: relative; cursor: pointer; }
+.picks input { position: absolute; opacity: 0; inset: 0; cursor: pointer; }
+.picks span { display: inline-flex; align-items: center; gap: 6px; padding: 6px 11px; border-radius: 999px; border: 1px solid var(--line-2); font-size: 13px; font-weight: 700; background: var(--raised); }
+.picks input:checked + span { background: var(--fern); border-color: var(--fern); color: var(--fern-ink); }
+.picks input:focus-visible + span { outline: 2.5px solid var(--lemon); outline-offset: 2px; }
+.err { color: var(--flag); font-weight: 700; font-size: 14px; }
+.hint { font-size: 13px; color: var(--ink-3); }
+
+/* materials */
+.art { container-type: inline-size; position: relative; overflow: hidden; border-radius: 6px; box-shadow: var(--shadow); max-width: 100%; }
+.art * { box-sizing: border-box; }
+.art .serif { font-family: var(--display); line-height: 1.05; letter-spacing: -.01em; }
+
+.flyer { aspect-ratio: 8.5 / 11; background: var(--b-cream); color: var(--b-canopy); display: grid; grid-template-rows: 42% minmax(0, 1fr) auto; }
+.flyer .ph { position: relative; }
+.flyer .ph .date { position: absolute; right: 6cqw; bottom: -9cqw; width: 22cqw; aspect-ratio: 1; border-radius: 50%; background: var(--b-lemon); display: grid; place-content: center; text-align: center; color: var(--b-canopy); z-index: 2; }
+.flyer .ph .date b { display: block; font: 400 9cqw/0.9 var(--display); }
+.flyer .ph .date span { font: 600 2.6cqw/1.2 var(--mono); letter-spacing: .08em; text-transform: uppercase; }
+.flyer .bd { padding: 6cqw 7cqw 3cqw; display: grid; gap: 2.4cqw; align-content: start; min-height: 0; overflow: hidden; }
+.flyer .kick { max-width: 58cqw; font: 600 2.6cqw/1.2 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--b-fern); }
+.flyer h4 { font-size: 8.6cqw; max-width: 13ch; }
+.flyer .when { font: 600 3.4cqw/1.35 var(--body); }
+.flyer .about { font: 400 3cqw/1.45 var(--body); color: var(--b-soil); max-width: 52ch; }
+.flyer .tags { display: flex; flex-wrap: wrap; gap: 1.6cqw; }
+.flyer .tags span { font: 600 2.5cqw/1 var(--body); padding: 1.4cqw 2.4cqw; border-radius: 99px; border: .3cqw solid var(--b-sage-deep); color: var(--b-canopy); }
+.flyer .ft { background: var(--b-sage); color: var(--b-cream); padding: 4cqw 7cqw; display: flex; align-items: center; gap: 4cqw; justify-content: space-between; }
+.flyer .ft .cta { font: 400 4.4cqw/1.1 var(--display); }
+.flyer .ft .cta small { display: block; font: 600 2.5cqw/1.4 var(--mono); letter-spacing: .04em; margin-top: 1cqw; }
+.flyer .ft svg { width: 12cqw; height: 12cqw; flex: none; --mk-bg: var(--b-canopy); }
+.qr { width: 15cqw; aspect-ratio: 1; flex: none; background: var(--b-cream); border-radius: 1.5cqw; display: grid; place-items: center; text-align: center; color: var(--b-canopy); font: 600 2cqw/1.2 var(--mono); padding: 1cqw; border: .4cqw dashed var(--b-canopy); }
+
+.ig { aspect-ratio: 1; background: var(--b-sage); color: var(--b-cream); }
+.ig .ring { position: absolute; width: 68cqw; aspect-ratio: 1; border-radius: 50%; right: -12cqw; top: 2cqw; border: .5cqw solid var(--b-cream); }
+.ig .disc { position: absolute; width: 56cqw; aspect-ratio: 1; border-radius: 50%; right: -6cqw; top: 8cqw; overflow: hidden; }
+.ig .lem { position: absolute; width: 12cqw; aspect-ratio: 1; border-radius: 50% 50% 50% 10%; background: var(--b-lemon); right: 44cqw; top: 22cqw; transform: rotate(-25deg); }
+.ig .txt { position: absolute; left: 7cqw; bottom: 7cqw; right: 7cqw; display: grid; gap: 2cqw; }
+.ig .txt .k { font: 600 2.8cqw/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; }
+.ig .txt h4 { font-size: 9cqw; max-width: 10ch; text-shadow: 0 .3cqw 2cqw rgba(28,58,43,.35); }
+.ig .txt p { font: 600 3.4cqw/1.3 var(--body); }
+.ig .gs { position: absolute; left: 7cqw; top: 7cqw; display: flex; gap: 2cqw; align-items: center; font: 400 3.6cqw/1 var(--display); }
+.ig .gs svg { width: 8cqw; height: 8cqw; --mk-bg: var(--b-canopy); }
+
+.quote { aspect-ratio: 1; background: var(--b-canopy); color: var(--b-cream); display: grid; align-content: space-between; padding: 8cqw; }
+.quote .q { font: 400 10cqw/1.04 var(--display); }
+.quote .q em { font-style: normal; color: var(--b-lemon); }
+.quote .src { display: flex; justify-content: space-between; align-items: end; gap: 4cqw; font: 600 2.8cqw/1.4 var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--b-sage); }
+.quote .src svg { width: 11cqw; height: 11cqw; --mk-bg: var(--b-fern); }
+.quote .arc { position: absolute; width: 90cqw; aspect-ratio: 1; border-radius: 50%; border: .4cqw solid rgba(246,241,227,.18); left: 40cqw; top: -40cqw; }
+
+.story { aspect-ratio: 9 / 16; background: var(--b-cream); color: var(--b-canopy); display: grid; grid-template-rows: auto 1fr auto; }
+.story .hd { padding: 9cqw 8cqw 4cqw; display: grid; gap: 3cqw; }
+.story .hd .k { font: 600 3.6cqw/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--b-fern); }
+.story .hd h4 { font-size: 13cqw; }
+.story .mid { position: relative; margin: 0 8cqw; }
+.story .mid .disc { width: 100%; aspect-ratio: 1; border-radius: 50%; overflow: hidden; border: 1.2cqw solid var(--b-sage); }
+.story .tag { position: absolute; left: -2cqw; bottom: 2cqw; background: var(--b-lemon); color: var(--b-canopy); padding: 3cqw 4cqw; border-radius: 3cqw; transform: rotate(-4deg); font: 400 5cqw/1.05 var(--display); }
+.story .tag small { display: block; font: 600 2.8cqw/1.3 var(--mono); letter-spacing: .04em; }
+.story .ft { padding: 6cqw 8cqw 9cqw; display: grid; gap: 3cqw; }
+.story .ft p { font: 400 4.2cqw/1.4 var(--body); color: var(--b-soil); }
+.story .ft .pill { justify-self: start; background: var(--b-fern); color: var(--b-cream); padding: 3cqw 6cqw; border-radius: 99px; font: 700 4.2cqw/1 var(--body); }
+
+.mail { aspect-ratio: 3 / 1; background: var(--b-sage); color: var(--b-cream); display: grid; grid-template-columns: 1fr auto; align-items: center; padding: 0 6cqw; }
+.mail .k { font: 600 1.5cqw/1 var(--mono); letter-spacing: .12em; text-transform: uppercase; opacity: .9; }
+.mail h4 { font-size: 7cqw; margin-top: 1.4cqw; }
+.mail p { font: 400 1.9cqw/1.4 var(--body); margin-top: 1.2cqw; max-width: 48ch; }
+.mail .stamp { width: 21cqw; aspect-ratio: 1; border-radius: 50%; border: .3cqw solid var(--b-cream); display: grid; place-content: center; text-align: center; position: relative; }
+.mail .stamp b { font: 400 5cqw/1 var(--display); }
+.mail .stamp span { font: 600 1.4cqw/1.4 var(--mono); letter-spacing: .1em; text-transform: uppercase; }
+.mail .stamp i { position: absolute; width: 5cqw; aspect-ratio: 1; background: var(--b-lemon); border-radius: 50% 50% 50% 10%; right: 0; top: 1cqw; transform: rotate(-25deg); }
+
+.ptag { aspect-ratio: 2 / 1.25; background: var(--b-cream); color: var(--b-canopy); border-radius: 3cqw 3cqw 3cqw 3cqw; display: grid; grid-template-columns: 10cqw 1fr; }
+.ptag .hole { background: var(--b-fern); display: grid; place-items: start center; padding-top: 6cqw; }
+.ptag .hole i { width: 4cqw; aspect-ratio: 1; border-radius: 50%; background: var(--b-cream); }
+.ptag .bd { padding: 6cqw 7cqw 5cqw 6cqw; display: grid; gap: 1.6cqw; align-content: start; }
+.ptag .k { font: 600 2.4cqw/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--b-fern); }
+.ptag h4 { font-size: 9cqw; }
+.ptag .lat { font: italic 400 3.4cqw/1.2 var(--body); color: var(--b-soil); }
+.ptag .rowx { display: flex; justify-content: space-between; gap: 3cqw; margin-top: 2cqw; border-top: .3cqw solid var(--b-sage); padding-top: 2.4cqw; font: 400 2.9cqw/1.35 var(--body); }
+.ptag .rowx b { display: block; font: 600 2.2cqw/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--b-sage-deep); margin-bottom: .8cqw; }
+.ptag .txt { margin-top: 1.4cqw; font: 600 2.7cqw/1.3 var(--mono); background: var(--b-lemon); padding: 1.6cqw 2.4cqw; border-radius: 1.4cqw; justify-self: start; }
+
+.sign { aspect-ratio: 3 / 2; background: var(--b-fern); color: var(--b-cream); display: grid; grid-template-columns: 1.3fr 1fr; }
+.sign .l { padding: 7cqw; display: grid; align-content: space-between; gap: 3cqw; }
+.sign h4 { font-size: 7.6cqw; }
+.sign p { font: 400 2.3cqw/1.45 var(--body); opacity: .92; max-width: 34ch; }
+.sign .m { display: flex; gap: 2cqw; align-items: center; font: 400 2.8cqw/1 var(--display); }
+.sign .m svg { width: 7cqw; height: 7cqw; --mk-bg: var(--b-canopy); }
+.sign .r { background: var(--b-cream); color: var(--b-canopy); padding: 6cqw 5cqw; display: grid; gap: 2.4cqw; align-content: center; }
+.sign .r .k { font: 600 1.8cqw/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--b-fern); }
+.sign .r ol { margin: 0; padding-left: 3cqw; display: grid; gap: 1.6cqw; font: 400 2.3cqw/1.35 var(--body); }
+.sign .r .txt { font: 400 3.8cqw/1.1 var(--display); }
+.sign .r .txt small { display: block; font: 600 1.9cqw/1.4 var(--mono); margin-top: .8cqw; }
+
+.card5 { aspect-ratio: 7 / 5; background: var(--b-cream); color: var(--b-canopy); display: grid; grid-template-columns: 1fr 1fr; }
+.card5 .l { background: var(--b-sage); display: grid; place-items: center; position: relative; overflow: hidden; }
+.card5 .l .c { width: 80%; aspect-ratio: 1; border-radius: 50%; border: .4cqw solid var(--b-cream); display: grid; place-items: center; }
+.card5 .l .c svg { width: 60%; height: 60%; --mk-bg: transparent; }
+.card5 .r { padding: 6cqw; display: grid; gap: 2cqw; align-content: center; }
+.card5 h4 { font-size: 7cqw; }
+.card5 p { font: 400 2.5cqw/1.5 var(--body); color: var(--b-soil); }
+.card5 .sig { font: italic 400 3.4cqw/1.2 var(--display); color: var(--b-fern); }
+
+
+.photo { width: 100%; height: 100%; background-size: cover; background-position: center; display: grid; place-items: center; }
+.ph-trellis { background-image: url(__IMG_TRELLIS__); }
+.ph-moat { background-image: url(__IMG_MOAT__); }
+.ph-pantry { background-image: url(__IMG_PANTRY__); }
+.ph-none { background: var(--b-sage-deep); }
+.ph-none svg { width: 56%; height: 56%; --mk-bg: transparent; }
+.mats { display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1.15fr) minmax(0, .64fr); gap: 14px; align-items: start; }
+.mats .wide { grid-column: 1 / -1; max-width: 560px; }
+@media (max-width: 700px) { .mats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.mat { display: grid; gap: 6px; margin: 0; min-width: 0; }
+.mat figcaption { font-size: 12px; color: var(--ink-3); }
+.mat figcaption b { color: var(--ink); font-weight: 700; }
+.mats-h { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+.mats-h h3 { font: 700 16px/1.3 var(--body); }
+.mats-h select { border: 1px solid var(--line-2); border-radius: 999px; padding: 5px 10px; background: var(--raised); font-size: 13px; }
+.thumb { width: 44px; height: 44px; border-radius: 50%; overflow: hidden; align-self: start; }
+.ev { grid-template-columns: 50px minmax(0, 1fr) 44px; }
+.picks .pt { width: 22px; height: 22px; border-radius: 50%; overflow: hidden; display: inline-block; margin-left: -4px; }
+.mgal { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 22px; align-items: start; }
+.mgal .w2 { grid-column: span 2; }
+@media (max-width: 560px) { .mgal .w2 { grid-column: auto; } }
+.msec { display: grid; gap: 14px; margin-bottom: 40px; }
+.msec-h { display: flex; justify-content: space-between; align-items: end; gap: 12px; flex-wrap: wrap; }
+.msec-h h2 { font-size: clamp(22px, 3vw, 28px); }
+
+.fold { display: inline-flex; align-items: center; gap: 8px; border: 0; background: transparent; padding: 4px 0; cursor: pointer; font: 700 16px/1.3 var(--body); color: var(--ink); }
+.fold::before { content: ""; width: 8px; height: 8px; border-right: 2px solid var(--ink-3); border-bottom: 2px solid var(--ink-3); transform: rotate(45deg); margin: -3px 2px 0 2px; transition: transform .15s; }
+.fold[aria-expanded="false"]::before { transform: rotate(-45deg); margin-top: 0; }
+.fold .cnt { font: 400 13px/1 var(--body); color: var(--ink-3); }
+
+/* tasks */
+.tasks { display: grid; gap: 6px; }
+.task { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--raised); }
+.task.open { border-style: dashed; background: transparent; }
+.task.cant { border-color: var(--flag); }
+@media (max-width: 620px) { .task { grid-template-columns: 34px minmax(0, 1fr); } .task .ta { grid-column: 1 / -1; justify-content: flex-start; } }
+.tico { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; font-size: 16px; background: var(--fern-soft); }
+.task b { font-size: 15px; display: block; }
+.task .sub { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-top: 3px; font-size: 12px; color: var(--ink-3); }
+.ta { display: flex; gap: 6px; align-items: center; justify-content: flex-end; flex-wrap: wrap; }
+.pill.asked { background: var(--lemon-soft); color: var(--lemon-ink); }
+.pill.confirmed { background: var(--water-soft); color: var(--water); }
+.pill.done { background: var(--fern-soft); color: var(--fern); }
+.pill.cant { background: var(--flag-soft); color: var(--flag); }
+.pill.open { background: transparent; color: var(--ink-3); border: 1px dashed var(--line-2); }
+.rem { font: 400 11px/1 var(--mono); padding: 4px 6px; border-radius: 4px; background: var(--paper); border: 1px solid var(--line); color: var(--ink-2); white-space: nowrap; }
+.rem.sent { color: var(--ink-3); text-decoration: line-through; text-decoration-color: var(--line-2); }
+.task-body { grid-column: 1 / -1; display: grid; gap: 8px; padding-top: 6px; border-top: 1px solid var(--line); }
+.bub { max-width: 520px; padding: 9px 12px; border-radius: 14px 14px 14px 4px; background: var(--paper); border: 1px solid var(--line); font-size: 14px; line-height: 1.45; }
+.addtask { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) minmax(0, 1fr) auto; gap: 8px; align-items: end; padding: 12px; border-radius: 12px; background: var(--paper); border: 1px solid var(--line); }
+@media (max-width: 760px) { .addtask { grid-template-columns: 1fr 1fr; } }
+.addtask .fld select, .addtask .fld input { padding: 7px 9px; font-size: 14px; }
+.addtask .rems { grid-column: 1 / -1; display: flex; gap: 6px 14px; flex-wrap: wrap; font-size: 13px; align-items: center; color: var(--ink-2); }
+.addtask .rems label { display: inline-flex; gap: 5px; align-items: center; }
+.addtask .rems input { accent-color: var(--fern); }
+.tsum { font-size: 13px; color: var(--ink-2); }
+/* team + permissions */
+.whosel { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--ink-3); }
+.whosel select { border: 1px solid var(--line-2); border-radius: 999px; padding: 5px 10px; background: var(--raised); font-size: 13px; font-weight: 700; color: var(--ink); }
+.perm-note { font-size: 13px; color: var(--ink-3); padding: 8px 12px; border-radius: 10px; background: var(--paper); border: 1px dashed var(--line-2); }
+.team td, .team th { white-space: nowrap; }
+.team td:first-child { white-space: normal; min-width: 160px; }
+.team td.c, .team th.c { text-align: center; }
+.team input[type=checkbox] { accent-color: var(--fern); width: 16px; height: 16px; }
+.team select { border: 1px solid var(--line-2); border-radius: 8px; padding: 5px 8px; background: var(--raised); font-size: 13px; }
+.team .nm { display: flex; gap: 10px; align-items: center; }
+.av { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font: 700 12px/1 var(--body); color: #1C3A2B; flex: none; }
+.addp { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.2fr) minmax(0, .8fr) minmax(0, 1fr) auto; gap: 8px; align-items: end; margin-top: 14px; }
+@media (max-width: 760px) { .addp { grid-template-columns: 1fr 1fr; } }
+.addp .fld input, .addp .fld select { padding: 7px 9px; font-size: 14px; }
+.roles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 18px; }
+@media (max-width: 760px) { .roles { grid-template-columns: 1fr; } }
+.roles div { padding: 14px; border-radius: 12px; background: var(--surface); border: 1px solid var(--line); display: grid; gap: 4px; }
+.roles b { font-size: 15px; }
+.roles span { font-size: 13px; color: var(--ink-2); }
+
+/* event plan */
+.series { font: 600 11px/1 var(--mono); letter-spacing: .06em; text-transform: uppercase; background: var(--fern-soft); color: var(--fern); padding: 4px 7px; border-radius: 4px; }
+.leadline { font-size: 13px; color: var(--ink-2); display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.run { list-style: none; margin: 0; padding: 0; border: 1px solid var(--line); border-radius: 12px; background: var(--raised); overflow: hidden; }
+.run li { display: grid; grid-template-columns: 72px minmax(0, 1fr) auto; gap: 12px; padding: 9px 12px; border-top: 1px solid var(--line); align-items: baseline; font-size: 14px; }
+.run li:first-child { border-top: 0; }
+.run .tm { font: 600 12px/1.4 var(--mono); color: var(--fern); }
+.run li.leads { background: var(--paper); }
+.run li.leads .tm { color: var(--ink-3); }
+.run .own { font-size: 12px; font-weight: 700; color: var(--ink-3); }
+.x { border: 0; background: transparent; color: var(--ink-3); cursor: pointer; font-size: 15px; padding: 0 4px; line-height: 1; }
+.x:hover { color: var(--flag); }
+.mini { display: flex; gap: 6px; flex-wrap: wrap; }
+.mini input { flex: 1; min-width: 120px; border: 1px solid var(--line-2); border-radius: 8px; padding: 6px 9px; background: var(--surface); font-size: 13px; }
+.mini input[type=time] { flex: 0 0 auto; min-width: 0; width: 110px; }
+.roles2 { display: flex; flex-wrap: wrap; gap: 10px 18px; padding: 2px 0 6px; }
+.rgrp { display: grid; gap: 6px; }
+.rgrp .l { font: 600 11px/1 var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); }
+.ppl { display: flex; flex-wrap: wrap; gap: 6px; }
+.pp { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px 3px 3px; border-radius: 999px; background: var(--raised); border: 1px solid var(--line); font-size: 13px; font-weight: 700; }
+.pp .av { width: 24px; height: 24px; font-size: 10px; }
+.pp.pending { border-style: dashed; color: var(--ink-3); }
+.pp.open { border-style: dashed; color: var(--flag); padding-left: 10px; }
+.areas { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 10px; }
+.area { border: 1px solid var(--line); border-radius: 12px; background: var(--raised); padding: 12px; display: grid; gap: 7px; align-content: start; }
+.area h4 { margin: 0; font: 700 14px/1.3 var(--body); display: flex; justify-content: space-between; gap: 8px; }
+.area h4 span { font-weight: 400; color: var(--ink-3); font-size: 12px; }
+.chk { display: flex; gap: 8px; align-items: flex-start; font-size: 14px; }
+.chk input { accent-color: var(--fern); margin-top: 3px; }
+.chk.done span { text-decoration: line-through; color: var(--ink-3); }
+.carry { font: 600 10px/1 var(--mono); color: var(--lemon-ink); background: var(--lemon-soft); padding: 2px 5px; border-radius: 3px; margin-left: 4px; white-space: nowrap; }
+.sups { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 6px; }
+.sup { display: flex; justify-content: space-between; gap: 8px; align-items: center; padding: 7px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--raised); font-size: 14px; }
+.sup small { display: block; font-size: 12px; color: var(--ink-3); }
+.sup .pill { border: 0; cursor: pointer; }
+.pill.need { background: var(--lemon-soft); color: var(--lemon-ink); }
+.pill.packed { background: var(--fern-soft); color: var(--fern); }
+.pill.ask { background: var(--water-soft); color: var(--water); }
+.pill.unsure { background: var(--flag-soft); color: var(--flag); }
+.food { padding: 12px; border-radius: 12px; background: var(--paper); border: 1px solid var(--line); font-size: 14px; display: grid; gap: 4px; }
+.food b { font-size: 13px; }
+.ice { font: 400 19px/1.3 var(--display); }
+.qs { margin: 0; padding-left: 18px; display: grid; gap: 4px; font-size: 14px; color: var(--ink-2); }
+.subh { font: 600 11px/1 var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); margin-top: 6px; }
+.ideas { display: grid; gap: 6px; }
+.idea { display: flex; justify-content: space-between; gap: 10px; align-items: center; padding: 8px 12px; border-radius: 10px; background: var(--lemon-soft); font-size: 14px; flex-wrap: wrap; }
+.idea.used { background: var(--fern-soft); color: var(--ink-3); }
+.idea small { font-size: 12px; color: var(--ink-3); }
+
+/* event tabs + plan doc */
+.dtabs { display: flex; gap: 2px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.dtabs button { border: 0; background: transparent; padding: 10px 14px; font-weight: 700; font-size: 15px; color: var(--ink-2); cursor: pointer; border-bottom: 3px solid transparent; margin-bottom: -1px; display: flex; gap: 8px; align-items: center; }
+.dtabs button:hover { color: var(--ink); }
+.dtabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--fern); }
+.dtabs .n { font: 600 11px/1 var(--mono); background: var(--lemon); color: #2A2208; border-radius: 99px; padding: 3px 7px; }
+.dpanel { display: grid; gap: 18px; }
+.doc { background: var(--raised); border: 1px solid var(--line); border-radius: 4px; box-shadow: var(--shadow); padding: clamp(18px, 4vw, 40px); display: grid; gap: 20px; font-size: 15px; line-height: 1.55; min-width: 0; }
+.doc-title { font: 700 20px/1.3 var(--body); }
+.doc-src { font-size: 12px; color: var(--ink-3); margin-top: -14px; }
+.doc-kv { display: grid; gap: 8px; margin: 0; }
+.doc-kv > div { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 10px; align-items: baseline; }
+.doc-kv dt { font-size: 13px; font-weight: 700; color: var(--ink-3); }
+.doc-kv dd { margin: 0; min-width: 0; }
+@media (max-width: 600px) { .doc-kv > div { grid-template-columns: 1fr; gap: 0; } }
+.pend { color: var(--ink-3); }
+.mchips { display: flex; flex-wrap: wrap; gap: 6px; }
+.mchip { display: inline-flex; gap: 6px; align-items: center; border: 1px solid var(--line); border-radius: 999px; padding: 3px 4px 3px 11px; font-size: 14px; background: var(--surface); }
+.mchip small { color: var(--ink-3); font-size: 12px; }
+.mchip .pill { border: 0; cursor: pointer; border-radius: 999px; }
+.doc-sec { display: grid; gap: 10px; }
+.doc .fold { font-size: 16px; }
+.tl { list-style: none; margin: 0; padding: 12px 14px; display: grid; gap: 6px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.tl > li { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 12px; align-items: start; }
+.tl .tm { font-size: 13px; color: var(--ink-3); font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.tl li.leads .tm, .tl li.leads .tx { color: var(--ink-2); }
+.tl .own { font-size: 12px; font-weight: 700; color: var(--ink-3); margin-left: 6px; }
+@media (max-width: 600px) { .tl > li { grid-template-columns: minmax(0, 1fr) auto; } .tl .tm { grid-column: 1 / -1; } }
+.nest { margin-top: 8px; padding-left: 14px; border-left: 2px solid var(--line); display: grid; gap: 10px; }
+.nest .ice { font-size: 17px; }
+.doc .areas { grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); }
+.doc .area { background: var(--surface); }
+.bul { margin: 0; padding-left: 20px; display: grid; gap: 3px; }
+
+/* tiles */
+.tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr)); gap: 18px; }
+.tile { border: 1px solid var(--line); border-radius: 16px; background: var(--raised); overflow: hidden; cursor: pointer; display: grid; grid-template-rows: auto 1fr; transition: transform .15s, box-shadow .15s, border-color .15s; }
+.tile:hover { transform: translateY(-3px); box-shadow: var(--shadow); border-color: var(--line-2); }
+.tile:focus-visible { outline: 3px solid var(--lemon); outline-offset: 2px; }
+.cover { display: flex; align-items: flex-end; gap: 8px; padding: 18px 16px 0; background: linear-gradient(160deg, var(--fern-soft), var(--paper)); overflow: hidden; height: 236px; }
+.cover .art { flex: none; box-shadow: 0 8px 20px rgba(20, 35, 25, .22); margin-bottom: -18px; }
+.cover .ig { width: 53%; }
+.cover .flyer { width: 28%; }
+.cover .story { width: 17%; }
+.tile.past .cover { filter: saturate(.75); }
+.tbody { padding: 16px; display: grid; gap: 10px; align-content: start; }
+.trow { display: grid; grid-template-columns: 50px minmax(0, 1fr); gap: 12px; align-items: start; }
+.tile h3 { font: 400 20px/1.15 var(--display); }
+.tile .lbl { font: 600 11px/1.3 var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--fern); }
+.tile .m { font-size: 13px; color: var(--ink-3); }
+.tchips { display: flex; gap: 6px; flex-wrap: wrap; }
+.tilebar { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+/* event pop-up + full page */
+.modal { position: fixed; inset: 0; z-index: 45; background: rgba(15, 24, 18, .55); display: flex; justify-content: center; align-items: flex-start; overflow-y: auto; padding: 0 max(16px, env(safe-area-inset-right, 0px)) max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); }
+.mbox { width: min(1080px, 100%); background: var(--surface); border-radius: 16px; box-shadow: var(--shadow); margin-block: max(36px, calc(env(safe-area-inset-top, 0px) + 20px)) 20px; overflow: clip; }
+.mbar, .evbar { position: sticky; top: 0; z-index: 3; display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 10px 16px; background: var(--surface); border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.evbar { top: calc(env(safe-area-inset-top, 0px) + 58px); border: 1px solid var(--line); border-radius: 12px; margin-bottom: 14px; }
+.mbar .grp, .evbar .grp { display: flex; gap: 6px; flex-wrap: wrap; }
+.mbody .detail { border: 0; border-radius: 0; background: transparent; }
+.hstrip { display: flex; gap: 16px; align-items: flex-end; overflow-x: auto; padding: 20px 18px 16px; border-radius: 14px; background: linear-gradient(160deg, var(--fern-soft), var(--paper)); }
+.hstrip figure { margin: 0; display: grid; gap: 6px; flex: none; }
+.hstrip figcaption { font-size: 12px; color: var(--ink-3); }
+.hstrip figcaption b { color: var(--ink); }
+.hstrip .flyer { width: 210px; }
+.hstrip .ig { width: 272px; }
+.hstrip .story { width: 153px; }
+.hstrip .mail { width: 408px; }
+@media (max-width: 600px) { .hstrip .flyer { width: 160px; } .hstrip .ig { width: 207px; } .hstrip .story { width: 117px; } .hstrip .mail { width: 300px; } }
+
+.who-tbl { width: 100%; border-collapse: collapse; font-size: 15px; min-width: 0; }
+.who-tbl th { text-align: left; font: 700 13px/1.3 var(--body); color: var(--ink-2); padding: 8px 10px; border-bottom: 2px solid var(--line-2); }
+.who-tbl td { padding: 9px 10px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+.who-tbl td:nth-child(2) { width: 34%; font-weight: 700; }
+.who-tbl .rm { width: 1%; white-space: nowrap; text-align: right; }
+.who-tbl .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+.who-tbl .needs { color: var(--flag); font-weight: 700; }
+.who-tbl tfoot td { border-bottom: 0; padding-top: 10px; }
+.who-tbl input, .who-tbl select { width: 100%; border: 1px solid var(--line-2); border-radius: 8px; padding: 7px 9px; background: var(--surface); font-size: 14px; }
+
+.osum { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 15px; color: var(--ink-2); }
+.osum b { color: var(--ink); }
+.olist { list-style: none; margin: 0; padding: 0; border: 1px solid var(--line); border-radius: 12px; background: var(--raised); }
+.orow { display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 10px 14px; border-top: 1px solid var(--line); }
+.orow:first-child { border-top: 0; }
+.oname { border: 0; background: transparent; padding: 0; text-align: left; cursor: pointer; font: 700 15px/1.3 var(--body); color: var(--ink); display: grid; gap: 1px; }
+.oname .hint { font-weight: 400; font-size: 12px; }
+.oname:hover .hint { color: var(--fern); text-decoration: underline; }
+.orow .done { font-size: 13px; font-weight: 700; color: var(--fern); white-space: nowrap; }
+.obody { grid-column: 1 / -1; display: grid; gap: 6px; }
+.obody textarea { width: 100%; min-height: 130px; resize: vertical; border: 1px solid var(--line-2); border-radius: 10px; padding: 10px 12px; background: var(--surface); line-height: 1.5; font-size: 14px; }
+.obody textarea:focus { outline: none; border-color: var(--fern); }
+.addch { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.addch select { border: 1px solid var(--line-2); border-radius: 999px; padding: 6px 10px; background: var(--raised); font-size: 13px; }
+
+.plainareas { display: grid; gap: 8px; }
+.plainareas .bul { margin-top: 2px; }
+
+.planf { display: grid; gap: 12px; padding-top: 14px; border-top: 1px solid var(--line); }
+.planf legend { font: 400 20px/1.2 var(--display); color: var(--ink); margin-bottom: 4px; }
+.panel { width: min(620px, 100%); }
+
+.editdoc .fld { font-size: 13px; }
+.edit-h { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+.edit-f { display: flex; justify-content: flex-end; padding-top: 6px; border-top: 1px solid var(--line); }
+
+.hosting { display: grid; gap: 10px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.hrow { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 10px; align-items: center; }
+.hl { font-size: 13px; font-weight: 700; color: var(--ink-3); }
+.hrow > .pp { justify-self: start; }
+
+.doc #tasks-body { padding: 4px 14px 10px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); overflow-x: auto; }
+
+/* signed-out state */
+body.out .tabs, body.out .whosel, body.out #signout, body.out .lock span { display: none; }
+body:not(.out) #signin-top { display: none; }
+.topbtns { display: flex; gap: 8px; align-items: center; }
+body.out .topbtns { margin-left: auto; }
+
+/* landing */
+.land { display: grid; gap: 72px; padding-block: 12px 40px; }
+.lhero { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr); gap: 40px; align-items: center; min-height: min(640px, 80vh); }
+@media (max-width: 900px) { .lhero { grid-template-columns: 1fr; min-height: 0; } }
+.lhero .k { font: 600 12px/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--fern); display: inline-flex; gap: 8px; align-items: center; }
+.lhero .k i { width: 8px; height: 8px; border-radius: 50%; background: var(--lemon); animation: pulse 2.4s ease-in-out infinite; }
+.lhero h1 { font: 400 clamp(40px, 6vw, 72px)/1.02 var(--display); margin: 16px 0 18px; letter-spacing: -.015em; }
+.lhero h1 span { display: block; animation: up .8s cubic-bezier(.2, .7, .2, 1) both; }
+.lhero h1 span:nth-child(2) { animation-delay: .12s; color: var(--fern); }
+.lhero p.sub { font-size: 19px; color: var(--ink-2); max-width: 46ch; animation: up .8s .24s cubic-bezier(.2, .7, .2, 1) both; }
+.lhero .cta { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 26px; animation: up .8s .36s cubic-bezier(.2, .7, .2, 1) both; }
+.btn.lg { padding: 13px 22px; font-size: 16px; }
+.scene { position: relative; aspect-ratio: 1 / .9; max-width: 600px; width: 100%; justify-self: center; }
+.scene svg.land-bg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.scene .sun { fill: var(--lemon); animation: sunrise 1.6s .2s cubic-bezier(.2, .7, .2, 1) both; transform-origin: center; }
+.scene .hill { fill: none; stroke: var(--sage); stroke-width: 3; stroke-linecap: round; stroke-dasharray: 900; stroke-dashoffset: 900; animation: draw 1.8s .3s ease-out forwards; }
+.scene .water { fill: none; stroke: var(--water); stroke-width: 2.5; stroke-linecap: round; stroke-dasharray: 900; stroke-dashoffset: 900; animation: draw 2s .6s ease-out forwards, drift 6s 2.6s ease-in-out infinite; }
+.scene .sprout { transform-origin: 50% 100%; transform-box: fill-box; animation: grow 1.2s 1.2s cubic-bezier(.3, 1.4, .5, 1) both; }
+.scene .cards { position: absolute; inset: 0; }
+.scene .cards .art { position: absolute; box-shadow: 0 18px 40px rgba(20, 35, 25, .25); transition: transform .35s cubic-bezier(.2, .7, .2, 1); }
+.scene .c1 { width: 34%; left: 4%; top: 24%; transform: rotate(-8deg); animation: fan1 1s .7s cubic-bezier(.2, .7, .2, 1) both, float 7s 2s ease-in-out infinite; }
+.scene .c2 { width: 46%; left: 29%; top: 10%; transform: rotate(2deg); animation: fan2 1s .85s cubic-bezier(.2, .7, .2, 1) both, float 8s 2.2s ease-in-out infinite reverse; z-index: 2; }
+.scene .c3 { width: 26%; right: 2%; top: 30%; transform: rotate(9deg); animation: fan3 1s 1s cubic-bezier(.2, .7, .2, 1) both, float 6.5s 2.4s ease-in-out infinite; }
+.scene:hover .c1 { transform: rotate(-12deg) translate(-10px, -6px); }
+.scene:hover .c3 { transform: rotate(13deg) translate(10px, -6px); }
+@keyframes up { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
+@keyframes draw { to { stroke-dashoffset: 0; } }
+@keyframes drift { 50% { transform: translateX(-8px); } }
+@keyframes sunrise { from { transform: translateY(60px) scale(.6); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes grow { from { transform: scale(0); } to { transform: scale(1); } }
+@keyframes pulse { 50% { transform: scale(1.5); opacity: .5; } }
+@keyframes fan1 { from { opacity: 0; transform: translateY(60px) rotate(0); } to { opacity: 1; transform: rotate(-8deg); } }
+@keyframes fan2 { from { opacity: 0; transform: translateY(70px) rotate(0); } to { opacity: 1; transform: rotate(2deg); } }
+@keyframes fan3 { from { opacity: 0; transform: translateY(60px) rotate(0); } to { opacity: 1; transform: rotate(9deg); } }
+@keyframes float { 50% { translate: 0 -8px; } }
+@keyframes marq { to { transform: translateX(-50%); } }
+.lsec h2 { font: 400 clamp(28px, 4vw, 40px)/1.1 var(--display); margin-bottom: 8px; }
+.lsec > p { color: var(--ink-2); max-width: 56ch; margin-bottom: 26px; font-size: 17px; }
+.lsteps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; list-style: none; margin: 0; padding: 0; counter-reset: st; }
+@media (max-width: 800px) { .lsteps { grid-template-columns: 1fr; } }
+.lsteps li { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 22px; display: grid; gap: 8px; align-content: start; transition: transform .2s, box-shadow .2s; }
+.lsteps li:hover { transform: translateY(-4px); box-shadow: var(--shadow); }
+.lsteps li::before { counter-increment: st; content: counter(st); width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; background: var(--fern-soft); color: var(--fern); font: 700 15px/1 var(--mono); }
+.lsteps b { font: 400 22px/1.2 var(--display); }
+.lsteps span { color: var(--ink-2); }
+.marq { overflow: hidden; border-block: 1px solid var(--line); padding-block: 16px; mask-image: linear-gradient(90deg, transparent, #000 10%, #000 90%, transparent); }
+.marq .track { display: flex; gap: 14px; width: max-content; animation: marq 28s linear infinite; }
+.marq .ch { display: inline-flex; align-items: center; gap: 10px; padding: 8px 16px 8px 8px; border-radius: 999px; background: var(--surface); border: 1px solid var(--line); font-weight: 700; white-space: nowrap; }
+.marq .ch .logo { width: 30px; height: 30px; font-size: 11px; border-radius: 50%; }
+.nextup { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr)); gap: 16px; }
+.nextup button { border: 1px solid var(--line); border-radius: 16px; background: var(--raised); padding: 0; overflow: hidden; text-align: left; cursor: pointer; display: grid; transition: transform .2s, box-shadow .2s; }
+.nextup button:hover { transform: translateY(-3px); box-shadow: var(--shadow); }
+.nextup .art { border-radius: 0; box-shadow: none; }
+.nextup .nb { padding: 14px 16px; display: grid; gap: 2px; }
+.nextup .nb b { font: 400 19px/1.2 var(--display); }
+.nextup .nb span { font-size: 13px; color: var(--ink-3); }
+.lcta { text-align: center; padding: 48px 20px; border-radius: 24px; background: var(--fern); color: var(--fern-ink); display: grid; gap: 14px; justify-items: center; position: relative; overflow: hidden; }
+.lcta h2 { font: 400 clamp(28px, 4vw, 40px)/1.1 var(--display); color: inherit; }
+.lcta p { opacity: .9; }
+.lcta .btn { background: var(--lemon); color: #2A2208; }
+.lcta svg { position: absolute; width: 220px; height: 220px; right: -40px; bottom: -60px; opacity: .25; --mk-bg: transparent; }
+/* sign in */
+.signin { min-height: min(720px, 82vh); display: grid; place-items: center; padding-block: 24px; }
+.scard { width: min(440px, 100%); background: var(--surface); border: 1px solid var(--line); border-radius: 20px; box-shadow: var(--shadow); padding: 32px 28px; display: grid; gap: 16px; animation: up .6s cubic-bezier(.2, .7, .2, 1) both; }
+.scard > svg { width: 52px; height: 52px; }
+.scard h1 { font: 400 30px/1.1 var(--display); }
+.scard .gbtn { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--line-2); background: var(--raised); font-weight: 700; cursor: pointer; font-size: 15px; }
+.scard .gbtn:hover { border-color: var(--fern); }
+.scard .gbtn .g { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; background: var(--paper); font: 700 13px/1 var(--body); color: var(--water); }
+.or { display: flex; align-items: center; gap: 10px; color: var(--ink-3); font-size: 13px; }
+.or::before, .or::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+.pick { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.pick button { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--raised); cursor: pointer; text-align: left; font-weight: 700; }
+.pick button:hover { border-color: var(--fern); background: var(--fern-soft); }
+.pick small { display: block; font-weight: 400; color: var(--ink-3); font-size: 12px; }
+.scard .demo { font-size: 12px; color: var(--ink-3); text-align: center; }
+@media (prefers-reduced-motion: reduce) { .land *, .scard { animation: none !important; } .scene .hill, .scene .water { stroke-dashoffset: 0; } }
+
+.meet-card { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 28px; align-items: start; padding: 28px; border-radius: 22px; background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow); }
+@media (max-width: 700px) { .meet-card { grid-template-columns: 1fr; padding: 20px; } }
+.meet-date { border-radius: 18px; background: var(--fern); color: var(--fern-ink); text-align: center; padding: 22px 12px; display: grid; gap: 4px; }
+.meet-date span { font: 600 12px/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; opacity: .85; }
+.meet-date b { font: 400 64px/1 var(--display); }
+.meet-date i { font-style: normal; font-size: 13px; opacity: .9; }
+.meet-body { display: grid; gap: 12px; justify-items: start; }
+.k2 { font: 600 12px/1.3 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--fern); }
+.meet-body h2 { font: 400 clamp(26px, 3.4vw, 36px)/1.1 var(--display); margin: 0; }
+.meet-body p { color: var(--ink-2); max-width: 60ch; margin: 0; }
+.meet-kv { display: grid; gap: 8px; margin: 0; }
+.meet-kv > div { display: grid; grid-template-columns: 70px minmax(0, 1fr); gap: 10px; }
+.meet-kv dt { font-size: 13px; font-weight: 700; color: var(--ink-3); }
+.meet-kv dd { margin: 0; }
+.lsteps.plain li::before { content: none; }
+.partners { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+@media (max-width: 700px) { .partners { grid-template-columns: 1fr; } }
+.partners div { padding: 22px; border-radius: 16px; background: var(--surface); border: 1px solid var(--line); display: grid; gap: 6px; }
+.partners b { font: 400 22px/1.2 var(--display); }
+.partners span { color: var(--ink-2); }
+.perm { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 32px; align-items: center; }
+@media (max-width: 800px) { .perm { grid-template-columns: 1fr; } }
+.perm p { margin: 0; }
+.perm blockquote { margin: 0; padding: 24px 26px; border-radius: 18px; background: var(--lemon-soft); font: 400 26px/1.25 var(--display); color: var(--ink); }
+.perm cite { display: block; margin-top: 12px; font: 400 13px/1.4 var(--body); font-style: normal; color: var(--lemon-ink); }
+.cta-row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+.lcta .btn.ghostw { background: transparent; color: var(--fern-ink); border: 1px solid currentColor; }
+.org-link { font-size: 14px; opacity: .9; }
+.lcta .tog { color: var(--fern-ink); }
+
+.mcard { border: 1px solid var(--line); border-radius: 16px; background: var(--raised); overflow: hidden; display: grid; text-decoration: none; color: var(--ink); transition: transform .2s, box-shadow .2s; }
+.mcard:hover { transform: translateY(-3px); box-shadow: var(--shadow); }
+.mtop { aspect-ratio: 1; background: var(--b-canopy); color: var(--b-cream); position: relative; display: grid; align-content: end; gap: 8px; padding: 22px; overflow: hidden; }
+.mtop::before { content: ""; position: absolute; width: 70%; aspect-ratio: 1; border-radius: 50%; border: 2px solid rgba(246, 241, 227, .2); right: -18%; top: -18%; }
+.mday { position: absolute; top: 20px; left: 20px; width: 72px; aspect-ratio: 1; border-radius: 50%; background: var(--b-lemon); color: var(--b-canopy); display: grid; place-content: center; text-align: center; }
+.mday span { font: 600 11px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; }
+.mday b { font: 400 30px/1 var(--display); }
+.mk { font: 600 11px/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--b-lemon); }
+.mt { font: 400 28px/1.1 var(--display); }
+.nextup .nb .rsvp, .mcard .rsvp { color: var(--fern); font-weight: 700; font-size: 13px; }
+.mcard .nb { padding: 14px 16px; display: grid; gap: 2px; }
+.mcard .nb b { font: 400 19px/1.2 var(--display); }
+.mcard .nb > span { font-size: 13px; color: var(--ink-3); }
+
+.gmap { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 18px; align-items: start; }
+@media (max-width: 800px) { .gmap { grid-template-columns: 1fr; } }
+.gmap-art { border-radius: 18px; overflow: hidden; border: 1px solid var(--line); background: var(--fern-soft); position: relative; }
+.gmap-art svg { display: block; width: 100%; height: auto; }
+.gmap-art .road { fill: none; stroke: var(--surface); stroke-width: 6; stroke-linecap: round; }
+.gmap-art .road.sm { stroke-width: 3; }
+.gmap-art .lake { fill: var(--water-soft); stroke: var(--water); stroke-width: 1.5; }
+.gmap-art .lbl { fill: var(--ink-3); font: 600 11px var(--mono); letter-spacing: .06em; }
+.gmap-art .pin { cursor: pointer; }
+.gmap-art .pin circle.halo { fill: var(--lemon); opacity: .35; transform-origin: center; transform-box: fill-box; animation: pulse 2.4s ease-in-out infinite; }
+.gmap-art .pin path { fill: var(--fern); stroke: var(--surface); stroke-width: 2; }
+.gmap-art .pin text { fill: var(--ink); font: 700 12px var(--body); paint-order: stroke; stroke: var(--fern-soft); stroke-width: 4px; }
+.gmap-art .note { position: absolute; right: 10px; bottom: 8px; font-size: 11px; color: var(--ink-3); }
+.glist { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.glist a { display: grid; grid-template-columns: 32px minmax(0, 1fr); gap: 12px; align-items: start; padding: 14px; border-radius: 14px; border: 1px solid var(--line); background: var(--surface); text-decoration: none; color: var(--ink); transition: border-color .2s, transform .2s; }
+.glist a:hover, .glist a.on { border-color: var(--fern); transform: translateY(-2px); }
+.glist .n { width: 32px; height: 32px; border-radius: 50%; background: var(--fern); color: var(--fern-ink); display: grid; place-items: center; font: 700 14px var(--mono); }
+.glist b { display: block; font: 400 19px/1.2 var(--display); }
+.glist span { font-size: 13px; color: var(--ink-3); display: block; }
+.glist .go { color: var(--fern); font-weight: 700; font-size: 13px; margin-top: 4px; }
+
+.gmap-art .tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; filter: saturate(.75) sepia(.12); }
+.gmap-art .tiles i { display: block; aspect-ratio: 1; background-size: cover; }
+.gmap-art .t2627-6330 { background-image: url(__IMG_TILE_2627_6330__); }
+.gmap-art .t2628-6330 { background-image: url(__IMG_TILE_2628_6330__); }
+.gmap-art .t2629-6330 { background-image: url(__IMG_TILE_2629_6330__); }
+.gmap-art .t2630-6330 { background-image: url(__IMG_TILE_2630_6330__); }
+.gmap-art .t2627-6331 { background-image: url(__IMG_TILE_2627_6331__); }
+.gmap-art .t2628-6331 { background-image: url(__IMG_TILE_2628_6331__); }
+.gmap-art .t2629-6331 { background-image: url(__IMG_TILE_2629_6331__); }
+.gmap-art .t2630-6331 { background-image: url(__IMG_TILE_2630_6331__); }
+.mpin { position: absolute; transform: translate(-50%, -100%); display: flex; flex-direction: column; align-items: center; gap: 4px; text-decoration: none; }
+.mpin .dot { width: 34px; height: 34px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); background: var(--b-fern); border: 3px solid #fff; box-shadow: 0 6px 14px rgba(20, 35, 25, .35); display: grid; place-items: center; color: #fff; font: 700 13px/1 var(--body); order: 2; transition: transform .2s; }
+.mpin .dot { text-indent: 0; }
+.mpin .lab { order: 1; background: #fff; color: #1C3A2B; font: 700 12px/1.2 var(--body); padding: 5px 9px; border-radius: 999px; box-shadow: 0 4px 12px rgba(20, 35, 25, .2); white-space: nowrap; }
+.mpin:hover .dot, .mpin.on .dot { transform: rotate(-45deg) scale(1.15); background: var(--b-lemon); color: #1C3A2B; }
+.mpin::after { content: ""; position: absolute; bottom: -6px; width: 22px; height: 8px; border-radius: 50%; background: rgba(0, 0, 0, .18); z-index: -1; }
+.gmap-art .attr { position: absolute; right: 0; bottom: 0; background: rgba(255, 255, 255, .85); color: #333; font-size: 11px; padding: 2px 6px; text-decoration: none; }
+@media (max-width: 600px) { .mpin .lab { display: none; } }
+
+.lsteps .linkcard { padding: 0; }
+.lsteps .linkcard a { display: grid; gap: 8px; padding: 22px; color: inherit; text-decoration: none; height: 100%; }
+.lsteps .linkcard .go { color: var(--fern); font-weight: 700; font-size: 14px; }
+.join { display: grid; grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr); gap: 32px; align-items: start; padding: 32px; border-radius: 22px; background: var(--surface); border: 1px solid var(--line); scroll-margin-top: 80px; }
+@media (max-width: 800px) { .join { grid-template-columns: 1fr; padding: 20px; } }
+.join h2 { margin-bottom: 8px; }
+.joinf { display: grid; gap: 14px; }
+.joinrow { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.joined { grid-column: 2; padding: 22px; border-radius: 16px; background: var(--fern-soft); display: grid; gap: 6px; }
+@media (max-width: 800px) { .joined { grid-column: 1; } }
+.joined b { font: 400 24px/1.2 var(--display); }
+
+.lcta.combo { text-align: left; justify-items: stretch; display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); gap: 32px; align-items: center; padding: 40px; scroll-margin-top: 80px; }
+@media (max-width: 860px) { .lcta.combo { grid-template-columns: 1fr; padding: 24px; } }
+.combo-l { display: grid; gap: 14px; position: relative; z-index: 1; }
+.combo-l .cta-row { justify-content: flex-start; }
+.combo-r { background: var(--surface); color: var(--ink); border-radius: 18px; padding: 24px; position: relative; z-index: 1; box-shadow: var(--shadow); }
+.combo-r .joined { grid-column: auto; }
+.combo-r .fld { color: var(--ink-2); }
+
+.optseg { margin-top: 12px; flex-wrap: wrap; }
+.optseg button { padding: 7px 14px; font-size: 14px; }
+
+/* architecture */
+.arch { display: grid; gap: 40px; }
+.arch section h2 { font-size: clamp(24px, 3vw, 30px); margin-bottom: 6px; }
+.arch .lede { color: var(--ink-2); max-width: 66ch; margin-bottom: 16px; }
+.diagram { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px; }
+.diagram svg { display: block; min-width: 900px; width: 100%; height: auto; }
+.d-box { fill: var(--raised); stroke: var(--line-2); stroke-width: 1.2; }
+.d-hub { fill: var(--fern-soft); stroke: var(--fern); stroke-width: 1.5; }
+.d-grp { fill: none; stroke: var(--line-2); stroke-width: 1.2; stroke-dasharray: 5 4; }
+.d-grp-auto { fill: none; stroke: var(--fern); stroke-width: 1.4; }
+.d-opt { fill: var(--surface); stroke: var(--line-2); stroke-width: 1.2; stroke-dasharray: 4 3; }
+.d-row { fill: var(--surface); stroke: var(--line); stroke-width: 1; }
+.d-gate { fill: var(--lemon); stroke: none; }
+.d-t { fill: var(--ink); font: 700 14px var(--body); }
+.d-h { fill: var(--ink); font: 400 17px var(--display); }
+.d-s { fill: var(--ink-2); font: 400 12px var(--body); }
+.d-m { fill: var(--ink-3); font: 600 10.5px var(--mono); letter-spacing: .06em; }
+.d-gt { fill: #2A2208; font: 700 11px var(--mono); }
+.d-line { fill: none; stroke: var(--ink-3); stroke-width: 1.6; }
+.d-line.f { stroke: var(--fern); stroke-width: 2; }
+.d-line.dash { stroke-dasharray: 5 4; }
+.d-arrow { fill: var(--ink-3); }
+.d-arrow.f { fill: var(--fern); }
+.d-lbl { fill: var(--ink-2); font: 600 11px var(--body); }
+.d-lblbg { fill: var(--surface); }
+.steps { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 14px; counter-reset: s; }
+@media (max-width: 960px) { .steps { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 520px) { .steps { grid-template-columns: 1fr; } }
+.steps li { list-style: none; border-top: 3px solid var(--fern); padding-top: 10px; display: grid; gap: 4px; }
+.steps li b { font-size: 15px; }
+.steps li b::before { counter-increment: s; content: counter(s) ". "; color: var(--fern); }
+.steps li span { font-size: 14px; color: var(--ink-2); }
+.steps, .wk { padding: 0; margin: 0; }
+.tbl { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; }
+table { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 640px; }
+th { text-align: left; font: 600 11px/1.2 var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); padding: 12px 14px; border-bottom: 1px solid var(--line-2); }
+td { padding: 11px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+tr:last-child td { border-bottom: 0; }
+td b { font-weight: 700; }
+td code, .code code { font: 400 13px/1.5 var(--mono); }
+.two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
+@media (max-width: 860px) { .two { grid-template-columns: 1fr; } }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 18px; min-width: 0; }
+.card h3 { font: 700 16px/1.3 var(--body); margin-bottom: 8px; }
+.cols { display: grid; gap: 4px; font: 400 13px/1.5 var(--mono); color: var(--ink-2); }
+.code { background: var(--raised); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; overflow-x: auto; }
+.code pre { margin: 0; font: 400 13px/1.55 var(--mono); color: var(--ink); }
+.code .c { color: var(--ink-3); }
+.wk { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 860px) { .wk { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 480px) { .wk { grid-template-columns: 1fr; } }
+.wk li { list-style: none; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px; display: grid; gap: 6px; align-content: start; }
+.wk li .eyebrow { color: var(--fern); }
+.wk li b { font-size: 15px; }
+.wk li span { font-size: 14px; color: var(--ink-2); }
+.toast { position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%) translateY(16px); background: var(--ink); color: var(--paper); padding: 10px 16px; border-radius: 999px; font-weight: 700; font-size: 14px; opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; z-index: 60; max-width: calc(100% - 32px); text-align: center; }
+.toast.on { opacity: 1; transform: translateX(-50%) translateY(0); }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <symbol id="mark" viewBox="0 0 64 64">
+    <circle cx="32" cy="32" r="32" style="fill:var(--mk-bg)"/>
+    <circle cx="45" cy="20" r="7" style="fill:var(--mk-lemon)"/>
+    <g fill="none" style="stroke:var(--mk-line)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M7 41 C17 35 25 35 33 40 C41 45 49 43 57 37"/>
+      <path d="M11 48.5 C17 45.5 22 51 29 48.5 C36 46 41 51.5 48 48.5 C50 47.6 51.5 47 53 47.2"/>
+      <path d="M28 38 V22"/><path d="M28 27 C28 21 32.5 17.5 38 17.5 C38 23 33.5 27 28 27Z"/><path d="M28 31 C28 26 23.5 22.5 18 23 C18 28 22.5 31 28 31Z"/>
+    </g>
+  </symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-out" viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9M18 14v5H5V6h5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+</defs></svg>
+
+<header class="top">
+  <div class="wrap">
+    <div class="lock"><svg><use href="#mark"/></svg><b>East Bay Permaculture Guild</b><span>Event Hub</span></div>
+    <nav class="tabs" aria-label="Sections"><a href="#events" data-tab="events">Events</a><a href="#team" data-tab="team">Team</a><a href="#materials" data-tab="materials">Templates</a><a href="#architecture" data-tab="architecture">How we'd build it</a></nav>
+    <label class="whosel"><span>Viewing as</span><select id="as" aria-label="Viewing as"></select></label><div class="topbtns"><button class="btn ghost sm" type="button" id="signout">Sign out</button><button class="btn primary sm" type="button" id="signin-top">Sign in</button></div>
+  </div>
+</header>
+
+<main class="wrap">
+  <!-- ============ LANDING ============ -->
+  <div id="p-landing" data-page="landing" class="land" hidden>
+    <section class="lhero">
+      <div>
+        <span class="k"><i></i>Oakland · Volunteer-led</span>
+        <h1><span>East Bay</span><span>Permaculture Guild</span></h1>
+        <p class="sub">A community for everyone interested in permaculture, from the permie-curious to new design-course graduates to longtime designers. We meet, share resources, work on projects together and teach each other.</p>
+        <div class="cta"><a class="btn primary lg" href="#meet">Come to a meeting</a><a class="btn ghost lg" href="#involved">Get involved</a></div>
+      </div>
+      <div class="scene" aria-hidden="true">
+        <svg class="land-bg" viewBox="0 0 600 540">
+          <circle class="sun" cx="470" cy="120" r="54"/>
+          <path class="hill" d="M10 400 C110 330 210 330 300 380 C390 430 480 410 590 330"/>
+          <path class="water" d="M20 460 C80 440 130 480 200 460 C270 440 320 480 390 460 C460 440 510 470 580 452"/>
+          <g class="sprout" fill="none" stroke="var(--fern)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M300 378 V300"/><path d="M300 330 C300 300 322 284 350 284 C350 312 328 330 300 330Z" fill="var(--fern-soft)"/><path d="M300 346 C300 322 278 306 252 308 C252 332 274 346 300 346Z" fill="var(--fern-soft)"/>
+          </g>
+        </svg>
+        <div class="cards" id="hero-cards"></div>
+      </div>
+    </section>
+
+    <section class="lsec" id="meet">
+      <h2>Upcoming events</h2>
+      <p>Monthly meetings on 2nd Mondays with a potluck and speakers, plus garden work days at the Oakland Peace Center. Everyone is welcome, no experience needed.</p>
+      <div class="nextup" id="nextup"></div>
+    </section>
+
+    <section class="lsec" id="involved">
+      <h2>Get involved with the Guild</h2>
+      <p>There are lots of ways in, whether you have an afternoon or a whole project.</p>
+      <ul class="lsteps plain">
+        <li class="linkcard"><a href="#join"><b>Volunteer</b><span>Help set up for meetings, pitch in at a garden work day, or volunteer with a partner organization.</span><span class="go">Join the volunteer list ↓</span></a></li>
+        <li><b>Host a project</b><span>Does your permaculture or community resilience project need support? Got an idea for one? We're testing ways to help.</span></li>
+        <li><b>Become a partner</b><span>Join a growing network of groups doing land-based and social permaculture and community resilience work.</span></li>
+      </ul>
+    </section>
+
+    <section class="lsec" id="map">
+      <h2>Where we grow</h2>
+      <p>The gardens where the Guild meets and works. Tap a pin or a garden to open it in Google Maps.</p>
+      <div class="gmap"><div class="gmap-art" id="gmap-art"></div><ul class="glist" id="glist"></ul></div>
+    </section>
+
+    <section class="lsec perm">
+      <div><h2>What is permaculture?</h2>
+      <p>An interdisciplinary design system for building resilient, efficient systems, practiced for millennia by Indigenous peoples around the world. Bill Mollison and David Holmgren later wrote its principles down. It's used in farming, forestry, architecture, community development, education and the home.</p></div>
+      <blockquote>“Working with rather than against nature.”<cite>Bill Mollison, Permaculture: A Designers' Manual</cite></blockquote>
+    </section>
+
+    <section class="lcta combo" id="join">
+      <svg><use href="#mark"/></svg>
+      <div class="combo-l">
+        <h2>Join us</h2>
+        <p>Get on the volunteer list and an organizer will reach out before the next meeting or work day. You can also join the listserv, follow along on Instagram, RSVP on Partiful, or donate.</p>
+        <div class="cta-row"><a class="btn lg" href="https://linktr.ee/eastbaypermacultureguild" target="_blank" rel="noopener">Listserv, Instagram, Partiful ↗</a><a class="btn lg ghostw" href="https://collectiveresiliencenow.org/east-bay-permaculture-guild/" target="_blank" rel="noopener">Donate ↗</a></div>
+      </div>
+      <div class="combo-r">
+      <form class="joinf" id="joinf" novalidate>
+        <div class="r2"><label class="fld">Name<input id="vj-name" autocomplete="name"></label><label class="fld">Email or phone<input id="vj-contact" autocomplete="email"></label></div>
+        <fieldset><legend>I'd like to help with</legend><div class="picks" id="vj-picks"></div></fieldset>
+        <label class="fld">Anything else? <span class="hint" style="font-weight:400">optional</span><textarea id="vj-note" rows="2" placeholder="Skills, availability, languages you speak"></textarea></label>
+        <p class="err" id="vj-err" hidden></p>
+        <div class="joinrow"><button class="btn primary lg" type="submit">Join the list</button><span class="hint">Prototype: sign-ups stay in this browser tab.</span></div>
+      </form>
+      <div class="joined" id="joined" hidden></div>
+      </div>
+    </section>
+  </div>
+
+  <!-- ============ SIGN IN ============ -->
+  <div id="p-signin" data-page="signin" class="signin" hidden>
+    <div class="scard" role="form" aria-labelledby="si-t">
+      <svg><use href="#mark"/></svg>
+      <div><h1 id="si-t">Welcome back</h1><p class="muted">Sign in to the Guild's event hub.</p></div>
+      <button class="gbtn" type="button" id="si-google"><span class="g">G</span>Continue with Google</button>
+      <div class="or">or choose who you are</div>
+      <label class="fld" id="si-codew" hidden>Organizer code<input id="si-code" type="password" autocomplete="off"></label>
+      <p class="err" id="si-err" hidden></p>
+      <div class="pick" id="si-pick"></div>
+      <p class="demo">Prototype sign-in. No password, nothing is saved.</p>
+      <button class="tog" type="button" id="si-back" style="justify-self:center">← Back to the home page</button>
+    </div>
+  </div>
+
+  <!-- ============ EVENTS ============ -->
+  <div id="p-events" data-page="events">
+    <div class="pagehead">
+      <div><h1>Events</h1><p>Plan it, share the jobs, approve where it goes.</p></div>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span class="sample">Real OPC plans · sample contacts</span><button class="btn primary" type="button" id="new-ev"><svg><use href="#i-plus"/></svg>New event</button></div>
+    </div>
+    <div id="attn"></div>
+    <div class="tilebar"><div class="seg" role="group" aria-label="Show"><button type="button" data-when="up" aria-pressed="true">Upcoming</button><button type="button" data-when="past" aria-pressed="false">Past</button></div><span class="hint">Click an event to open it.</span></div>
+    <div class="tiles" id="tiles"></div>
+  </div>
+
+  <!-- ============ EVENT PAGE ============ -->
+  <div id="p-event" data-page="event" hidden>
+    <div class="evbar"><button class="btn ghost sm" type="button" id="ev-back">← All events</button><div class="grp"><button class="btn ghost sm" type="button" id="ev-copy">Copy link</button></div></div>
+    <div id="ev-host"></div>
+  </div>
+
+  <!-- ============ TEAM ============ -->
+  <div id="p-team" data-page="team" hidden>
+    <div class="pagehead"><div><h1>Team</h1><p>Who organizes, who helps, and what each person can do.</p></div><span class="sample">Sample data</span></div>
+    <div class="roles">
+      <div><b>Lead organizer</b><span>Everything, including the team.</span></div>
+      <div><b>Co-organizer</b><span>Signs in. Can do what you tick.</span></div>
+      <div><b>Volunteer</b><span>No sign-in. Gets task reminders by text or email.</span></div>
+    </div>
+    <div id="team-note"></div>
+    <div class="tbl"><table class="team" id="team-tbl"></table></div>
+    <h2 style="font-size:26px;margin:36px 0 6px">Volunteer list</h2><p class="muted" style="margin-bottom:12px">People who signed up on the home page. <span class="sample">Sample + this tab's sign-ups</span></p>
+    <div class="tbl"><table class="team" id="vol-tbl"></table></div>
+    <form class="addp" id="addp" novalidate>
+      <label class="fld">Name<input id="ap-name" placeholder="Janice W."></label>
+      <label class="fld">Phone or email<input id="ap-contact" placeholder="(510) 555-0100"></label>
+      <label class="fld">Remind by<select id="ap-via"><option>Text</option><option>Email</option></select></label>
+      <label class="fld">Role<select id="ap-role"><option value="vol">Volunteer</option><option value="co">Co-organizer</option></select></label>
+      <button class="btn primary" type="submit"><svg><use href="#i-plus"/></svg>Add</button>
+      <p class="err" id="ap-err" hidden style="grid-column:1/-1"></p>
+    </form>
+  </div>
+
+  <!-- ============ MATERIALS ============ -->
+  <div id="p-materials" data-page="materials" hidden>
+    <div class="pagehead"><div><h1>Templates</h1><p>On-brand flyers and posts, filled in from each event.</p></div><span class="sample">Stand-in photos</span></div>
+    <div class="msec">
+      <div class="msec-h"><h2>For an event</h2><label class="mats-h" style="gap:8px"><span class="hint">Event</span><select id="m-ev" aria-label="Event to fill templates with"></select></label></div>
+      <div class="mgal" id="m-event"></div>
+    </div>
+    <div class="msec">
+      <div class="msec-h"><h2>Any week</h2></div>
+      <div class="mgal">
+        <figure class="mat"><div class="art quote"><div class="arc"></div><div class="q">Use small and <em>slow</em> solutions.</div><div class="src"><span>Permaculture principle no. 9<br>East Bay Permaculture Guild</span><svg><use href="#mark"/></svg></div></div><figcaption><b>Quote post</b> · Instagram, quiet weeks</figcaption></figure>
+        <figure class="mat"><div class="art card5"><div class="l"><div class="c"><svg><use href="#mark"/></svg></div></div><div class="r"><h4 class="serif">Glad you came.</h4><p>Thanks for spending Sunday with us. See you at the next one.</p><span class="sig">— Rosa</span></div></div><figcaption><b>Thank-you card</b> · 5 × 7, handwritten line</figcaption></figure>
+        <figure class="mat w2"><div class="art ptag"><div class="hole"><i></i></div><div class="bd"><span class="k">Stewarded plant · no. 014</span><h4 class="serif">Big Mama</h4><span class="lat">Black Mission fig · Ficus carica</span><div class="rowx"><div><b>Planted</b>March 9, 2025</div><div><b>Steward</b>Nia T.</div><div><b>Backup</b>Rosa M.</div></div><span class="txt">Scan to follow her</span></div></div><figcaption><b>Plant tag</b> · garden stake</figcaption></figure>
+        <figure class="mat w2"><div class="art sign"><div class="l"><div class="m"><svg><use href="#mark"/></svg>East Bay Permaculture Guild</div><h4 class="serif">This garden is tended by neighbors.</h4><p>Work days are open to everyone. No experience needed.</p></div><div class="r"><span class="k">How to join</span><ol><li>Scan the code</li><li>RSVP to a work day</li><li>Come say hi</li></ol><div class="txt">2nd Sundays<small>10 AM · OAKLAND PEACE CENTER</small></div></div></div><figcaption><b>Garden sign</b> · 24 × 16 in, fence</figcaption></figure>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ ARCHITECTURE ============ -->
+  <div id="p-architecture" data-page="architecture" class="arch" hidden>
+    <section>
+      <div class="pagehead" style="margin-bottom:6px"><div><h1>How we'd build it</h1><p>Two ways to build the real thing. Both are free or nearly free to start.</p></div>
+        <div class="seg optseg" role="tablist" aria-label="Build option"><button type="button" role="tab" data-opt="a" aria-pressed="true">Option A · Google Sheets + Apps Script</button><button type="button" role="tab" data-opt="b" aria-pressed="false">Option B · Supabase + Netlify</button></div></div>
+    </section>
+  <div class="arch" id="opt-a">
+
+    <section>
+      <h2>Architecture</h2>
+      <p class="lede">Auto-post where a platform allows it. Everywhere else, copy and open.</p>
+      <div class="diagram">
+        <svg viewBox="0 0 1000 580" role="img" aria-labelledby="dg-t dg-d">
+          <title id="dg-t">Event Hub architecture</title>
+          <desc id="dg-d">Organizers use the Event Hub page served by Apps Script, which stores data in a Google Sheet, optionally polishes drafts with Gemini, and auto-posts approved posts to the Google Group, Google Calendar and Luma. Other platforms get copy and open.</desc>
+          <defs>
+            <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="d-arrow"/></marker>
+            <marker id="ahf" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="d-arrow f"/></marker>
+          </defs>
+
+          <!-- people -->
+          <rect x="20" y="210" width="140" height="110" rx="12" class="d-box"/>
+          <text x="36" y="236" class="d-m">PEOPLE</text>
+          <text x="36" y="260" class="d-h">Organizers</text>
+          <text x="36" y="282" class="d-s">Phone or laptop</text>
+          <text x="36" y="299" class="d-s">Google sign-in</text>
+
+          <!-- volunteers -->
+          <rect x="20" y="50" width="140" height="100" rx="12" class="d-box"/>
+          <text x="36" y="76" class="d-m">PEOPLE</text>
+          <text x="36" y="100" class="d-h">Volunteers</text>
+          <text x="36" y="122" class="d-s">No sign-in</text>
+          <text x="36" y="139" class="d-s">Reply YES / NO</text>
+          <path d="M440 205 H415 V100 H164" class="d-line" marker-end="url(#ah)"/>
+          <rect x="250" y="91" width="110" height="16" rx="3" class="d-lblbg"/><text x="254" y="103" class="d-lbl">task reminders</text>
+
+          <!-- hub page -->
+          <rect x="210" y="190" width="180" height="150" rx="12" class="d-hub"/>
+          <text x="226" y="216" class="d-m">WEB PAGE</text>
+          <text x="226" y="240" class="d-h">Event Hub</text>
+          <text x="226" y="262" class="d-s">This page, served by</text>
+          <text x="226" y="279" class="d-s">Apps Script HtmlService</text>
+          <text x="226" y="303" class="d-s">Create · edit · approve</text>
+          <text x="226" y="320" class="d-s">Copy &amp; open</text>
+
+          <!-- apps script -->
+          <rect x="440" y="190" width="190" height="150" rx="12" class="d-box"/>
+          <text x="456" y="216" class="d-m">LOGIC · FREE</text>
+          <text x="456" y="240" class="d-h">Apps Script</text>
+          <text x="456" y="262" class="d-s">Draft text per channel</text>
+          <text x="456" y="279" class="d-s">Publish approved posts</text>
+          <text x="456" y="296" class="d-s">Email approvers</text>
+          <text x="456" y="313" class="d-s">Hourly reminder trigger</text>
+
+          <!-- sheet -->
+          <rect x="440" y="400" width="190" height="110" rx="12" class="d-box"/>
+          <text x="456" y="426" class="d-m">DATA · FREE</text>
+          <text x="456" y="450" class="d-h">Google Sheet</text>
+          <text x="456" y="472" class="d-s">Events · Posts · Tasks</text>
+          <text x="456" y="489" class="d-s">Team · Channels · Log</text>
+
+          <!-- gemini -->
+          <rect x="440" y="40" width="190" height="96" rx="12" class="d-opt"/>
+          <text x="456" y="66" class="d-m">OPTIONAL</text>
+          <text x="456" y="90" class="d-h">Gemini API</text>
+          <text x="456" y="112" class="d-s">Make drafts warmer.</text>
+          <text x="456" y="128" class="d-s">Hackathon credits.</text>
+
+          <!-- auto group -->
+          <rect x="720" y="30" width="260" height="215" rx="14" class="d-grp-auto"/>
+          <text x="736" y="54" class="d-m">AUTO-POSTS AFTER APPROVAL</text>
+          <rect x="736" y="66" width="228" height="48" rx="8" class="d-row"/>
+          <text x="750" y="87" class="d-t">Google Group email</text>
+          <text x="750" y="104" class="d-s">MailApp sends to the group</text>
+          <rect x="736" y="122" width="228" height="48" rx="8" class="d-row"/>
+          <text x="750" y="143" class="d-t">Guild Google Calendar</text>
+          <text x="750" y="160" class="d-s">CalendarApp creates the event</text>
+          <rect x="736" y="178" width="228" height="52" rx="8" class="d-row"/>
+          <text x="750" y="199" class="d-t">Luma</text>
+          <text x="750" y="216" class="d-s">API needs Luma Plus. Else copy.</text>
+
+          <!-- assisted group -->
+          <rect x="720" y="275" width="260" height="275" rx="14" class="d-grp"/>
+          <text x="736" y="299" class="d-m">COPY &amp; OPEN · A PERSON PASTES</text>
+          <rect x="736" y="311" width="228" height="40" rx="8" class="d-row"/><text x="750" y="336" class="d-t">Partiful</text><text x="836" y="336" class="d-s">no public API</text>
+          <rect x="736" y="357" width="228" height="40" rx="8" class="d-row"/><text x="750" y="382" class="d-t">Meetup</text><text x="836" y="382" class="d-s">API is a paid tier</text>
+          <rect x="736" y="403" width="228" height="40" rx="8" class="d-row"/><text x="750" y="428" class="d-t">Facebook group</text><text x="876" y="428" class="d-s">no group API</text>
+          <rect x="736" y="449" width="228" height="40" rx="8" class="d-row"/><text x="750" y="474" class="d-t">Instagram</text><text x="836" y="474" class="d-s">flyer + caption</text>
+          <rect x="736" y="495" width="228" height="40" rx="8" class="d-row"/><text x="750" y="520" class="d-t">Group chats</text><text x="852" y="520" class="d-s">WhatsApp · Hylo</text>
+
+          <!-- lines -->
+          <path d="M160 265 H206" class="d-line" marker-end="url(#ah)"/>
+          <path d="M390 250 H436" class="d-line" marker-end="url(#ah)"/>
+          <path d="M436 290 H390" class="d-line" marker-end="url(#ah)"/>
+          <rect x="384" y="226" width="58" height="16" rx="3" class="d-lblbg"/><text x="389" y="238" class="d-lbl">save</text>
+          <rect x="384" y="296" width="58" height="16" rx="3" class="d-lblbg"/><text x="389" y="308" class="d-lbl">drafts</text>
+          <path d="M520 340 V396" class="d-line" marker-end="url(#ah)"/>
+          <path d="M550 396 V340" class="d-line" marker-end="url(#ah)"/>
+          <rect x="560" y="360" width="80" height="16" rx="3" class="d-lblbg"/><text x="562" y="372" class="d-lbl">rows in / out</text>
+          <path d="M535 186 V140" class="d-line dash" marker-end="url(#ah)"/>
+          <rect x="544" y="155" width="70" height="16" rx="3" class="d-lblbg"/><text x="546" y="167" class="d-lbl">polish text</text>
+          <!-- approved gate to auto -->
+          <path d="M630 240 H668 V138 H716" class="d-line f" marker-end="url(#ahf)"/>
+          <rect x="642" y="172" width="54" height="34" rx="6" class="d-gate"/>
+          <text x="649" y="186" class="d-gt">ONLY</text>
+          <text x="649" y="200" class="d-gt">APPROVED</text>
+          <!-- hub to assisted -->
+          <path d="M300 340 V550 H690 V430 H716" class="d-line" marker-end="url(#ah)"/>
+          <rect x="316" y="532" width="120" height="16" rx="3" class="d-lblbg"/><text x="320" y="544" class="d-lbl">copy text, open site</text>
+          <rect x="160" y="246" width="44" height="16" rx="3" class="d-lblbg"/><text x="166" y="258" class="d-lbl">use</text>
+        </svg>
+      </div>
+    </section>
+
+    <section>
+      <h2>How a post moves</h2>
+      <p class="lede">Each step is a row change in the sheet.</p>
+      <ol class="steps">
+        <li><b>Create</b><span>Event form adds a row.</span></li>
+        <li><b>Draft</b><span>One draft per channel.</span></li>
+        <li><b>Approve</b><span>Edit, approve. Who and when is saved.</span></li>
+        <li><b>Post</b><span>Auto, or copy and paste.</span></li>
+        <li><b>Remind</b><span>Email the group 2 days before.</span></li>
+      </ol>
+    </section>
+
+    <section>
+      <h2>The stack</h2>
+      <p class="lede">All free, except Luma's API.</p>
+      <div class="tbl"><table>
+        <thead><tr><th>Piece</th><th>Tool</th><th>Cost</th><th>Why this one</th></tr></thead>
+        <tbody>
+          <tr><td><b>Organizer page</b></td><td>One HTML file served by Apps Script <code>HtmlService</code></td><td>Free</td><td>Google sign-in built in. No hosting.</td></tr>
+          <tr><td><b>Data</b></td><td>Google Sheet with Events, Posts, Channels and Log tabs</td><td>Free</td><td>Anyone can read and fix it.</td></tr>
+          <tr><td><b>Logic</b></td><td>Google Apps Script, called with <code>google.script.run</code></td><td>Free</td><td>JavaScript plus timed triggers.</td></tr>
+          <tr><td><b>Drafts</b></td><td>Templates per channel, with Gemini as an optional rewrite</td><td>Free / credits</td><td>Templates first. Gemini optional.</td></tr>
+          <tr><td><b>Auto-post</b></td><td><code>MailApp</code> to the Google Group, <code>CalendarApp</code> to a public calendar, Luma API</td><td>Free · Luma Plus</td><td>Postable from code. Luma needs Plus.</td></tr>
+          <tr><td><b>Copy &amp; open</b></td><td>Clipboard plus a link to the platform's create page</td><td>Free</td><td>No simple posting API.</td></tr>
+          <tr><td><b>Approver alerts</b></td><td><code>MailApp</code> email with a link to the event</td><td>Free</td><td>Organizers already use email.</td></tr>
+          <tr><td><b>Task reminders</b></td><td>Hourly trigger. Email via <code>MailApp</code>, texts via Twilio</td><td>Free · ~1¢/text</td><td>Texting needs carrier registration.</td></tr>
+          <tr><td><b>Permissions</b></td><td>Team tab in the sheet, checked in every Apps Script call</td><td>Free</td><td>Google login says who is asking.</td></tr>
+        </tbody>
+      </table></div>
+    </section>
+
+    <section class="two">
+      <div class="card">
+        <h3>Sheet tabs</h3>
+        <div class="cols">
+          <span><b>Events</b>: id, series, number, title, date, start, end, lead_start, lead_end, place, about, bring, tags, host</span>
+          <span><b>Plan</b>: event_id, kind (run / supply / garden_task / question / debrief), time, text, who, status</span>
+          <span><b>Posts</b>: event_id, channel, text, status, edited, approved_by, approved_at, posted_at, post_url</span>
+          <span><b>Channels</b>: channel, mode (auto / copy), on_by_default, create_url, notes</span>
+          <span><b>Tasks</b>: event_id, task, assignee, status, reminders, last_sent</span>
+          <span><b>Team</b>: name, email, phone, role, can_create, can_edit, can_approve, can_assign, can_manage</span>
+          <span><b>Log</b>: time, who, event_id, what</span>
+        </div>
+        <p class="hint" style="margin-top:10px">Only the team list. No newcomer data.</p>
+      </div>
+      <div class="code">
+<pre><span class="c">// Code.gs: the whole publish step</span>
+function approveAndPublish(eventId, channel) {
+  const post = Posts.find(eventId, channel);
+  post.status = 'approved';
+  post.approved_by = Session.getActiveUser().getEmail();
+  post.approved_at = new Date();
+  if (channel === 'ggroup') {
+    MailApp.sendEmail(GROUP_ADDRESS, post.subject, post.text);
+    post.status = 'posted';
+  }
+  if (channel === 'calendar') {
+    const ev = Events.get(eventId);
+    CalendarApp.getCalendarById(CAL_ID)
+      .createEvent(ev.title, ev.startDate, ev.endDate,
+        { location: ev.address, description: post.text });
+    post.status = 'posted';
+  }
+  Posts.save(post);
+  Log.add(post.approved_by, eventId, channel + ' ' + post.status);
+  return post;
+}</pre>
+      </div>
+    </section>
+
+    <section>
+      <h2>Weekend build plan</h2>
+      <p class="lede">Team of three, done by Sunday.</p>
+      <ul class="wk">
+        <li><span class="eyebrow">Sat morning</span><b>Sheet and API</b><span>Four tabs. List, create, update functions.</span></li>
+        <li><span class="eyebrow">Sat afternoon</span><b>The page</b><span>Port this page. Swap sample data for <code>google.script.run</code>.</span></li>
+        <li><span class="eyebrow">Sun morning</span><b>Approve and post</b><span>Templates, approvals, real email and calendar posts.</span></li>
+        <li><span class="eyebrow">Sun afternoon</span><b>Demo</b><span>Create an event, approve, watch the email land.</span></li>
+      </ul>
+      <p class="hint" style="margin-top:12px">Stretch: task reminders by text, Luma API, Gemini rewrite.</p>
+    </section>
+  </div>
+  <div class="arch" id="opt-b" hidden>
+    <section>
+      <h2>Architecture</h2>
+      <p class="lede">A real web app. Netlify hosts the site, Supabase holds the data, sign-in and scheduled jobs. Every organizer sees changes live.</p>
+      <div class="diagram">
+        <svg viewBox="0 0 1000 590" role="img" aria-labelledby="db-t db-d">
+          <title id="db-t">Supabase and Netlify architecture</title>
+          <desc id="db-d">Organizers and volunteers use the Guild site hosted on Netlify. It talks to Supabase for sign-in, the Postgres database, photo storage, Edge Functions and scheduled reminders. Edge Functions post to the Google Group by email, Google Calendar and Luma. Reminders go out by email and text. Other platforms use copy and open.</desc>
+          <defs>
+            <marker id="ahb" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="d-arrow"/></marker>
+            <marker id="ahbf" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="d-arrow f"/></marker>
+          </defs>
+          <rect x="20" y="210" width="140" height="110" rx="12" class="d-box"/>
+          <text x="36" y="236" class="d-m">PEOPLE</text><text x="36" y="260" class="d-h">Organizers</text><text x="36" y="282" class="d-s">Sign in with Google</text><text x="36" y="299" class="d-s">or an email link</text>
+          <rect x="20" y="410" width="140" height="100" rx="12" class="d-box"/>
+          <text x="36" y="436" class="d-m">PEOPLE</text><text x="36" y="460" class="d-h">Volunteers</text><text x="36" y="482" class="d-s">Sign up on the site</text><text x="36" y="499" class="d-s">Get reminders</text>
+          <rect x="210" y="190" width="180" height="150" rx="12" class="d-hub"/>
+          <text x="226" y="216" class="d-m">WEB · NETLIFY</text><text x="226" y="240" class="d-h">Guild site</text><text x="226" y="262" class="d-s">Landing page and</text><text x="226" y="279" class="d-s">organizer event hub</text><text x="226" y="303" class="d-s">Deploys from GitHub</text><text x="226" y="320" class="d-s">on every push</text>
+          <rect x="440" y="40" width="200" height="90" rx="12" class="d-opt"/>
+          <text x="456" y="66" class="d-m">OPTIONAL</text><text x="456" y="90" class="d-h">Gemini API</text><text x="456" y="112" class="d-s">Polish post drafts</text>
+          <rect x="440" y="150" width="200" height="230" rx="12" class="d-box"/>
+          <text x="456" y="176" class="d-m">DATA + AUTH · SUPABASE</text><text x="456" y="200" class="d-h">Supabase</text>
+          <text x="456" y="226" class="d-s">Auth: Google or magic link</text><text x="456" y="248" class="d-s">Postgres + row-level security</text><text x="456" y="270" class="d-s">Storage: event photos</text><text x="456" y="292" class="d-s">Edge Functions: posting</text><text x="456" y="314" class="d-s">pg_cron: reminder schedule</text><text x="456" y="336" class="d-s">Realtime: live updates</text>
+          <rect x="440" y="410" width="200" height="100" rx="12" class="d-box"/>
+          <text x="456" y="436" class="d-m">REMINDERS</text><text x="456" y="460" class="d-h">Email + text</text><text x="456" y="482" class="d-s">Resend email</text><text x="456" y="499" class="d-s">Twilio SMS (optional)</text>
+          <rect x="720" y="30" width="260" height="215" rx="14" class="d-grp-auto"/>
+          <text x="736" y="54" class="d-m">POSTS AUTOMATICALLY</text>
+          <rect x="736" y="66" width="228" height="48" rx="8" class="d-row"/><text x="750" y="87" class="d-t">Google Group email</text><text x="750" y="104" class="d-s">Sent with Resend</text>
+          <rect x="736" y="122" width="228" height="48" rx="8" class="d-row"/><text x="750" y="143" class="d-t">Guild Google Calendar</text><text x="750" y="160" class="d-s">Calendar API, service account</text>
+          <rect x="736" y="178" width="228" height="52" rx="8" class="d-row"/><text x="750" y="199" class="d-t">Luma</text><text x="750" y="216" class="d-s">API needs Luma Plus</text>
+          <rect x="720" y="275" width="260" height="275" rx="14" class="d-grp"/>
+          <text x="736" y="299" class="d-m">COPY &amp; OPEN · A PERSON PASTES</text>
+          <rect x="736" y="311" width="228" height="40" rx="8" class="d-row"/><text x="750" y="336" class="d-t">Partiful</text>
+          <rect x="736" y="357" width="228" height="40" rx="8" class="d-row"/><text x="750" y="382" class="d-t">Meetup</text>
+          <rect x="736" y="403" width="228" height="40" rx="8" class="d-row"/><text x="750" y="428" class="d-t">Facebook group</text>
+          <rect x="736" y="449" width="228" height="40" rx="8" class="d-row"/><text x="750" y="474" class="d-t">Instagram</text>
+          <rect x="736" y="495" width="228" height="40" rx="8" class="d-row"/><text x="750" y="520" class="d-t">Group chats</text>
+          <path d="M160 265 H206" class="d-line" marker-end="url(#ahb)"/>
+          <path d="M160 440 C190 440 200 380 230 344" class="d-line" marker-end="url(#ahb)"/>
+          <rect x="166" y="372" width="54" height="16" rx="3" class="d-lblbg"/><text x="170" y="384" class="d-lbl">sign up</text>
+          <path d="M390 250 H436" class="d-line" marker-end="url(#ahb)"/>
+          <path d="M436 290 H390" class="d-line" marker-end="url(#ahb)"/>
+          <rect x="384" y="226" width="58" height="16" rx="3" class="d-lblbg"/><text x="386" y="238" class="d-lbl">save</text>
+          <rect x="384" y="296" width="58" height="16" rx="3" class="d-lblbg"/><text x="386" y="308" class="d-lbl">live data</text>
+          <path d="M540 146 V134" class="d-line dash" marker-end="url(#ahb)"/>
+          <path d="M540 380 V406" class="d-line" marker-end="url(#ahb)"/>
+          <path d="M436 470 H164" class="d-line" marker-end="url(#ahb)"/>
+          <rect x="250" y="462" width="80" height="16" rx="3" class="d-lblbg"/><text x="254" y="474" class="d-lbl">reminders</text>
+          <path d="M640 240 H668 V138 H716" class="d-line f" marker-end="url(#ahbf)"/>
+          <rect x="642" y="172" width="54" height="34" rx="6" class="d-gate"/><text x="652" y="186" class="d-gt">ON</text><text x="652" y="200" class="d-gt">POST</text>
+          <path d="M300 340 V565 H690 V430 H716" class="d-line" marker-end="url(#ahb)"/>
+          <rect x="316" y="547" width="120" height="16" rx="3" class="d-lblbg"/><text x="320" y="559" class="d-lbl">copy text, open site</text>
+        </svg>
+      </div>
+    </section>
+
+    <section>
+      <h2>The stack</h2>
+      <p class="lede">All on free tiers for a guild this size. Texts are the only thing that costs money per message.</p>
+      <div class="tbl"><table>
+        <thead><tr><th>Piece</th><th>Tool</th><th>Cost</th><th>Why this one</th></tr></thead>
+        <tbody>
+          <tr><td><b>Website</b></td><td>Netlify, deployed from a GitHub repo</td><td>Free</td><td>Push to GitHub and it's live. Preview links for every change.</td></tr>
+          <tr><td><b>Sign-in</b></td><td>Supabase Auth with Google or email magic links</td><td>Free</td><td>No passwords for volunteers to forget.</td></tr>
+          <tr><td><b>Data</b></td><td>Supabase Postgres with row-level security</td><td>Free</td><td>Real database, and the dashboard works like a spreadsheet.</td></tr>
+          <tr><td><b>Permissions</b></td><td>RLS policies using the <code>team</code> table</td><td>Free</td><td>Host, co-host and volunteer rules enforced by the database.</td></tr>
+          <tr><td><b>Photos</b></td><td>Supabase Storage</td><td>Free</td><td>Event photos for flyers and posts.</td></tr>
+          <tr><td><b>Posting</b></td><td>Supabase Edge Functions calling Resend, Google Calendar, Luma</td><td>Free · Luma Plus</td><td>Runs only when someone clicks Post.</td></tr>
+          <tr><td><b>Reminders</b></td><td><code>pg_cron</code> runs an Edge Function every hour. Resend email, Twilio texts</td><td>Free · ~1¢/text</td><td>Texting needs carrier registration.</td></tr>
+          <tr><td><b>Live updates</b></td><td>Supabase Realtime</td><td>Free</td><td>Two organizers editing the same event both see changes.</td></tr>
+        </tbody>
+      </table></div>
+      <p class="hint" style="margin-top:8px">Free Supabase projects pause after a stretch with no use. Check current tier limits before launch.</p>
+    </section>
+
+    <section class="two">
+      <div class="card">
+        <h3>Database tables</h3>
+        <div class="cols">
+          <span><b>events</b>: id, title, date, start, end, venue, description, tags, photo, host_id</span>
+          <span><b>event_people</b>: event_id, person_id, role (host / co-host)</span>
+          <span><b>timeline</b>: event_id, time, text</span>
+          <span><b>bringing</b>: event_id, item, person_id, reminders</span>
+          <span><b>posts</b>: event_id, channel, text, status, posted_at</span>
+          <span><b>team</b>: id, name, email, phone, role, permissions</span>
+          <span><b>volunteers</b>: name, contact, interests, note, created_at</span>
+          <span><b>gardens</b>: name, address, lat, lng</span>
+        </div>
+      </div>
+      <div class="code">
+<pre><span class="c">-- Anyone can join the volunteer list.</span>
+<span class="c">-- Only organizers can read it.</span>
+alter table volunteers enable row level security;
+
+create policy "public sign-up" on volunteers
+  for insert to anon with check (true);
+
+create policy "organizers read" on volunteers
+  for select to authenticated
+  using (exists (select 1 from team
+    where team.email = auth.email()
+      and team.role in ('host', 'co-host')));
+
+<span class="c">// Landing page form (supabase-js)</span>
+await supabase.from('volunteers').insert({
+  name, contact, interests, note
+});</pre>
+      </div>
+    </section>
+
+    <section>
+      <h2>Weekend build plan</h2>
+      <p class="lede">Team of three, done by Sunday.</p>
+      <ul class="wk">
+        <li><span class="eyebrow">Sat morning</span><b>Supabase</b><span>Create the project, run the schema, turn on Google sign-in and RLS.</span></li>
+        <li><span class="eyebrow">Sat afternoon</span><b>Netlify</b><span>Move this page into a Vite app, connect <code>supabase-js</code>, deploy from GitHub.</span></li>
+        <li><span class="eyebrow">Sun morning</span><b>Post and remind</b><span>Edge Functions for email and Calendar. <code>pg_cron</code> for reminders.</span></li>
+        <li><span class="eyebrow">Sun afternoon</span><b>Demo</b><span>Sign up as a volunteer on one phone, watch it appear for an organizer on another.</span></li>
+      </ul>
+    </section>
+  </div>
+
+  <div class="arch" id="opt-cmp">
+    <section>
+      <h2>A or B?</h2>
+      <div class="tbl"><table>
+        <thead><tr><th></th><th>A · Sheets + Apps Script</th><th>B · Supabase + Netlify</th></tr></thead>
+        <tbody>
+          <tr><td><b>Setup time</b></td><td>Hours</td><td>A day</td></tr>
+          <tr><td><b>Cost</b></td><td>Free</td><td>Free tiers, texts extra</td></tr>
+          <tr><td><b>Who can maintain it</b></td><td>Anyone comfortable with Google Sheets</td><td>Someone who can push to GitHub</td></tr>
+          <tr><td><b>Multiple organizers at once</b></td><td>Works, refresh to see changes</td><td>Live updates</td></tr>
+          <tr><td><b>Public volunteer sign-up</b></td><td>Google Form into the sheet</td><td>Built into the site</td></tr>
+          <tr><td><b>Best for</b></td><td>Hackathon demo, small guild</td><td>Growing into a real product</td></tr>
+        </tbody>
+      </table></div>
+    </section>
+  </div>
+  </div>
+</main>
+
+<div class="modal" id="modal" hidden><div class="mbox" role="dialog" aria-modal="true" aria-labelledby="m-title">
+  <div class="mbar"><span class="eyebrow" id="m-title">Event</span><div class="grp"><a class="btn ghost sm" id="m-tab" href="#" target="_blank" rel="noopener">New tab<svg><use href="#i-out"/></svg></a><button class="btn primary sm" type="button" id="m-x">Close</button></div></div>
+  <div class="mbody" id="m-body"></div>
+</div></div>
+<div id="drawer"></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(() => {
+const iso = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+const TODAY = window.EBPG_GAS ? iso(new Date()) : '2026-10-24';
+let ME = 'Jessie';
+let remote = null, sync = () => {}; // set by the live (Apps Script) build
+const $ = (s, el = document) => el.querySelector(s);
+const $$ = (s, el = document) => [...el.querySelectorAll(s)];
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const D = s => new Date(s + 'T12:00:00');
+const longDate = s => D(s).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+const shortDate = s => { const d = D(s); return d.toLocaleDateString('en-US', { weekday: 'short' }) + ' ' + (d.getMonth() + 1) + '/' + d.getDate(); };
+const t12 = t => { if (!t) return ''; let [h, m] = t.split(':').map(Number); const ap = h >= 12 ? 'PM' : 'AM'; h = h % 12 || 12; return h + ':' + String(m).padStart(2, '0') + ' ' + ap; };
+const t12s = t => t12(t).replace(':00', '').replace(' AM', 'am').replace(' PM', 'pm');
+const nowStamp = () => (window.EBPG_GAS ? new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'Oct 24') + ' · ' + new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+let tt; const toast = m => { const t = $('#toast'); t.textContent = m; t.classList.add('on'); clearTimeout(tt); tt = setTimeout(() => t.classList.remove('on'), 2600); };
+
+const CHANNELS = [
+  { id: 'partiful', name: 'Partiful', mode: 'copy', color: '#7B4FD6', abbr: 'Pf', url: 'https://partiful.com/' },
+  { id: 'luma', name: 'Luma', mode: 'auto', color: '#3B3B3B', abbr: 'Lu', url: 'https://lu.ma/', note: 'Auto needs Luma Plus' },
+  { id: 'ggroup', name: 'Google Group email', mode: 'auto', color: '#2F7D55', abbr: 'GG', url: 'https://groups.google.com/' },
+  { id: 'calendar', name: 'Guild Google Calendar', mode: 'auto', color: '#3B6C8C', abbr: 'Ca', url: 'https://calendar.google.com/' },
+  { id: 'meetup', name: 'Meetup', mode: 'copy', color: '#C63B4A', abbr: 'Me', url: 'https://www.meetup.com/' },
+  { id: 'facebook', name: 'Facebook group', mode: 'copy', color: '#2D5BB8', abbr: 'Fb', url: 'https://www.facebook.com/groups/' },
+  { id: 'instagram', name: 'Instagram', mode: 'copy', color: '#B5477A', abbr: 'Ig', url: 'https://www.instagram.com/' },
+  { id: 'chats', name: 'WhatsApp & Hylo chats', mode: 'copy', color: '#5E7F3A', abbr: 'Ch', url: 'https://www.hylo.com/' },
+];
+const CH = Object.fromEntries(CHANNELS.map(c => [c.id, c]));
+const TAGS = [['beginner', 'Beginner friendly'], ['tools', 'Tools provided'], ['kids', 'Kids welcome'], ['potluck', 'Potluck'], ['outdoor', 'Outdoors']];
+const PERMS = [['create', 'Create events'], ['edit', 'Edit events'], ['approve', 'Post'], ['tasks', 'Assign tasks'], ['team', 'Manage team']];
+const ROLE = { lead: 'Lead organizer', co: 'Co-organizer', vol: 'Volunteer' };
+const allPerms = v => Object.fromEntries(PERMS.map(([k]) => [k, v]));
+const CO = { create: true, edit: true, approve: false, tasks: true, team: false };
+const TEAM = [
+  { name: 'Jessie', role: 'lead', contact: 'jessie@example.org', via: 'Email', perms: allPerms(true) },
+  { name: 'Phil', role: 'co', contact: '(510) 555-0111', via: 'Text', perms: { create: true, edit: true, approve: true, tasks: true, team: false } },
+  { name: 'Kalynn', role: 'co', contact: '(510) 555-0112', via: 'Text', perms: { ...CO } },
+  { name: 'Sky', role: 'co', contact: 'sky@example.org', via: 'Email', perms: { create: false, edit: false, approve: true, tasks: true, team: false } },
+  { name: 'Karen', role: 'vol', contact: '(510) 555-0120', via: 'Text', perms: allPerms(false) },
+  { name: 'Meena', role: 'vol', contact: '(510) 555-0121', via: 'Text', perms: allPerms(false) },
+  { name: 'Ajay', role: 'vol', contact: '(510) 555-0122', via: 'Text', perms: allPerms(false) },
+  { name: 'Marissa', role: 'vol', contact: 'marissa@example.org', via: 'Email', perms: allPerms(false), note: 'Neighborhood outreach' },
+  { name: 'Rob', role: 'vol', contact: '(510) 555-0124', via: 'Text', perms: allPerms(false) },
+  { name: 'Lauren', role: 'vol', contact: '(510) 555-0125', via: 'Text', perms: allPerms(false) },
+];
+const person = n => TEAM.find(t => t.name === n);
+const organizers = () => TEAM.filter(t => t.role !== 'vol');
+const can = k => !!person(ME)?.perms[k];
+const AVC = ['#F2C14E', '#A8C49A', '#9EC3D6', '#D9B79A', '#C9D9A6', '#E8B9A0'];
+const avatar = n => `<span class="av" style="background:${AVC[[...n].reduce((a, c) => a + c.charCodeAt(0), 0) % AVC.length]}" aria-hidden="true">${esc(n.split(' ').map(x => x[0]).join('').slice(0, 2))}</span>`;
+const NOPE = { create: 'You need "Create events"', edit: 'You need "Edit events"', approve: 'You need "Post"', tasks: 'You need "Assign tasks"', team: 'You need "Manage team"' };
+
+/* tasks */
+const TASK_TYPES = [
+  ['food', '🥗', 'Bring food', 'Bring appetizers for 20'], ['water', '💧', 'Watering', 'Water the new bed the day before'],
+  ['tools', '🛠', 'Bring tools', 'Bring shovels from the shed'], ['setup', '🪑', 'Set up', 'Set up tables and chairs'],
+  ['cleanup', '🧹', 'Clean up', 'Clean up and lock the shed'], ['greet', '👋', 'Greet newcomers', 'Greet newcomers at the gate'],
+  ['photos', '📷', 'Photos', 'Take photos for Instagram'], ['signin', '📋', 'Sign-in table', 'Run the sign-in table'],
+  ['lead', '🎤', 'Lead a session', 'Lead the discussion'], ['notes', '📝', 'Take notes', 'Take notes at the debrief'], ['other', '🌱', 'Other', ''],
+];
+const TT = Object.fromEntries(TASK_TYPES.map(t => [t[0], t]));
+const REMS = [['assigned', 'When assigned'], ['2d', '2 days before'], ['1d', 'Day before'], ['morning', 'Morning of'], ['after', 'Day after']];
+const defaultRems = type => type === 'water' ? ['assigned', '1d'] : ['assigned', '2d', 'morning'];
+const TSTATUS = { open: 'Needs someone', asked: 'Asked', confirmed: 'Confirmed', done: 'Done', cant: "Can't make it" };
+function remWhen(ev, t, k) {
+  const off = { '2d': [-2, '6 PM'], '1d': [-1, '6 PM'], morning: [0, '8 AM'], after: [1, '9 AM'] }[k];
+  if (k === 'assigned') return { date: t.assignedOn || TODAY, label: 'Sent ' + D(t.assignedOn || TODAY).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }), sent: true };
+  const d = D(ev.date); d.setDate(d.getDate() + off[0]);
+  const iso = d.toISOString().slice(0, 10);
+  return { date: iso, label: shortDate(iso) + ' · ' + off[1], sent: iso < TODAY };
+}
+function remText(ev, t) {
+  const who = (t.who || '').split(' ')[0];
+  const when = t.type === 'water' ? `before ${ev.title} on ${shortDate(ev.date)}` : `at ${ev.title}, ${shortDate(ev.date)} ${t12s(ev.start)}, ${ev.place}`;
+  return `Hi ${who}, it's the East Bay Permaculture Guild. Reminder: you're on "${t.text}" ${when}. Reply YES to confirm, or NO if you can't make it and we'll find someone. Thank you! 🌱`;
+}
+const TASKS = {
+  w2: [['food', 'Cook lunch: basmati rice, saag, veggie korma, turmeric potato and cabbage', 'Phil', 'done'], ['greet', 'Neighborhood outreach', 'Marissa', 'done']],
+  w5: [['food', 'Bring plates, cups, napkins, utensils', 'Phil', 'done'], ['tools', 'Ask neighbors for wheelbarrows', 'Ajay', 'done']],
+  m1: [['food', 'Bring tofu and sweet potatoes', 'Phil', 'done'], ['food', 'Bring pizza and slaw', 'Jessie', 'done']],
+  w6: [['food', 'Bring plates, cups, napkins, utensils', 'Phil', 'done'], ['setup', 'Snacks and water station', 'Karen', 'done'], ['signin', 'Nametags and sign-in sheet', 'Meena', 'done']],
+};
+let taskSeq = 0;
+const mkTask = (type, text, who, status, rems) => ({ id: 't' + (++taskSeq), type, text, who, status, rems: rems || defaultRems(type), assignedOn: who ? '2026-10-19' : '', open: false });
+const HOSTS = { map: f => organizers().map(t => t.name).map(f) };
+const PHOTOS = [['trellis', 'Garden work'], ['moat', 'Before the dig'], ['pantry', 'Building'], ['none', 'Illustration']];
+const STATUS = { off: 'Not used', review: 'Needs approval', approved: 'Approved', posted: 'Posted' };
+
+function goodToKnow(ev) {
+  const t = [ev.tags.includes('beginner') && 'no experience needed', ev.tags.includes('tools') && 'tools and gloves provided', ev.tags.includes('kids') && 'kids welcome with a grown-up', ev.tags.includes('potluck') && 'bring a dish to share if you can'].filter(Boolean);
+  return t.length ? t.join(', ').replace(/^./, c => c.toUpperCase()) + '.' : '';
+}
+function draft(ch, ev) {
+  const when = `${longDate(ev.date)}, ${t12(ev.start)}–${t12(ev.end)}`;
+  const where = ev.address ? `${ev.place}, ${ev.address}` : ev.place;
+  const g = goodToKnow(ev);
+  const host = ev.host.split(' ')[0];
+  switch (ch) {
+    case 'partiful': case 'luma': case 'meetup':
+      return `${ev.title}\n${when}\n${where}\n\n${ev.about}${ev.bring ? `\n\nBring: ${ev.bring}` : ''}${g ? `\n\n${g}` : ''}\n\nHosted by ${ev.host} with the East Bay Permaculture Guild.`;
+    case 'ggroup':
+      return `Subject: ${shortDate(ev.date)}: ${ev.title} at ${ev.place}\n\nHi all,\n\n${ev.about}\n\nWhen: ${when}\nWhere: ${where}${ev.bring ? `\nBring: ${ev.bring}` : ''}\n\n${g ? g + ' ' : ''}RSVP on Partiful (link on our Linktree) so we can plan.\n\nSee you there,\n${host} for the Guild`;
+    case 'calendar':
+      return `${ev.title}\n${where}\n\n${ev.about}\nRSVP on Partiful (link on our Linktree).`;
+    case 'facebook':
+      return `🌱 ${ev.title}, ${shortDate(ev.date)} at ${t12s(ev.start)}, ${ev.place}\n\n${ev.about}\n\n${g}\nRSVP on Partiful. Link in the comments. New faces very welcome!`;
+    case 'instagram':
+      return `${ev.title} 🌱 ${shortDate(ev.date)}, ${t12s(ev.start)} at ${ev.place}.\n\n${ev.about}\n\n${g}\nRSVP: link in bio.\n\n#EastBayPermaculture #Oakland #CommunityGarden #Permaculture`;
+    case 'chats':
+      return `${ev.title} is ${shortDate(ev.date)} at ${t12s(ev.start)}, ${ev.place}. ${g} Who's in? RSVP on Partiful (link on our Linktree).`;
+  }
+}
+function makePosts(ev, chosen, status = 'review') {
+  const posts = {};
+  CHANNELS.forEach(c => { const on = chosen.includes(c.id); posts[c.id] = { status: on ? status : 'off', text: draft(c.id, ev), edited: false, by: '', open: false }; });
+  return posts;
+}
+
+/* materials */
+const photo = ph => `<div class="photo ph-${ph || 'none'}">${!ph || ph === 'none' ? '<svg><use href="#mark"/></svg>' : ''}</div>`;
+const kindOf = ev => ev.series === 'meeting' ? 'Community meeting' : ev.series === 'workday' ? 'Work party' : /potluck/i.test(ev.title) ? 'Potluck' : /swap|share/i.test(ev.title) ? 'Skill share' : /dig|restor/i.test(ev.title) ? 'Dig day' : 'Work day';
+const tagLabels = ev => ev.tags.filter(t => t !== 'outdoor').map(t => ({ beginner: 'No experience needed', tools: 'Tools provided', kids: 'Kids welcome', potluck: 'Potluck' })[t]);
+function flyerArt(ev) {
+  const d = D(ev.date);
+  return `<div class="art flyer"><div class="ph">${photo(ev.photo)}<div class="date"><span>${d.toLocaleDateString('en-US', { month: 'short' })}</span><b>${d.getDate()}</b><span>${d.toLocaleDateString('en-US', { weekday: 'short' })}</span></div></div>
+  <div class="bd"><span class="kick">EBPG · ${kindOf(ev)}</span><h4 class="serif">${esc(ev.title)}</h4>
+  <div class="when">${t12(ev.start)}–${t12(ev.end)}<br>${esc(ev.place)}</div>
+  <div class="tags">${tagLabels(ev).slice(0, 3).map(t => `<span>${t}</span>`).join('')}</div></div>
+  <div class="ft"><div class="cta">RSVP on Partiful<small>link on our Linktree</small></div><div class="qr">QR<br>code</div></div></div>`;
+}
+function igArt(ev) {
+  return `<div class="art ig"><div class="gs"><svg><use href="#mark"/></svg>EBPG</div><div class="ring"></div><div class="disc">${photo(ev.photo)}</div><div class="lem"></div>
+  <div class="txt"><span class="k">${kindOf(ev)} · ${shortDate(ev.date)}</span><h4 class="serif">${esc(ev.title)}</h4><p>${esc(ev.place)} · ${t12s(ev.start)}</p></div></div>`;
+}
+function storyArt(ev) {
+  const d = D(ev.date);
+  return `<div class="art story"><div class="hd"><span class="k">Save the date</span><h4 class="serif">${esc(ev.title)}</h4></div>
+  <div class="mid"><div class="disc">${photo(ev.photo)}</div><div class="tag">${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}<small>${t12s(ev.start)} · ${esc(ev.place)}</small></div></div>
+  <div class="ft"><p>${esc(tagLabels(ev).slice(0, 2).join('. '))}${tagLabels(ev).length ? '.' : ''}</p><span class="pill">RSVP on Partiful</span></div></div>`;
+}
+function mailArt(ev) {
+  const d = D(ev.date);
+  return `<div class="art mail"><div><span class="k">Guild Letter · ${d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</span><h4 class="serif">${esc(ev.title)}</h4><p>${esc(longDate(ev.date))}, ${t12s(ev.start)}. ${esc(ev.place)}.</p></div><div class="stamp"><i></i><b>${d.getDate()}</b><span>${d.toLocaleDateString('en-US', { month: 'short' })}<br>Oakland</span></div></div>`;
+}
+const MATS = [
+  ['flyer', 'Flyer', 'print + Partiful cover', flyerArt],
+  ['ig', 'Instagram post', 'feed', igArt],
+  ['story', 'Story', 'Instagram + WhatsApp', storyArt],
+  ['mail', 'Email header', 'Google Group', mailArt],
+];
+const matFig = (ev, [k, name, use, fn]) => `<figure class="mat ${k === 'mail' ? 'wide' : ''}">${fn(ev)}<figcaption><b>${name}</b> · ${use}</figcaption></figure>`;
+
+/* events: real OPC plans */
+const MAP = 'https://maps.app.goo.gl/9jQkydC38eJrRScr6';
+const OPC = { place: 'Oakland Peace Center', address: '111 Fairmount Ave, Oakland', map: MAP };
+const SETUP = ['Open the doors', 'Pull out tools', 'Snacks and water station', 'Parking sign (does one exist?)'];
+const sup = (item, status = 'packed', who = '') => ({ item, status, who });
+const WORK_SUPPLIES = st => [sup('Nametags and markers', st), sup('Hand fruit', st), sup('Granola bars', st), sup('Water dispenser', st), sup('5-gallon buckets', st), sup('Shovels', st), sup('Rakes', st), sup('Weeding and pruning tools', st)];
+const area = (name, items) => ({ name, items: items.map(t => ({ text: t, done: false })) });
+const EVENTS = [];
+function addEvent(ev, states, log) {
+  ev.posts = makePosts(ev, Object.keys(states), 'review');
+  Object.entries(states).forEach(([k, st]) => { ev.posts[k].status = st; if (st !== 'review') ev.posts[k].by = ev.host; });
+  ev.log = log; ev.tasks = (TASKS[ev.id] || []).map(([ty, tx, w, st]) => mkTask(ty, tx, w, st));
+  EVENTS.push(ev); return ev;
+}
+const ALL_POSTED = { partiful: 'posted', ggroup: 'posted', calendar: 'posted', instagram: 'posted', chats: 'posted' };
+
+addEvent({ id: 'w2', series: 'workday', num: 2, label: 'Workday #2 · Part Deux', dateNote: 'date assumed', photo: 'pantry',
+  title: 'OPC Garden Work Party', date: '2026-05-24', start: '10:00', end: '14:00', ...OPC, host: 'Jessie', tags: ['beginner', 'tools', 'potluck', 'outdoor'],
+  about: 'Garden work, a homemade lunch, and a conversation about signs: what first-time visitors need, and plant labels you can design yourself.', bring: 'water bottle, gloves if you have them',
+  plan: {
+    leadStart: '09:30', leadEnd: '14:30', leadNote: 'Phil has a hard out at 2:30',
+    roles: [['Event leads', ['Jessie', 'Kalynn', 'Phil']], ['Neighborhood outreach', ['Marissa']]], pending: [],
+    setup: SETUP,
+    supplies: [...WORK_SUPPLIES('packed'), sup('Wheelbarrows', 'ask', 'neighbors')],
+    food: { who: 'Phil', items: 'Induction burner, cassette burner, pots for reheating, rice cooker, aluminum pans, insulated bags, serving utensils, to-go containers for leftovers', menu: 'Basmati rice, saag, veggie korma, turmeric potato and cabbage' },
+    timeline: [['09:45', 'Volunteers arrive. Nametags, welcome, housekeeping', ''], ['10:15', 'Intro to EBPG and OPC. Ice breaker. Outline of the day', ''], ['10:30', 'I Wanna Work It, I Wanna Mulch It, I Wanna Weed It', ''], ['12:00', 'Check-in, then garden and building walk (15 min)', ''], ['12:15', 'Wash-up and lunch. Welcome to OPC and EBPG (10 min)', 'Phil'], ['13:00', 'Signage conversation on the back patio', ''], ['13:30', 'Design a plant label or garden sign (meeting room)', ''], ['13:45', 'Share design ideas', ''], ['13:50', 'Closing circle and next steps', '']],
+    icebreaker: 'What seasonal produce are you most excited about right now?',
+    questions: ['What do we want to tell the community about this garden?', 'What do we want to say about specific plants?', 'How do we encourage harvesting with least harm, at the right time, without overpicking?', 'Which languages are most common in this community?', 'What signs would help a first-time visitor to OPC: parking, entrances, emergency exits?', 'How can the garden use the bulletin board in front of OPC?', 'Plant label: what material, how is it attached, what info? Could it have a QR code?'],
+    notes: ['Walk: garden, tool center, water spigot, front door, meeting room, back patio', 'Lunch and conversation on the back patio, weather permitting'],
+    areas: [], debrief: [],
+  } }, ALL_POSTED, [['May 10 · 9:00 AM', 'Jessie created the event'], ['May 11 · 8:30 AM', 'All channels approved and posted']]);
+
+addEvent({ id: 'w5', series: 'workday', num: 5, label: 'Workday #5', photo: 'moat',
+  title: 'OPC Garden Work Party', date: '2026-08-23', start: '10:00', end: '14:00', ...OPC, host: 'Jessie', tags: ['beginner', 'tools', 'potluck', 'outdoor'],
+  about: 'Work across the whole building: the front garden, the back patio and the parking lot. We start with a garden and building walk.', bring: 'water bottle, gloves if you have them',
+  plan: {
+    leadStart: '09:00', leadEnd: '14:30', leadNote: '',
+    roles: [['Event leads', ['Jessie', 'Ajay']]], pending: ['Sky', 'Rob', 'Lauren'],
+    setup: SETUP,
+    supplies: [...WORK_SUPPLIES('packed'), sup('Wheelbarrows', 'ask', 'neighbors')],
+    food: { who: 'Phil', items: 'Plates, cups, napkins, utensils', menu: '' },
+    timeline: [['09:45', 'Volunteers arrive. Nametags, welcome, housekeeping', ''], ['10:15', 'Intro to EBPG and OPC. Ice breaker. Outline of the day', ''], ['10:30', 'Garden and building walk', ''], ['11:00', 'I Wanna Work It, I Wanna Mulch It, I Wanna Weed It', ''], ['12:00', 'Check-in. Wrap up, put away tools', ''], ['12:15', 'Wash-up and lunch. Welcome newcomers to OPC and EBPG (10 min)', ''], ['13:00', 'Post-game discussion', ''], ['13:30', 'Garden schedule and WhatsApp group', '']],
+    icebreaker: 'What seasonal produce are you most excited about, or what was something delicious you ate recently?',
+    questions: ['What are we proud of today?', 'What ideas came up during your tasks? Visions for the garden, this group, or working with other groups?'],
+    notes: ['Walk: garden, tool center, water spigot, front door, meeting room, back patio, parking lot', 'Back patio: support the work Wood Street has done, don\'t interfere', 'Safety: the parking lot has a slope. Know your physical limits', 'Gauge interest in clearing fennel from the back'],
+    areas: [area('Front garden', ['General garden tasks']), area('Back patio', ['Beautify alongside Wood Street\'s work']), area('Parking lot', ['Clear out fennel from the back'])],
+    debrief: ['More trellis gardening: vining vegetables, planting upwards', 'Start in Sept/Oct: kohlrabi, native plants for the slope', 'Buy cattle fence', 'Paint the garden beds', 'Gathering spaces by the oak and the staircase', 'Shade garden: herbs, oak understory, California rose', 'Brush pile', 'Erosion control on the slope: logs, woven sticks, brush pile', 'El Niño and ground stability: a crew per storm?'].map(t => ({ text: t, used: false })),
+  } }, ALL_POSTED, [['Aug 9 · 10:00 AM', 'Jessie created the event'], ['Aug 10 · 9:15 AM', 'All channels approved and posted']]);
+
+addEvent({ id: 'm1', series: 'meeting', num: 1, label: 'Community Meeting #1', dateNote: 'date assumed', photo: 'none',
+  title: 'OPC Community Meeting', date: '2026-09-09', start: '18:00', end: '20:00', ...OPC, host: 'Jessie', tags: ['beginner', 'potluck'],
+  about: 'Share food, hear the state of the garden, and help plan what comes next: signage, the back garden and the greenhouse.', bring: 'yourself, and a dish to share if you like',
+  plan: {
+    leadStart: '', leadEnd: '', leadNote: '',
+    roles: [['Facilitators', ['Jessie', 'Phil']], ['EBPG / OPC leads', ['Sky', 'Kalynn']], ['Notetaker', []], ['Clean-up crew', []]], pending: [],
+    setup: ['Table', 'Whiteboard', 'Opening question on big paper on the wall'],
+    supplies: [sup('Table'), sup('Whiteboard'), sup('Nametags'), sup('Plates, cups, napkins, utensils', 'packed', 'OPC'), sup('Tofu and sweet potatoes', 'packed', 'Phil'), sup('Pizza and slaw', 'packed', 'Jessie')],
+    food: null,
+    timeline: [['18:00', 'Arrival. Nametags, welcome, housekeeping, get food', ''], ['18:15', 'Intro to EBPG and OPC. Ice breaker. Recruit roles: waste, food and space, timekeeper, notetaker', ''], ['18:30', 'State of the garden', 'Phil'], ['18:45', 'Projects: signage and education, back garden, greenhouse. Brainstorm and poll who\'s interested', ''], ['19:00', 'Work party roles and visioning', ''], ['19:45', 'Close', '']],
+    icebreaker: 'Choose one: what are you planting, nurturing or harvesting?',
+    questions: ['What services and functions can a community garden serve for the community?', 'State of the garden: what are we forgetting?', 'What do we want to accomplish at the next work party?', 'Who wants to do what role?'],
+    notes: ['Initial site visit 2/18/26', 'Groundbreaking 4/18 with the Office of the Governor and the City of Oakland. Monthly workdays since', 'Partners: Acta Non Verba, Urban Farm Oasis, Grand Lake ACE, Wood Street Commons', 'Mutual aid pantry renovated and installed by Bay Resistance', 'Next: greenhouse 9/26–27, seed library by November. Maybe: entrance garden, Fennel Hill, parking lot'],
+    areas: [], debrief: [],
+  } }, ALL_POSTED, [['Aug 30 · 7:00 PM', 'Jessie created the event'], ['Aug 31 · 9:00 AM', 'All channels approved and posted']]);
+
+addEvent({ id: 'w6', series: 'workday', num: 6, label: 'Workday #6', photo: 'trellis',
+  title: 'OPC Garden Work Party', date: '2026-09-27', start: '10:00', end: '14:00', ...OPC, host: 'Jessie', tags: ['beginner', 'tools', 'potluck', 'outdoor'],
+  about: 'Top-dressing the front garden, building a new bed, and clearing under the oak for an oak guild. The greenhouse goes up this weekend!', bring: 'water bottle, gloves if you have them',
+  plan: {
+    leadStart: '09:00', leadEnd: '14:30', leadNote: '',
+    roles: [['Event leads', ['Jessie', 'Phil']], ['Support', ['Karen', 'Meena']]], pending: [],
+    setup: SETUP,
+    supplies: [...WORK_SUPPLIES('packed'), sup('Compost and soil bags'), sup('Waste containers')],
+    food: { who: 'Phil', items: 'Plates, cups, napkins, utensils', menu: '' },
+    timeline: [['09:00', 'Leads set up: snacks, tools and materials, nametags and sign-in sheet', 'Leads'], ['09:45', 'Volunteers arrive. Nametags, welcome, housekeeping. Shout out the greenhouse going up this weekend', ''], ['10:15', 'Intro to EBPG and OPC. Ice breaker', ''], ['10:45', 'I Wanna Work It, I Wanna Mulch It, I Wanna Weed It', ''], ['12:30', 'Check-in and lunch', ''], ['12:50', 'Debrief in small groups by project, then share out', '']],
+    icebreaker: 'What are you planting, nurturing, and harvesting?',
+    questions: ['Greenhouse and guild boxes'],
+    notes: [],
+    areas: [area('Front garden', ['Top dressing', 'Put in a new bed', 'Show the succulents some love', 'Cull plants as needed (tomatoes)', 'Seed bombs']), area('Back lot', ['Clear out and pot up pride of Madeira', 'Clear under the oak for an oak guild'])],
+    debrief: [],
+  } }, ALL_POSTED, [['Sep 13 · 10:00 AM', 'Jessie created the event'], ['Sep 14 · 8:45 AM', 'All channels approved and posted']]);
+// what got done on #6 (sample ticks so the carry-over shows)
+EVENTS.find(e => e.id === 'w6').plan.areas.forEach(a => a.items.forEach((it, i) => { it.done = a.name === 'Front garden' ? i < 3 : i === 0; }));
+
+const WORK_TL = [['09:00', 'Leads set up', 'Leads'], ['09:45', 'Arrivals and nametags', ''], ['10:15', 'Intro and ice breaker', ''], ['10:45', 'Garden work', ''], ['12:30', 'Lunch', ''], ['12:50', 'Debrief in small groups', '']];
+const SIMPLE_TL = {
+  w2: [['09:45', 'Arrivals and nametags', ''], ['10:15', 'Intro and ice breaker', ''], ['10:30', 'Garden work', ''], ['12:00', 'Garden and building walk', ''], ['12:15', 'Lunch', ''], ['13:00', 'Signage conversation', ''], ['13:30', 'Design a plant label', ''], ['13:50', 'Closing circle', '']],
+  w5: [['09:45', 'Arrivals and nametags', ''], ['10:15', 'Intro and ice breaker', ''], ['10:30', 'Building walk', ''], ['11:00', 'Garden work', ''], ['12:15', 'Lunch', ''], ['13:00', 'Discussion', ''], ['13:30', 'Wrap up', '']],
+  m1: [['18:00', 'Arrivals and food', ''], ['18:15', 'Intro and ice breaker', ''], ['18:30', 'State of the garden', ''], ['18:45', 'Projects and ideas', ''], ['19:00', 'Roles for the next work party', ''], ['19:45', 'Close', '']],
+  w6: WORK_TL,
+};
+EVENTS.forEach(e => { if (SIMPLE_TL[e.id]) e.plan.timeline = JSON.parse(JSON.stringify(SIMPLE_TL[e.id])); });
+
+/* plan the next one from a past event */
+function copyPlan(pl) {
+  const c = JSON.parse(JSON.stringify(pl));
+  c.supplies.forEach(x => { if (x.status !== 'ask') x.status = 'need'; });
+  c.roles = c.roles.map(([l, n]) => [l, l.match(/notetaker|clean/i) ? [] : n]);
+  c.pending = [];
+  c.areas = c.areas.map(a => ({ name: a.name, items: a.items.filter(i => !i.done).map(i => ({ text: i.text, done: false, carried: true })) })).filter(a => a.items.length);
+  c.debrief = [];
+  return c;
+}
+function seriesIdeas(ev) {
+  return EVENTS.filter(e => e.series === ev.series && e.date < ev.date).flatMap(e => e.plan.debrief.filter(d => !d.used).map(d => ({ d, from: e })));
+}
+function planNext(src, date) {
+  const same = EVENTS.filter(e => e.series === src.series);
+  const num = Math.max(...same.map(e => e.num)) + 1;
+  if (!date) { const d = D(src.date); d.setDate(d.getDate() + 28); date = d.toISOString().slice(0, 10); }
+  const ev = { ...JSON.parse(JSON.stringify({ ...src, posts: null, log: null, tasks: null })), id: src.series[0] + num + '-' + Date.now() % 10000, num, label: (src.series === 'workday' ? 'Workday #' : 'Community Meeting #') + num, date, dateNote: '' };
+  ev.plan = copyPlan(src.plan);
+  const chans = CHANNELS.filter(c => src.posts[c.id].status !== 'off').map(c => c.id);
+  ev.posts = makePosts(ev, chans, 'review');
+  ev.tasks = (src.tasks || []).filter(t => t.who).map(t => { const n = mkTask(t.type, t.text, t.who, 'asked', t.rems.slice()); n.assignedOn = TODAY; return n; });
+  ev.log = [[nowStamp(), `${ME} planned ${ev.label} from ${src.label}`], [nowStamp(), `Copied run of show, supplies and ${ev.tasks.length} tasks. Drafts written for ${chans.length} channels`]];
+  EVENTS.push(ev);
+  return ev;
+}
+// upcoming, drafted from the last ones (sample)
+const w7 = planNext(EVENTS.find(e => e.id === 'w6'), '2026-10-25');
+w7.id = 'w7'; w7.about = 'Finishing the back lot under the oak, planting kohlrabi and natives for the slope, and showing off the new greenhouse.';
+CHANNELS.forEach(c => { w7.posts[c.id].text = draft(c.id, w7); });
+w7.log = [['Oct 11 · 10:00 AM', 'Jessie planned Workday #7 from Workday #6'], ['Oct 11 · 10:01 AM', 'Copied run of show, supplies and 3 tasks'], ['Oct 12 · 9:30 AM', 'Phil approved Partiful, Google Group, Calendar'], ['Oct 12 · 9:31 AM', 'Google Group email and Calendar posted automatically']];
+['partiful', 'ggroup', 'calendar'].forEach(k => { w7.posts[k].status = 'posted'; w7.posts[k].by = 'Phil'; });
+w7.posts.luma = { ...w7.posts.luma, status: 'approved', by: 'Phil' };
+w7.tasks.forEach(t => { t.assignedOn = '2026-10-11'; t.status = t.who === 'Karen' ? 'asked' : 'confirmed'; });
+w7.tasks.push(mkTask('tools', 'Ask neighbors for wheelbarrows', 'Ajay', 'asked'), mkTask('other', 'Make a parking sign', '', 'open'), mkTask('notes', 'Take notes at the debrief', 'Sky', 'confirmed'));
+w7.plan.supplies.slice(0, 5).forEach(x => x.status = 'packed');
+w7.plan.areas[0].items.push({ text: 'Plant kohlrabi', done: false }, { text: 'Native plants for the slope', done: false });
+
+seriesIdeas(w7).forEach(({ d }) => { if (/kohlrabi/.test(d.text)) d.used = true; });
+const m2 = planNext(EVENTS.find(e => e.id === 'm1'), '2026-11-12');
+m2.id = 'm2'; m2.about = 'Potluck and planning for winter at the OPC garden: the seed library, signage, and storm prep for the slope.';
+CHANNELS.forEach(c => { m2.posts[c.id].text = draft(c.id, m2); });
+m2.log = [['Oct 24 · 8:02 AM', 'Jessie planned Community Meeting #2 from #1']];
+m2.plan.notes = ['Greenhouse is up (9/26–27)', 'Seed library by November', 'Storm crew for El Niño?'];
+m2.tasks.forEach(t => { t.assignedOn = '2026-10-24'; t.status = t.who === 'Jessie' ? 'confirmed' : 'asked'; });
+m2.tasks.push(mkTask('notes', 'Notetaker', '', 'open'), mkTask('cleanup', 'Clean-up crew', '', 'open'), mkTask('other', 'Timekeeper', '', 'open'));
+
+const S = { dtab: (() => { try { return sessionStorage.getItem('ebpg-dtab') || 'plan'; } catch { return 'plan'; } })(), when: 'up', sel: 'w7', fold: { mats: false, chs: false, tasks: false, log: true, run: false, areas: false, sups: false, talk: false, ideas: false } };
+try { Object.assign(S.fold, JSON.parse(localStorage.getItem('ebpg-fold') || '{}')); } catch {}
+const visible = () => EVENTS.filter(e => !e.isNew).filter(e => S.when === 'up' ? e.date >= TODAY : e.date < TODAY).sort((a, b) => S.when === 'up' ? a.date.localeCompare(b.date) : b.date.localeCompare(a.date));
+const counts = ev => { const c = { off: 0, review: 0, approved: 0, posted: 0 }; Object.values(ev.posts).forEach(p => c[p.status]++); return c; };
+
+/* tabs */
+function showTab(t) {
+  if (t !== 'event' && S.mode === 'page') { DETAIL.remove(); S.mode = null; }
+  $$('[data-page]').forEach(p => p.hidden = p.dataset.page !== t);
+  $$('.tabs a').forEach(a => a.setAttribute('aria-current', a.dataset.tab === (t === 'event' ? 'events' : t) ? 'page' : 'false'));
+}
+$$('.tabs a').forEach(a => a.addEventListener('click', e => { e.preventDefault(); showTab(a.dataset.tab); history.replaceState(null, '', '#' + a.dataset.tab); window.scrollTo({ top: 0 }); }));
+
+/* render */
+function render() { renderAttn(); renderTiles(); if ($('#detail')) renderDetail(); else applyPerms(); sync(); }
+function gate(sel, k, root = document) { $$(sel, root).forEach(el => { if (!can(k)) { el.disabled = true; el.title = NOPE[k]; el.setAttribute('aria-disabled', 'true'); if (el.tagName === 'A') { el.removeAttribute('href'); el.style.opacity = .4; } } }); }
+function applyPerms() {
+  const d = $('#detail');
+  $('#new-ev').disabled = !can('create'); $('#new-ev').title = can('create') ? '' : NOPE.create;
+  if (!d) return;
+  gate('#edit-ev, #ph-pick, #add-ch', 'edit', d);
+  gate('#appr-all, [data-act=approve], [data-act=post]', 'approve', d);
+  gate('#nt-text, #nt-who, #nt-add, [data-tdel]', 'tasks', d);
+  gate('#plan-next', 'create', d);
+  gate('#addrow input, #addrow button, [data-rmrow], [data-chk], [data-additem] input, [data-additem] button, #addarea input, #addarea button, #addsup input, #addsup button, [data-sup], [data-idea], #adddeb input, #adddeb button', 'edit', d);
+  $$('[data-ta]', d).forEach(ta => { if (!can('approve')) ta.readOnly = true; });
+  const p = person(ME) || TEAM[0], missing = PERMS.filter(([k]) => !p.perms[k]).map(([, l]) => l);
+  const note = $('#perm-note');
+  if (note) note.remove();
+  if (missing.length) d.insertAdjacentHTML('afterbegin', `<div class="perm-note" id="perm-note">Viewing as ${esc(ME)} (${ROLE[p.role]}). Can't: ${missing.join(', ')}.</div>`);
+}
+function renderAs() {
+  if (!organizers().find(o => o.name === ME)) ME = TEAM[0].name;
+  $('#as').innerHTML = organizers().map(o => `<option ${o.name === ME ? 'selected' : ''}>${esc(o.name)}</option>`).join('');
+}
+$('#as').addEventListener('change', e => { ME = e.target.value; render(); renderTeam(); toast(`Viewing as ${ME}`); });
+function renderTeam() {
+  const edit = can('team');
+  $('#team-note').innerHTML = edit ? '' : `<div class="perm-note" style="margin-bottom:12px">Viewing as ${esc(ME)}. ${NOPE.team} to change the team.</div>`;
+  $('#team-tbl').innerHTML = `<thead><tr><th>Person</th><th>Role</th><th>Reminders</th>${PERMS.map(([, l]) => `<th class="c">${l}</th>`).join('')}<th></th></tr></thead><tbody>${TEAM.map((t, i) => {
+    const lock = !edit || t.role === 'lead';
+    return `<tr><td><span class="nm">${avatar(t.name)}<span><b>${esc(t.name)}</b><br><span class="hint">${esc(t.contact)}</span></span></span></td>
+    <td>${t.role === 'lead' ? ROLE.lead : `<select data-role="${i}" ${edit ? '' : 'disabled'} aria-label="Role for ${esc(t.name)}"><option value="co" ${t.role === 'co' ? 'selected' : ''}>Co-organizer</option><option value="vol" ${t.role === 'vol' ? 'selected' : ''}>Volunteer</option></select>`}</td>
+    <td>${esc(t.via)}</td>
+    ${PERMS.map(([k, l]) => `<td class="c">${t.role === 'vol' ? '<span class="hint">—</span>' : `<input type="checkbox" data-perm="${i}" data-k="${k}" ${t.perms[k] ? 'checked' : ''} ${lock ? 'disabled' : ''} aria-label="${esc(t.name)}: ${l}">`}</td>`).join('')}
+    <td>${t.role === 'lead' || !edit ? '' : `<button class="tog" type="button" data-rm="${i}">Remove</button>`}</td></tr>`;
+  }).join('')}</tbody>`;
+  $$('[data-perm]').forEach(c => c.addEventListener('change', () => { TEAM[c.dataset.perm].perms[c.dataset.k] = c.checked; toast('Permissions saved'); render(); }));
+  $$('[data-role]').forEach(sl => sl.addEventListener('change', () => {
+    const t = TEAM[sl.dataset.role]; t.role = sl.value;
+    t.perms = sl.value === 'co' ? { create: true, edit: true, approve: false, tasks: true, team: false } : allPerms(false);
+    toast(`${t.name} is now a ${ROLE[t.role].toLowerCase()}`); renderAs(); renderTeam(); render();
+  }));
+  $$('[data-rm]').forEach(b => b.addEventListener('click', () => { const t = TEAM.splice(b.dataset.rm, 1)[0]; toast(`${t.name} removed`); renderAs(); renderTeam(); render(); }));
+  $$('#addp input, #addp select, #addp button').forEach(el => el.disabled = !edit);
+  sync();
+}
+$('#addp').addEventListener('submit', e => {
+  e.preventDefault();
+  const name = $('#ap-name').value.trim(), contact = $('#ap-contact').value.trim(), err = $('#ap-err');
+  if (!name || !contact) { err.textContent = 'Add a name and a phone or email so reminders can reach them.'; err.hidden = false; return; }
+  if (person(name)) { err.textContent = `${name} is already on the team.`; err.hidden = false; return; }
+  err.hidden = true;
+  const role = $('#ap-role').value;
+  TEAM.push({ name, contact, via: $('#ap-via').value, role, perms: role === 'co' ? { create: true, edit: true, approve: false, tasks: true, team: false } : allPerms(false) });
+  $('#ap-name').value = ''; $('#ap-contact').value = '';
+  toast(`${name} added as ${ROLE[role].toLowerCase()}`); renderAs(); renderTeam(); render();
+});
+function renderAttn() {
+  const up = EVENTS.filter(e => e.date >= TODAY);
+  const need = up.map(e => [e, counts(e).review + counts(e).approved]).filter(x => x[1]);
+  const total = need.reduce((a, x) => a + x[1], 0);
+  const ready = up.reduce((a, e) => a + counts(e).approved, 0);
+  $('#attn').innerHTML = total
+    ? `<div class="attn"><span class="grow"><b>${total} posts ready to go out</b> · ${need.length} ${need.length === 1 ? 'event' : 'events'}</span><button class="btn ghost sm" type="button" id="jump">Review next</button></div>`
+    : `<div class="attn ok"><span class="grow"><b>All posted.</b></span></div>`
+  $('#jump')?.addEventListener('click', () => { S.dtab = 'outreach'; openEvent(need[0][0].id, 'modal'); });
+}
+function renderTiles() {
+  $$('[data-when]').forEach(b => b.setAttribute('aria-pressed', b.dataset.when === S.when));
+  const list = visible();
+  $('#tiles').innerHTML = list.length ? list.map(e => {
+    const d = D(e.date), c = counts(e), open = (e.tasks || []).filter(t => !t.who || t.status === 'cant').length;
+    return `<article class="tile ${e.date < TODAY ? 'past' : ''}" tabindex="0" role="button" data-open="${e.id}" aria-label="Open ${esc(e.title)}, ${esc(longDate(e.date))}">
+      <div class="cover" aria-hidden="true">${igArt(e)}${flyerArt(e)}${storyArt(e)}</div>
+      <div class="tbody"><div class="trow"><span class="cal"><span>${d.toLocaleDateString('en-US', { month: 'short' }).toUpperCase()}</span><b>${d.getDate()}</b></span>
+        <div style="min-width:0">${e.label ? `<div class="lbl">${esc(e.label)}</div>` : ''}<h3>${esc(e.title)}</h3><div class="m">${d.toLocaleDateString('en-US', { weekday: 'short' })} · ${range(e.start, e.end)} · ${esc(e.place)}</div></div></div>
+        </div>
+    </article>`;
+  }).join('') : `<p class="muted">No ${S.when === 'up' ? 'upcoming' : 'past'} events.</p>`;
+  $$('[data-open]').forEach(t => {
+    const go = () => { S.lastTile = t; S.editing = false; openEvent(t.dataset.open, 'modal'); };
+    t.addEventListener('click', go);
+    t.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } });
+  });
+}
+const ARTIFACT = 'https://claude.ai/artifact/EDjxHQH1WdzLnhMVGh6taL';
+const SEEDED = ['w2', 'w5', 'm1', 'w6', 'w7', 'm2'];
+let evLink = id => SEEDED.includes(id) ? ARTIFACT + '#ev-' + id : '';
+const DETAIL = Object.assign(document.createElement('div'), { id: 'detail', className: 'detail' });
+function openEvent(id, mode) {
+  S.sel = id; S.mode = mode;
+  const ev = EVENTS.find(e => e.id === id);
+  if (mode === 'page') {
+    $('#modal').hidden = true; document.body.style.overflow = '';
+    $('#ev-host').appendChild(DETAIL); showTab('event');
+    history.replaceState(null, '', '#ev-' + id); window.scrollTo({ top: 0 });
+  } else {
+    $('#m-body').appendChild(DETAIL); $('#modal').hidden = false; document.body.style.overflow = 'hidden';
+    $('#modal').scrollTop = 0;
+    $('#m-title').textContent = ev.label || 'Event';
+    const tab = $('#m-tab'), lk = evLink(id); tab.hidden = !lk; tab.href = lk || '#';
+    setTimeout(() => $('#m-x').focus(), 20);
+  }
+  renderDetail();
+}
+function closeEvent() {
+  const cur = EVENTS.find(e => e.id === S.sel);
+  if (cur?.isNew) EVENTS.splice(EVENTS.indexOf(cur), 1);
+  S.editing = false;
+  $('#modal').hidden = true; document.body.style.overflow = '';
+  DETAIL.remove(); S.mode = null;
+  S.lastTile?.focus();
+}
+$('#m-x').addEventListener('click', closeEvent);
+$('#modal').addEventListener('click', e => { if (e.target.id === 'modal') closeEvent(); });
+$('#ev-back').addEventListener('click', () => { DETAIL.remove(); S.mode = null; showTab('events'); history.replaceState(null, '', '#events'); render(); });
+$('#ev-copy').addEventListener('click', async () => {
+  const link = evLink(S.sel);
+  if (!link) { toast('This prototype event only lives in this tab, so it has no link yet.'); return; }
+  try { await navigator.clipboard.writeText(link); toast('Link copied'); } catch { toast(link); }
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#modal').hidden && !$('#scrim')) closeEvent(); });
+$$('[data-when]').forEach(b => b.addEventListener('click', () => { S.when = b.dataset.when; renderTiles(); }));
+
+function renderDetail() {
+  if (!$('#detail')) return;
+  const ev = EVENTS.find(e => e.id === S.sel);
+  if (!ev) { $('#detail').innerHTML = '<p class="muted">Pick an event, or create a new one.</p>'; return; }
+  if (S.editing) S.dtab = 'plan';
+  if (S.mode === 'modal') $('#m-title').textContent = ev.isNew ? 'New event' : ev.label || 'Event';
+  const c = counts(ev), past = ev.date < TODAY;
+  const rows = CHANNELS.map(ch => chRow(ev, ch)).join('');
+  const open = (ev.tasks || []).filter(t => !t.who || t.status === 'cant').length;
+  $('#detail').innerHTML = `
+    <div class="hstrip" aria-label="Flyers and posts for this event">${MATS.map(([k, name, use, fn]) => `<figure>${fn(ev)}<figcaption><b>${name}</b> · ${use}</figcaption></figure>`).join('')}</div>
+    <div class="dh"><div><div class="eyebrow">${past ? 'Past event' : 'Upcoming'}</div><h2>${esc(ev.title)}</h2><div class="meta">${esc(longDate(ev.date))}${ev.dateNote ? ` <span class="hint">(${esc(ev.dateNote)})</span>` : ''} · ${t12(ev.start)}–${t12(ev.end)} · ${esc(ev.place)}${ev.map ? ` · <a href="${ev.map}" target="_blank" rel="noopener">Map</a>` : ''}</div></div>
+      <div class="actions">${S.editing ? '' : `<button class="btn ghost sm" type="button" id="edit-ev">Edit event</button>`}</div></div>
+    <div class="dtabs" role="tablist" aria-label="Event sections">
+      <button type="button" role="tab" id="dt-plan" aria-selected="${S.dtab === 'plan'}" aria-controls="dp-plan" data-dtab="plan">Event plan${open ? `<span class="n">${open} open</span>` : ''}</button>
+      <button type="button" role="tab" id="dt-out" aria-selected="${S.dtab === 'outreach'}" aria-controls="dp-out" data-dtab="outreach">Outreach${c.review + c.approved ? `<span class="n">${c.review + c.approved} to post</span>` : ''}</button>
+    </div>
+    <div class="dpanel" id="dp-plan" role="tabpanel" aria-labelledby="dt-plan" ${S.dtab === 'plan' ? '' : 'hidden'}>${docHTML(ev)}</div>
+    <div class="dpanel" id="dp-out" role="tabpanel" aria-labelledby="dt-out" ${S.dtab === 'outreach' ? '' : 'hidden'}>
+      <div class="osum"><span>${c.review + c.approved ? `<b>${c.review + c.approved} ready to post</b>` : 'Everything is posted'} · ${c.posted} posted</span></div>
+      <ul class="olist">${CHANNELS.filter(ch => ev.posts[ch.id].status !== 'off').map(ch => chRow(ev, ch)).join('')}</ul>
+      ${c.off ? `<label class="addch"><span class="hint">Also post to</span><select id="add-ch" aria-label="Add a channel"><option value="">Choose a channel</option>${CHANNELS.filter(ch => ev.posts[ch.id].status === 'off').map(ch => `<option value="${ch.id}">${esc(ch.name)}</option>`).join('')}</select></label>` : ''}
+      <div class="chs"><div class="chs-h">${fold('log', 'Activity', ev.log.length)}</div><ul class="log" id="log-body" ${hid('log')}>${ev.log.slice().reverse().map(([t, w]) => `<li><span>${esc(t)}</span><span>${esc(w)}</span></li>`).join('')}</ul></div>
+    </div>`;
+  $$('[data-dtab]').forEach(b => b.addEventListener('click', () => { S.dtab = b.dataset.dtab; try { sessionStorage.setItem('ebpg-dtab', S.dtab); } catch {} renderDetail(); }));
+  bindDetail(ev);
+  applyPerms();
+  sync();
+}
+const fold = (k, label, cnt) => `<button class="fold" type="button" data-fold="${k}" aria-expanded="${!S.fold[k]}" aria-controls="${k}-body">${label}${cnt !== undefined ? `<span class="cnt">${cnt}</span>` : ''}</button>`;
+const hid = k => S.fold[k] ? 'hidden' : '';
+const ord = n => n + (n % 10 === 1 && n !== 11 ? 'st' : n % 10 === 2 && n !== 12 ? 'nd' : n % 10 === 3 && n !== 13 ? 'rd' : 'th');
+const range = (a, b) => { const A = t12(a), B = t12(b); return A.slice(-2) === B.slice(-2) ? A.slice(0, -3) + '–' + B : A + '–' + B; };
+const hostOf = pl => (pl.roles.find(([, ns]) => ns.length) || [, []])[1][0] || '';
+const cohostsOf = pl => [...new Set(pl.roles.flatMap(([, ns]) => ns))].filter(n => n && n !== hostOf(pl));
+function hostingHTML(pl) {
+  const h = hostOf(pl), cos = cohostsOf(pl);
+  return `<section class="doc-sec">${fold('host', 'Hosting', h ? `${h}${cos.length ? ` + ${cos.length} co-host${cos.length > 1 ? 's' : ''}` : ''}` : 'no host yet')}
+    <div class="hosting" id="host-body" ${hid('host')}>
+      <div class="hrow"><span class="hl">Host</span>${h ? `<span class="pp">${avatar(h)}${esc(h)}</span>` : '<span class="pp open">Needs a host</span>'}</div>
+      <div class="hrow"><span class="hl">Co-hosts</span><span class="ppl">${cos.length ? cos.map(n => `<span class="pp">${avatar(n)}${esc(n)}</span>`).join('') : '<span class="hint">None yet</span>'}</span></div>
+    </div></section>`;
+}
+function docHTML(ev) {
+  if (S.editing) return editHTML(ev);
+  const pl = ev.plan; if (!pl) return '<p class="hint">No plan yet.</p>';
+  const up = ev.date >= TODAY, d = D(ev.date);
+  const SST = { need: 'Need', packed: 'Packed', ask: 'Ask', unsure: 'Unsure' };
+  const rows = pl.timeline.slice().sort((a, b) => a[0].localeCompare(b[0]));
+  const tl = rows.map(([tm, tx]) => `<li><span class="tm">${t12(tm)}</span><span class="tx">${esc(tx)}</span></li>`).join('');
+  const roleRows = pl.roles.filter(([l, ns]) => ns.length || /lead/i.test(l)).map(([l, ns]) => `<div><dt>${esc(l)}:</dt><dd>${ns.length ? ns.map(esc).join(', ') : '<span style="color:var(--flag);font-weight:700">Needs someone</span>'}</dd></div>`).join('');
+  return `<article class="doc" aria-label="Event plan">
+    <div class="doc-title">Event: ${esc(ev.title)} (${d.toLocaleDateString('en-US', { month: 'long' })} ${ord(d.getDate())}${ev.label ? ', ' + esc(ev.label) : ''})</div>
+    <dl class="doc-kv">
+      ${ev.about || ev.tags.length ? `<div><dt>Details</dt><dd><p class="about" style="margin:0 0 6px">${esc(ev.about)}</p><div class="tags">${ev.tags.map(t => `<span class="tag">${esc(Object.fromEntries(TAGS)[t])}</span>`).join('')}</div></dd></div>` : ''}
+      <div><dt>Venue</dt><dd>${esc(ev.place)}${ev.map ? ` · <a href="${ev.map}" target="_blank" rel="noopener">Map</a>` : ''}</dd></div>
+      <div><dt>Time</dt><dd>${range(ev.start, ev.end)}${pl.leadStart ? ` <span class="pend">· leads ${range(pl.leadStart, pl.leadEnd)}</span>` : ''}</dd></div>
+      ${pl.notes.length ? `<div><dt>Notes</dt><dd><ul class="bul">${pl.notes.map(x => `<li>${esc(x)}</li>`).join('')}</ul></dd></div>` : ''}
+    </dl>
+    ${hostingHTML(pl)}
+    ${rows.length ? `<section class="doc-sec">${fold('run', 'Timeline', rows.length)}<div id="run-body" ${hid('run')}><ul class="tl">${tl}</ul></div></section>` : ''}
+    <section class="doc-sec">${tasksHTML(ev)}</section>
+    ${!up ? `<section class="doc-sec">${fold('ideas', `${D(ev.date).getMonth() + 1}/${D(ev.date).getDate()} ${ev.series === 'meeting' ? 'Meeting' : 'Workday'} Debrief`, pl.debrief.length + ' ideas')}
+      <div class="ideas" id="ideas-body" ${hid('ideas')}>${pl.debrief.map(x => `<div class="idea ${x.used ? 'used' : ''}"><span>${esc(x.text)}</span>${x.used ? '<small>Planned</small>' : ''}</div>`).join('') || '<p class="hint">No debrief notes yet.</p>'}
+        <form class="mini" id="adddeb"><input id="ad-x" placeholder="Add an idea from the debrief" aria-label="Debrief idea"><button class="btn ghost sm" type="submit">Add</button></form></div></section>` : ''}
+  </article>`;
+}
+function editHTML(ev) {
+  const pl = ev.plan;
+  const f = (id, label, val, type = 'text') => `<label class="fld">${label}<input id="${id}" type="${type}" value="${esc(val || '')}"></label>`;
+  const ta = (id, label, val, hint, rows = 4) => `<label class="fld">${label}${hint ? ` <span class="hint" style="font-weight:400">${hint}</span>` : ''}<textarea id="${id}" rows="${rows}">${esc(val || '')}</textarea></label>`;
+  const btns = `<div class="grp"><button class="btn ghost sm" type="button" data-cancel>Cancel</button><button class="btn primary sm" type="submit">${ev.isNew ? 'Create event' : 'Save'}</button></div>`;
+  return `<form class="doc editdoc" id="editf" novalidate>
+    <div class="edit-h"><div class="doc-title">${ev.isNew ? 'New event' : 'Edit event'}</div>${btns}</div>
+    ${ev.isNew ? `<label class="fld">Start from<select id="ed-from"><option value="">Blank event</option>${EVENTS.filter(x => !x.isNew && x.plan).sort((a, b) => b.date.localeCompare(a.date)).map(x => `<option value="${x.id}" ${x.id === ev.copiedFrom ? 'selected' : ''}>Copy ${esc(x.label || x.title)} (${shortDate(x.date)})</option>`).join('')}</select></label>` : ''}
+    ${f('ed-title', 'Event name', ev.title)}
+    <div class="r3">${f('ed-date', 'Date', ev.date, 'date')}${f('ed-start', 'Start', ev.start, 'time')}${f('ed-end', 'End', ev.end, 'time')}</div>
+    <div class="r2">${f('ed-place', 'Venue', ev.place)}${f('ed-address', 'Address', ev.address)}</div>
+    <div class="r2">${f('ed-ls', 'Leads arrive', pl.leadStart, 'time')}${f('ed-le', 'Leads leave', pl.leadEnd, 'time')}</div>
+    <div class="r2"><label class="fld">Host<select id="ed-host">${TEAM.map(t => `<option ${t.name === hostOf(pl) ? 'selected' : ''}>${esc(t.name)}</option>`).join('')}</select></label>
+      <label class="fld">Co-hosts <span class="hint" style="font-weight:400">comma separated</span><input id="ed-cos" value="${esc(cohostsOf(pl).join(', '))}"></label></div>
+    ${ta('p-tl', 'Timeline', PT.timeline(pl), 'one per line, e.g. "10:15 AM Intro"', 6)}
+    ${ta('p-notes', 'Notes', PT.list(pl.notes), 'one per line', 4)}
+    ${ta('ed-about', 'Description', ev.about, 'shown in Details and used in posts', 3)}
+    <fieldset><legend>Tags</legend><div class="picks">${TAGS.map(([k, l]) => `<label><input type="checkbox" name="ed-tag" value="${k}" ${ev.tags.includes(k) ? 'checked' : ''}><span>${l}</span></label>`).join('')}</div></fieldset>
+    ${f('ed-bring', 'What to bring', ev.bring)}
+    <p class="err" id="ed-err" hidden></p>
+    <div class="edit-f">${btns}</div>
+  </form>`;
+}
+function bindEdit(ev) {
+  const form = $('#editf'); if (!form) return;
+  $$('[data-cancel]', form).forEach(b => b.addEventListener('click', () => {
+    S.editing = false;
+    if (ev.isNew) { closeEvent(); render(); return; }
+    renderDetail();
+  }));
+  $('#ed-from')?.addEventListener('change', x => {
+    const src = EVENTS.find(e => e.id === x.target.value); if (!src) return;
+    const date = $('#ed-date').value;
+    Object.assign(ev, { title: src.title, start: src.start, end: src.end, place: src.place, address: src.address, map: src.map, about: src.about, bring: src.bring, tags: src.tags.slice(), photo: src.photo, series: src.series, copiedFrom: src.id, date });
+    ev.num = Math.max(0, ...EVENTS.filter(e => e.series === src.series && e !== ev).map(e => e.num || 0)) + 1;
+    ev.label = (src.series === 'workday' ? 'Workday #' : 'Community Meeting #') + ev.num;
+    ev.plan = copyPlan(src.plan);
+    ev.tasks = src.tasks.filter(t => t.who).map(t => { const n = mkTask(t.type, t.text, t.who, 'asked', t.rems.slice()); n.assignedOn = TODAY; return n; });
+    renderDetail();
+  });
+  form.addEventListener('submit', x => {
+    x.preventDefault();
+    const v = id => $('#' + id).value.trim(), err = $('#ed-err');
+    const fail = m => { err.textContent = m; err.hidden = false; err.scrollIntoView({ block: 'nearest' }); };
+    if (!v('ed-title')) return fail('Give the event a name.');
+    if (!v('ed-date')) return fail('Pick a date.');
+    if (v('ed-end') <= v('ed-start')) return fail('The end time needs to be after the start time.');
+    Object.assign(ev, { title: v('ed-title'), date: v('ed-date'), start: v('ed-start'), end: v('ed-end'), place: v('ed-place'), address: v('ed-address'), about: v('ed-about'), bring: v('ed-bring'), tags: $$('input[name=ed-tag]:checked').map(i => i.value) });
+    const pl = ev.plan;
+    pl.leadStart = v('ed-ls'); pl.leadEnd = v('ed-le');
+    const host = $('#ed-host').value; pl.roles = [['Host', [host]], ['Co-hosts', $('#ed-cos').value.split(',').map(x => x.trim()).filter(x => x && x !== host)]]; 
+    pl.timeline = parseTimeline($('#p-tl').value); pl.notes = lns($('#p-notes').value);
+    CHANNELS.forEach(c => {
+      const q = ev.posts[c.id];
+      if (q.status === 'posted') { if (!ev.isNew) q.stale = true; return; }
+      if (!q.edited) q.text = draft(c.id, ev);
+      if (q.status === 'approved') { q.status = 'review'; q.by = ''; }
+    });
+    const wasNew = !!ev.isNew; delete ev.isNew; S.editing = false;
+    ev.log.push([nowStamp(), wasNew ? `${ME} created the event` : `${ME} edited the event`]);
+    if (wasNew) S.when = ev.date >= TODAY ? 'up' : 'past';
+    render(); renderMaterials();
+    toast(wasNew ? 'Event created. Posts are ready to go out.' : 'Saved');
+  });
+}
+function bindPlan(ev) {
+  const pl = ev.plan; if (!pl) return;
+  const save = (msg, logIt = true) => { if (logIt) ev.log.push([nowStamp(), `${ME} ${msg}`]); renderDetail(); };
+  $('#plan-next')?.addEventListener('click', () => {
+    const later = EVENTS.filter(e => e.series === ev.series && e.date > ev.date);
+    const ne = planNext(later.length ? later.sort((a, b) => b.date.localeCompare(a.date))[0] : ev);
+    S.when = 'up'; render(); renderMaterials(); openEvent(ne.id, S.mode || 'modal');
+    toast(`${ne.label} drafted for ${shortDate(ne.date)}`);
+  });
+  $('#addrow')?.addEventListener('submit', e => { e.preventDefault(); const x = $('#ar-x').value.trim(); if (!x) return; pl.timeline.push([$('#ar-t').value || '12:00', x, '']); save(`added "${x}" to the run of show`); });
+  $$('[data-rmrow]').forEach(b => b.addEventListener('click', () => { const r = pl.timeline.splice(+b.dataset.rmrow, 1)[0]; save(`removed "${r[1]}" from the run of show`); }));
+  $$('[data-chk]').forEach(c => c.addEventListener('change', () => { const [a, i] = c.dataset.chk.split('-').map(Number); pl.areas[a].items[i].done = c.checked; save('', false); }));
+  $$('[data-additem]').forEach(f => f.addEventListener('submit', e => { e.preventDefault(); const inp = f.querySelector('input'), x = inp.value.trim(); if (!x) return; pl.areas[+f.dataset.additem].items.push({ text: x, done: false }); save(`added garden task "${x}"`); }));
+  $('#addarea')?.addEventListener('submit', e => { e.preventDefault(); const x = $('#aa-x').value.trim(); if (!x) return; pl.areas.push({ name: x, items: [] }); save(`added area "${x}"`); });
+  const NEXT = { need: 'packed', packed: 'ask', ask: 'unsure', unsure: 'need' };
+  $$('[data-sup]').forEach(b => b.addEventListener('click', () => { const x = pl.supplies[+b.dataset.sup]; x.status = NEXT[x.status]; save('', false); }));
+  $('#addsup')?.addEventListener('submit', e => { e.preventDefault(); const x = $('#as-x').value.trim(); if (!x) return; pl.supplies.push(sup(x, 'need', $('#as-w').value.trim())); save(`added supply "${x}"`); });
+  const ideas = ev.date >= TODAY ? seriesIdeas(ev) : [];
+  $$('[data-idea]').forEach(b => b.addEventListener('click', () => { const { d } = ideas[+b.dataset.idea]; d.used = true; pl.areas[0].items.push({ text: d.text, done: false }); save(`planned "${d.text}" from a past debrief`); toast('Added to garden tasks'); }));
+  $('#adddeb')?.addEventListener('submit', e => { e.preventDefault(); const x = $('#ad-x').value.trim(); if (!x) return; pl.debrief.push({ text: x, used: false }); save(`added debrief idea "${x}"`); });
+}
+function tasksHTML(ev) {
+  const ts = ev.tasks || [];
+  const up = ev.date >= TODAY;
+  const people = TEAM.map(t => `<option value="${esc(t.name)}">${esc(t.name)}</option>`).join('');
+  return `<div class="chs"><div class="chs-h">${fold('tasks', "Who's bringing what", ts.length + ' items')}</div>
+  <div id="tasks-body" ${hid('tasks')}><table class="who-tbl">
+    <thead><tr><th>What</th><th>Who</th>${up ? '<th class="sr">Remove</th>' : ''}</tr></thead>
+    <tbody>${ts.map(t => `<tr><td>${esc(t.text)}</td><td>${t.who ? esc(t.who) : '<span class="needs">Needs someone</span>'}</td>${up ? `<td class="rm"><button class="x" type="button" data-tdel="${t.id}" aria-label="Remove ${esc(t.text)}">×</button></td>` : ''}</tr>`).join('') || `<tr><td colspan="${up ? 3 : 2}" class="hint">Nothing yet.</td></tr>`}</tbody>
+    ${up ? `<tfoot><tr><td><input id="nt-text" placeholder="e.g. Plates, cups, napkins" aria-label="What"></td><td><select id="nt-who" aria-label="Who"><option value="">Needs someone</option>${people}</select></td><td class="rm"><button class="btn ghost sm" type="button" id="nt-add">Add</button></td></tr></tfoot>` : ''}
+  </table></div></div>`;
+}
+function chRow(ev, ch) {
+  const p = ev.posts[ch.id];
+  const btn = p.status === 'posted' ? `<span class="done">Posted ✓</span>` : `<button class="btn primary sm" type="button" data-act="post" data-ch="${ch.id}">Post</button>`;
+  return `<li class="orow ${p.status}"><span class="logo" style="background:${ch.color}">${ch.abbr}</span>
+    <button class="oname" type="button" data-act="toggle" data-ch="${ch.id}" aria-expanded="${!!p.open}">${esc(ch.name)}<span class="hint">${p.status !== 'posted' ? 'Read draft · ' : ''}${ch.mode === 'auto' ? 'posts automatically' : 'copy and paste'}</span></button>
+    ${btn}
+    ${p.open ? `<div class="obody"><textarea id="ta-${ev.id}-${ch.id}" data-ta="${ch.id}" aria-label="${esc(ch.name)} text" ${p.status === 'posted' ? 'readonly' : ''}>${esc(p.text)}</textarea>${ch.mode === 'copy' ? `<a class="hint" href="${ch.url}" target="_blank" rel="noopener">Open ${esc(ch.name)} ↗</a>` : ''}</div>` : ''}</li>`;
+}
+function bindTasks(ev) {
+  $$('[data-tdel]', $('#detail')).forEach(b => b.addEventListener('click', () => {
+    const t = ev.tasks.find(x => x.id === b.dataset.tdel);
+    ev.tasks = ev.tasks.filter(x => x !== t); ev.log.push([nowStamp(), `${ME} removed "${t.text}"`]); renderDetail();
+  }));
+  const add = () => {
+    const text = $('#nt-text').value.trim(); if (!text) { $('#nt-text').focus(); return; }
+    const who = $('#nt-who').value;
+    const t = mkTask('other', text, who, who ? 'asked' : 'open'); t.assignedOn = TODAY;
+    ev.tasks.push(t); ev.log.push([nowStamp(), who ? `${ME} gave "${text}" to ${who}` : `${ME} added "${text}"`]);
+    renderDetail(); $('#nt-text')?.focus();
+  };
+  $('#nt-add')?.addEventListener('click', add);
+  $('#nt-text')?.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); add(); } });
+}
+function bindDetail(ev) {
+  $('#edit-ev')?.addEventListener('click', () => { S.editing = true; S.dtab = 'plan'; renderDetail(); setTimeout(() => $('#ed-title')?.focus(), 20); });
+  bindEdit(ev);
+  bindTasks(ev);
+  bindPlan(ev);
+  $$('[data-fold]', $('#detail')).forEach(b => b.addEventListener('click', () => {
+    const k = b.dataset.fold; S.fold[k] = !S.fold[k];
+    try { localStorage.setItem('ebpg-fold', JSON.stringify(S.fold)); } catch {}
+    renderDetail();
+  }));
+  $('#ph-pick')?.addEventListener('change', x => { ev.photo = x.target.value; render(); renderMaterials(); });
+  $('#appr-all')?.addEventListener('click', () => {
+    const ids = CHANNELS.filter(c => ev.posts[c.id].status === 'review').map(c => c.id);
+    ids.forEach(id => { ev.posts[id].status = 'approved'; ev.posts[id].by = ME; });
+    ev.log.push([nowStamp(), `${ME} approved ${ids.map(i => CH[i].name).join(', ')}`]);
+    render(); toast(`Approved ${ids.length} posts`);
+  });
+  $$('[data-act]', $('#detail')).forEach(b => b.addEventListener('click', async () => {
+    const id = b.dataset.ch, p = ev.posts[id], ch = CH[id];
+    switch (b.dataset.act) {
+      case 'toggle': p.open = !p.open; break;
+      case 'add': p.status = 'review'; p.open = true; p.text = draft(id, ev); ev.log.push([nowStamp(), `${ME} added ${ch.name}`]); break;
+      case 'approve': p.status = 'approved'; p.by = ME; p.open = false; ev.log.push([nowStamp(), `${ME} approved ${ch.name}`]); toast(`${ch.name} approved`); break;
+      case 'post':
+        if (ch.mode === 'copy') { try { await navigator.clipboard.writeText(p.text); toast(`Copied. Paste it on ${ch.name}.`); } catch { toast(`Open the text and copy it for ${ch.name}.`); } ev.log.push([nowStamp(), `${ME} posted to ${ch.name}`]); }
+        else if (remote) { b.disabled = true; try { toast(await remote.post(ev, id)); } catch (er) { b.disabled = false; toast(er.message); return; } ev.log.push([nowStamp(), `${ME} posted to ${ch.name}`]); }
+        else { ev.log.push([nowStamp(), `${ch.name} posted automatically (simulated)`]); toast(`Posted to ${ch.name} (simulated)`); }
+        p.status = 'posted'; p.by = ME; p.open = false; break;
+      case 'copy': try { await navigator.clipboard.writeText(p.text); toast('Copied. Paste it on ' + ch.name + '.'); } catch { p.open = true; renderDetail(); const ta = $(`#ta-${ev.id}-${id}`); ta?.focus(); ta?.select(); toast('Text selected. Press Ctrl+C or Cmd+C to copy.'); } return;
+      case 'mark': p.status = 'posted'; ev.log.push([nowStamp(), `${ME} marked ${ch.name} posted`]); toast(`${ch.name} marked as posted`); break;
+    }
+    render();
+  }));
+  $('#add-ch')?.addEventListener('change', x => {
+    const id = x.target.value; if (!id) return; const p = ev.posts[id];
+    p.status = 'review'; p.open = true; p.text = draft(id, ev); ev.log.push([nowStamp(), `${ME} added ${CH[id].name}`]); render();
+  });
+  $$('[data-ta]', $('#detail')).forEach(ta => ta.addEventListener('input', () => {
+    const p = ev.posts[ta.dataset.ta]; p.text = ta.value; p.edited = true; sync();
+    if (p.status === 'approved') { p.status = 'review'; p.by = ''; }
+  }));
+}
+
+/* plan <-> text, so the drawer can edit everything with plain text boxes */
+const toTime = str => { const m = String(str).trim().match(/^(\d{1,2})(?::(\d{2}))?\s*(am|pm)?$/i); if (!m) return null; let h = +m[1]; const ap = (m[3] || '').toLowerCase(); if (ap === 'pm' && h < 12) h += 12; if (ap === 'am' && h === 12) h = 0; if (h > 23) return null; return String(h).padStart(2, '0') + ':' + (m[2] || '00'); };
+const PT = {
+  timeline: pl => pl.timeline.slice().sort((a, b) => a[0].localeCompare(b[0])).map(([t, x]) => `${t12(t)} ${x}`).join('\n'),
+  roles: pl => pl.roles.map(([l, ns]) => `${l}: ${ns.join(', ')}`).join('\n'),
+  supplies: pl => pl.supplies.map(x => x.who ? `${x.item} - ${x.who}` : x.item).join('\n'),
+  areas: pl => pl.areas.map(a => `${a.name}: ${a.items.map(i => i.text).join(', ')}`).join('\n'),
+  list: arr => (arr || []).join('\n'),
+};
+const lns = t => t.split('\n').map(x => x.trim()).filter(Boolean);
+function parseTimeline(t) {
+  return lns(t).map(l => { const m = l.match(/^(\d{1,2}(?::\d{2})?\s*(?:am|pm)?)\s*[-–:]?\s+(.+)$/i); const tm = m && toTime(m[1]); return tm ? [tm, m[2], /^leads/i.test(m[2]) ? 'Leads' : ''] : null; }).filter(Boolean);
+}
+const parseRoles = t => lns(t).map(l => { const [a, ...b] = l.split(':'); return [a.trim(), b.join(':').split(',').map(x => x.trim()).filter(Boolean)]; });
+const parseSupplies = (t, old) => lns(t).map(l => { const [item, who = ''] = l.split(/\s+-\s+/); const prev = old.find(x => x.item === item.trim()); return sup(item.trim(), prev ? prev.status : 'need', who.trim()); });
+const parseAreas = t => lns(t).map(l => { const [a, ...b] = l.split(':'); return { name: a.trim(), items: b.join(':').split(',').map(x => x.trim()).filter(Boolean).map(x => ({ text: x, done: false })) }; });
+function planFields(pl) {
+  pl = pl || { timeline: [], roles: [['Event leads', [ME]]], supplies: [], areas: [], setup: [], questions: [], notes: [], food: null, icebreaker: '' };
+  const ta = (id, label, val, hint, rows = 4) => `<label class="fld">${label}${hint ? ` <span class="hint" style="font-weight:400">${hint}</span>` : ''}<textarea id="${id}" rows="${rows}">${esc(val)}</textarea></label>`;
+  return `<fieldset class="planf"><legend>Event plan</legend>
+    ${ta('p-roles', 'People', PT.roles(pl), 'one role per line, e.g. "Event leads: Jessie, Phil"', 3)}
+    ${ta('p-setup', 'Outline', PT.list(pl.setup), 'one per line', 3)}
+    ${ta('p-sup', 'Who&#39;s bringing what', PT.supplies(pl), 'one per line, add " - who" if someone brings it', 5)}
+    <div class="r2"><label class="fld">Food brought by<input id="p-fwho" value="${esc(pl.food?.who || '')}"></label><label class="fld">Menu<input id="p-fmenu" value="${esc(pl.food?.menu || '')}"></label></div>
+    <label class="fld">Food service items<input id="p-fitems" value="${esc(pl.food?.items || '')}" placeholder="Plates, cups, napkins, utensils"></label>
+    ${ta('p-tl', 'Timeline', PT.timeline(pl), 'one per line, e.g. "10:15 AM Intro and ice breaker"', 6)}
+    <label class="fld">Ice breaker<input id="p-ice" value="${esc(pl.icebreaker || '')}"></label>
+    ${ta('p-areas', 'Garden tasks', PT.areas(pl), 'one area per line, e.g. "Front garden: Top dressing, New bed"', 3)}
+    ${ta('p-notes', 'Notes', PT.list(pl.notes), 'one per line', 3)}
+  </fieldset>`;
+}
+function fillPlanFields(pl) {
+  const set = (id, v) => { const el = $('#' + id); if (el) el.value = v; };
+  set('p-roles', PT.roles(pl)); set('p-setup', PT.list(pl.setup)); set('p-sup', PT.supplies(pl)); set('p-tl', PT.timeline(pl)); set('p-ice', pl.icebreaker || '');
+  set('p-areas', PT.areas(pl)); set('p-notes', PT.list(pl.notes));
+  set('p-fwho', pl.food?.who || ''); set('p-fmenu', pl.food?.menu || ''); set('p-fitems', pl.food?.items || '');
+}
+function readPlanFields(pl) {
+  const v = id => $('#' + id).value;
+  pl.roles = parseRoles(v('p-roles')); pl.setup = lns(v('p-setup')); pl.supplies = parseSupplies(v('p-sup'), pl.supplies || []);
+  pl.timeline = parseTimeline(v('p-tl')); pl.icebreaker = v('p-ice').trim(); pl.areas = parseAreas(v('p-areas'));
+  pl.notes = lns(v('p-notes'));
+  const fw = v('p-fwho').trim(), fi = v('p-fitems').trim(), fm = v('p-fmenu').trim();
+  pl.food = fw || fi || fm ? { who: fw || 'Someone', items: fi, menu: fm } : null;
+}
+
+/* create / edit drawer */
+function openDrawer(ev) {
+  const edit = !!ev;
+  const e = ev || { title: '', date: '2026-11-22', start: '10:00', end: '14:00', place: 'Oakland Peace Center', address: '111 Fairmount Ave, Oakland', about: '', bring: 'water bottle, gloves if you have them', tags: ['beginner', 'tools'], host: ME, plan: { leadStart: '09:00', leadEnd: '14:30' } };
+  const chosen = edit ? CHANNELS.filter(c => ev.posts[c.id].status !== 'off').map(c => c.id) : ['partiful', 'luma', 'ggroup', 'calendar', 'facebook', 'instagram', 'chats'];
+  $('#drawer').innerHTML = `<div class="scrim" id="scrim"><div class="panel" role="dialog" aria-modal="true" aria-labelledby="dr-t">
+    <header><h2 id="dr-t">${edit ? 'Edit event' : 'New event'}</h2><button class="btn ghost sm" type="button" id="dr-x">Close</button></header>
+    <form id="evf" novalidate>
+      ${edit ? '' : `<label class="fld">Start from<select id="f-from"><option value="">Blank event</option>${EVENTS.filter(x => x.plan).sort((a, b) => b.date.localeCompare(a.date)).map(x => `<option value="${x.id}">Copy ${esc(x.label || x.title)} (${shortDate(x.date)})</option>`).join('')}</select></label>`}
+      <label class="fld">Event name<input id="f-title" value="${esc(e.title)}" placeholder="e.g. OPC Garden Work Party"></label>
+      <div class="r3"><label class="fld">Date<input type="date" id="f-date" value="${e.date}"></label><label class="fld">Start<input type="time" id="f-start" value="${e.start}"></label><label class="fld">End<input type="time" id="f-end" value="${e.end}"></label></div>
+      <div class="r2"><label class="fld">Leads arrive<input type="time" id="f-ls" value="${e.plan?.leadStart || ''}"></label><label class="fld">Leads leave<input type="time" id="f-le" value="${e.plan?.leadEnd || ''}"></label></div>
+      <div class="r2"><label class="fld">Place<input id="f-place" value="${esc(e.place)}"></label><label class="fld">Address<input id="f-address" value="${esc(e.address)}"></label></div>
+      <label class="fld">What we'll do<textarea id="f-about" placeholder="What's happening, in a sentence or two.">${esc(e.about)}</textarea></label>
+      <label class="fld">What to bring<input id="f-bring" value="${esc(e.bring)}" placeholder="water, gloves if you have them"></label>
+      <fieldset><legend>Photo</legend><div class="picks">${PHOTOS.map(([k, l]) => `<label><input type="radio" name="photo" value="${k}" ${k === (e.photo || 'trellis') ? 'checked' : ''}><span><i class="pt">${photo(k)}</i>${l}</span></label>`).join('')}</div></fieldset>
+      <label class="fld">Host<select id="f-host">${HOSTS.map(h => `<option ${h === e.host ? 'selected' : ''}>${h}</option>`).join('')}</select></label>
+      <fieldset><legend>Good to know</legend><div class="picks">${TAGS.map(([k, l]) => `<label><input type="checkbox" name="tag" value="${k}" ${e.tags.includes(k) ? 'checked' : ''}><span>${l}</span></label>`).join('')}</div></fieldset>
+      <fieldset><legend>Post to</legend><div class="picks">${CHANNELS.map(c => `<label><input type="checkbox" name="ch" value="${c.id}" ${chosen.includes(c.id) ? 'checked' : ''}><span>${esc(c.name)}</span></label>`).join('')}</div></fieldset>
+      ${planFields(e.plan && e.plan.timeline ? e.plan : null)}
+      ${edit ? '<p class="hint">Changed drafts go back for approval.</p>' : ''}
+      <p class="err" id="f-err" hidden></p>
+    </form>
+    <footer><span></span><button class="btn primary" type="submit" form="evf">${edit ? 'Save' : 'Create event'}</button></footer>
+  </div></div>`;
+  const close = () => { $('#drawer').innerHTML = ''; };
+  $('#dr-x').addEventListener('click', close);
+  $('#scrim').addEventListener('click', x => { if (x.target.id === 'scrim') close(); });
+  document.addEventListener('keydown', function k(x) { if (x.key === 'Escape') { close(); document.removeEventListener('keydown', k); } });
+  setTimeout(() => $('#f-title')?.focus(), 30);
+  $('#f-from')?.addEventListener('change', x => {
+    const src = EVENTS.find(y => y.id === x.target.value); if (!src) return;
+    [['f-title', src.title], ['f-start', src.start], ['f-end', src.end], ['f-place', src.place], ['f-address', src.address], ['f-about', src.about], ['f-bring', src.bring], ['f-ls', src.plan.leadStart], ['f-le', src.plan.leadEnd]].forEach(([id, val]) => { $('#' + id).value = val || ''; });
+    $$('input[name=tag]').forEach(i => i.checked = src.tags.includes(i.value));
+    $$('input[name=photo]').forEach(i => i.checked = i.value === src.photo);
+    fillPlanFields(copyPlan(src.plan));
+  });
+  $('#evf').addEventListener('submit', x => {
+    x.preventDefault();
+    const v = id => $('#' + id).value.trim();
+    const err = $('#f-err');
+    const fail = m => { err.textContent = m; err.hidden = false; };
+    if (!v('f-title')) return fail('Give the event a name so people know what it is.');
+    if (!v('f-date')) return fail('Pick a date.');
+    if (v('f-end') <= v('f-start')) return fail('The end time needs to be after the start time.');
+    if (!v('f-about')) return fail('Add a sentence about what you\'ll do. It goes into every post.');
+    const chs = $$('input[name=ch]:checked').map(i => i.value);
+    if (!chs.length) return fail('Pick at least one place to post it.');
+    const data = { title: v('f-title'), date: v('f-date'), start: v('f-start'), end: v('f-end'), place: v('f-place'), address: v('f-address'), about: v('f-about'), bring: v('f-bring'), host: $('#f-host').value, photo: ($('input[name=photo]:checked') || {}).value || 'none', tags: $$('input[name=tag]:checked').map(i => i.value) };
+    const ls = v('f-ls'), le = v('f-le');
+    if (edit) {
+      Object.assign(ev, data);
+      if (ev.plan) { ev.plan.leadStart = ls; ev.plan.leadEnd = le; readPlanFields(ev.plan); }
+      CHANNELS.forEach(c => {
+        const p = ev.posts[c.id], on = chs.includes(c.id);
+        if (!on) { if (p.status !== 'posted') p.status = 'off'; return; }
+        if (p.status === 'off') { p.status = 'review'; p.text = draft(c.id, ev); p.edited = false; return; }
+        if (p.status === 'posted') { p.stale = true; return; }
+        if (!p.edited) p.text = draft(c.id, ev);
+        if (p.status === 'approved') { p.status = 'review'; p.by = ''; }
+      });
+      ev.log.push([nowStamp(), `${ME} edited the details`]);
+      toast('Saved');
+    } else {
+      const src = EVENTS.find(x => x.id === $('#f-from').value);
+      const ne = { id: 'n' + Date.now(), ...data };
+      if (src) { ne.series = src.series; ne.num = Math.max(...EVENTS.filter(x => x.series === src.series).map(x => x.num)) + 1; ne.label = (src.series === 'workday' ? 'Workday #' : 'Community Meeting #') + ne.num; ne.plan = copyPlan(src.plan); ne.map = src.map; }
+      else ne.plan = { leadStart: '', leadEnd: '', leadNote: '', roles: [['Event leads', [ME]]], pending: [], setup: [], supplies: [], food: null, timeline: [], icebreaker: '', questions: [], notes: [], areas: [], debrief: [] };
+      ne.plan.leadStart = ls; ne.plan.leadEnd = le; readPlanFields(ne.plan);
+      ne.tasks = src ? src.tasks.filter(t => t.who).map(t => { const n = mkTask(t.type, t.text, t.who, 'asked', t.rems.slice()); n.assignedOn = TODAY; return n; }) : [];
+      ne.posts = makePosts(ne, chs, 'review');
+      ne.log = [[nowStamp(), `${ME} created the event`], [nowStamp(), `Drafts written for ${chs.length} channels`]];
+      EVENTS.push(ne); S.sel = ne.id; S.when = ne.date >= TODAY ? 'up' : 'past';
+      toast(`Created. ${chs.length} drafts to approve.`);
+    }
+    const wasNew = !edit;
+    close(); render(); renderMaterials();
+    if (wasNew) openEvent(S.sel, 'modal');
+  });
+}
+$('#new-ev').addEventListener('click', () => {
+  const ne = { id: 'n' + Date.now(), isNew: true, title: '', date: '2026-11-22', start: '10:00', end: '14:00', ...OPC, about: '', bring: 'water bottle, gloves if you have them', tags: ['beginner', 'tools'], host: ME, photo: 'trellis',
+    plan: { leadStart: '09:00', leadEnd: '14:30', leadNote: '', roles: [['Event leads', [ME]]], pending: [], setup: [], supplies: [], food: null, timeline: [], icebreaker: '', questions: [], notes: [], areas: [], debrief: [] }, tasks: [], log: [] };
+  ne.posts = makePosts(ne, ['partiful', 'luma', 'ggroup', 'calendar', 'facebook', 'instagram', 'chats'], 'review');
+  EVENTS.push(ne); S.editing = true; S.dtab = 'plan'; openEvent(ne.id, 'modal');
+  setTimeout(() => $('#ed-title')?.focus(), 40);
+});
+
+function renderMaterials() {
+  const sel = $('#m-ev'), cur = sel.value || S.sel || 'w7';
+  const up = EVENTS.slice().sort((a, b) => a.date.localeCompare(b.date));
+  sel.innerHTML = up.map(e => `<option value="${e.id}" ${e.id === cur ? 'selected' : ''}>${esc(shortDate(e.date))} · ${esc(e.title)}</option>`).join('');
+  const ev = EVENTS.find(e => e.id === sel.value) || up[0];
+  $('#m-event').innerHTML = MATS.map(m => matFig(ev, m).replace('mat wide', 'mat w2')).join('');
+}
+$('#m-ev').addEventListener('change', renderMaterials);
+
+/* build options */
+$$('[data-opt]').forEach(b => b.addEventListener('click', () => {
+  $$('[data-opt]').forEach(x => x.setAttribute('aria-pressed', x === b));
+  $('#opt-a').hidden = b.dataset.opt !== 'a'; $('#opt-b').hidden = b.dataset.opt !== 'b';
+}));
+
+/* landing + mock sign-in */
+const AUTH = {
+  get() { try { return sessionStorage.getItem('ebpg-user'); } catch { return null; } },
+  set(n) { try { sessionStorage.setItem('ebpg-user', n); } catch {} },
+  clear() { try { sessionStorage.removeItem('ebpg-user'); } catch {} },
+};
+function nextSecondMonday(from) {
+  const d = D(from);
+  for (let i = 0; i < 3; i++) {
+    const m = new Date(d.getFullYear(), d.getMonth() + i, 1, 12);
+    const first = (8 - m.getDay()) % 7 + 1; // first Monday
+    const sm = new Date(m.getFullYear(), m.getMonth(), first + 7, 12);
+    if (sm >= d) return sm;
+  }
+}
+const GARDENS = [
+  { name: 'Oakland Peace Center garden', addr: '111 Fairmount Ave, Oakland, CA', what: 'Monthly meetings and garden work days', lat: 37.8136, lng: -122.2589 },
+  { name: 'Sausal Creek at Dimond Park', addr: 'Dimond Park, 3860 Hanly Rd, Oakland, CA', what: 'Creek restoration and rain garden days', lat: 37.8022, lng: -122.2170 },
+];
+function renderMap() {
+  const Z = 1 << 14, X0 = 2627, Y0 = 6330, NX = 4, NY = 2;
+  const tile = (lat, lng) => [(lng + 180) / 360 * Z, (1 - Math.log(Math.tan(lat * Math.PI / 180) + 1 / Math.cos(lat * Math.PI / 180)) / Math.PI) / 2 * Z];
+  const link = g => `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(g.addr)}`;
+  const pins = GARDENS.map((g, i) => { const [tx, ty] = tile(g.lat, g.lng); const L = (tx - X0) / NX * 100, T = (ty - Y0) / NY * 100;
+    if (!(L >= 0 && L <= 100 && T >= 0 && T <= 100)) return ''; // off the map tiles: list only
+    return `<a class="mpin ${L > 70 ? 'left' : ''}" style="left:${L.toFixed(2)}%;top:${T.toFixed(2)}%" href="${link(g)}" target="_blank" rel="noopener" data-g="${i}" aria-label="${esc(g.name)}, open in Google Maps"><span class="dot">${i + 1}</span><span class="lab">${esc(g.name)}</span></a>`; }).join('');
+  $('#gmap-art').innerHTML = `<div class="tiles"><i class="t2627-6330"></i><i class="t2628-6330"></i><i class="t2629-6330"></i><i class="t2630-6330"></i><i class="t2627-6331"></i><i class="t2628-6331"></i><i class="t2629-6331"></i><i class="t2630-6331"></i></div>${pins}<a class="attr" href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© OpenStreetMap contributors</a>`;
+  $('#glist').innerHTML = GARDENS.map((g, i) => `<li><a href="${link(g)}" target="_blank" rel="noopener" data-gl="${i}"><span class="n">${i + 1}</span><span><b>${esc(g.name)}</b><span>${esc(g.addr.replace(', CA', ''))}</span><span>${esc(g.what)}</span><span class="go">Open in Google Maps ↗</span></span></a></li>`).join('');
+  $$('[data-gl]').forEach(a => { const pin = $(`.mpin[data-g="${a.dataset.gl}"]`); a.addEventListener('mouseenter', () => pin.classList.add('on')); a.addEventListener('mouseleave', () => pin.classList.remove('on')); });
+}
+const HELP = [['setup', 'Meeting setup'], ['workdays', 'Garden work days'], ['projects', 'Partner projects'], ['outreach', 'Outreach & photos'], ['teach', 'Teaching a skill']];
+const VOLS = [
+  { name: 'Alex R.', contact: 'alex@example.org', help: ['workdays', 'teach'], note: 'Can lead a composting demo', date: '2026-10-18' },
+  { name: 'Maya C.', contact: '(510) 555-0140', help: ['setup', 'workdays'], note: '', date: '2026-10-21' },
+  { name: 'Devon B.', contact: 'devon@example.org', help: ['outreach'], note: 'Has a good camera', date: '2026-10-23' },
+];
+function renderVols() {
+  const H = Object.fromEntries(HELP);
+  $('#vol-tbl').innerHTML = `<thead><tr><th>Name</th><th>Contact</th><th>Wants to help with</th><th>Note</th><th>Signed up</th></tr></thead><tbody>${VOLS.slice().sort((a, b) => b.date.localeCompare(a.date)).map(v => `<tr><td><span class="nm">${avatar(v.name)}<b>${esc(v.name)}</b></span></td><td>${esc(v.contact)}</td><td>${v.help.map(h => `<span class="tag">${esc(H[h] || h)}</span>`).join(' ')}</td><td>${esc(v.note) || '<span class="hint">—</span>'}</td><td>${esc(mdy(v.date))}</td></tr>`).join('')}</tbody>`;
+}
+const mdy = s => D(s).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+function bindJoin() {
+  $('#vj-picks').innerHTML = HELP.map(([k, l]) => `<label><input type="checkbox" name="vj-help" value="${k}"><span>${l}</span></label>`).join('');
+  $('#joinf').addEventListener('submit', e => {
+    e.preventDefault();
+    const name = $('#vj-name').value.trim(), contact = $('#vj-contact').value.trim(), help = $$('input[name=vj-help]:checked').map(i => i.value), err = $('#vj-err');
+    if (!name) { err.textContent = 'Add your name so we know who to welcome.'; err.hidden = false; $('#vj-name').focus(); return; }
+    if (!contact) { err.textContent = 'Add an email or phone number so an organizer can reach you.'; err.hidden = false; $('#vj-contact').focus(); return; }
+    if (!help.length) { err.textContent = 'Pick at least one way you would like to help.'; err.hidden = false; return; }
+    const vol = { name, contact, help, note: $('#vj-note').value.trim(), date: TODAY };
+    VOLS.push(vol); remote?.join(vol);
+    renderVols();
+    $('#joinf').hidden = true;
+    $('#joined').hidden = false;
+    $('#joined').innerHTML = `<b>Thanks, ${esc(name.split(' ')[0])}!</b><span>You're on the volunteer list. An organizer will reach out before the next meeting or work day.</span><button class="tog" type="button" id="vj-again" style="justify-self:start">Sign up someone else</button>`;
+    $('#vj-again').addEventListener('click', () => { $('#joinf').reset(); err.hidden = true; $('#joinf').hidden = false; $('#joined').hidden = true; });
+  });
+}
+function renderLanding() {
+  renderMap();
+  const nm = nextSecondMonday(TODAY);
+  const meetIso = `${nm.getFullYear()}-${String(nm.getMonth() + 1).padStart(2, '0')}-${String(nm.getDate()).padStart(2, '0')}`;
+  const meetCard = `<a class="mcard" href="https://linktr.ee/eastbaypermacultureguild" target="_blank" rel="noopener"><span class="mtop"><span class="mday"><span>${nm.toLocaleDateString('en-US', { month: 'short' })}</span><b>${nm.getDate()}</b></span><span class="mk">Monthly meeting</span><b class="mt">Potluck, speakers and community</b></span><span class="nb"><b>Guild Monthly Meeting</b><span>${esc(longDate(meetIso))} · 6:00 PM · Grace Room, Oakland Peace Center</span><span class="rsvp">Bring a dish to share. RSVP on Partiful ↗</span></span></a>`;
+  const nx = EVENTS.filter(e => !e.isNew && e.date >= TODAY).sort((a, b) => a.date.localeCompare(b.date));
+  const hero = nx[0] || EVENTS[0];
+  $('#hero-cards').innerHTML = flyerArt(hero).replace('art flyer', 'art flyer c1') + igArt(hero).replace('art ig', 'art ig c2') + storyArt(hero).replace('art story', 'art story c3');
+  const evCards = nx.filter(e => e.series === 'workday').slice(0, 2).map(e => [e.date, `<button type="button" data-signin title="Organizers can sign in to see the plan">${igArt(e)}<span class="nb"><b>${esc(e.title)}</b><span>${esc(longDate(e.date))} · ${t12(e.start)} · ${esc(e.place)}</span></span></button>`]);
+  $('#nextup').innerHTML = evCards.concat([[meetIso, meetCard]]).sort((a, b) => a[0].localeCompare(b[0])).map(x => x[1]).join('');
+  $('#si-pick').innerHTML = organizers().map(o => `<button type="button" data-as="${esc(o.name)}">${avatar(o.name)}<span>${esc(o.name)}<small>${ROLE[o.role]}</small></span></button>`).join('');
+  $$('[data-as]').forEach(b => b.addEventListener('click', () => signIn(b.dataset.as)));
+}
+function goSignIn() { showTab('signin'); history.replaceState(null, '', '#signin'); window.scrollTo({ top: 0 }); }
+function signIn(name) { if (remote) return remote.signIn(name); finishSignIn(name); }
+function finishSignIn(name) {
+  ME = name; AUTH.set(name); document.body.classList.remove('out');
+  renderAs(); render(); renderTeam(); showTab('events'); history.replaceState(null, '', '#events'); window.scrollTo({ top: 0 });
+  toast(`Signed in as ${name}`);
+}
+function signOut() {
+  if (!$('#modal').hidden) closeEvent();
+  AUTH.clear(); document.body.classList.add('out'); renderLanding(); showTab('landing'); history.replaceState(null, '', '#welcome'); window.scrollTo({ top: 0 });
+}
+document.addEventListener('click', e => { if (e.target.closest('[data-signin]')) { e.preventDefault(); goSignIn(); } });
+$('#signin-top').addEventListener('click', goSignIn);
+$('#signout').addEventListener('click', signOut);
+$('#si-google').addEventListener('click', () => signIn(TEAM.find(t => t.role === 'lead').name));
+$('#si-back').addEventListener('click', () => { showTab('landing'); history.replaceState(null, '', '#welcome'); });
+$('.lock').style.cursor = 'pointer';
+$('.lock').addEventListener('click', () => { if (document.body.classList.contains('out')) { showTab('landing'); history.replaceState(null, '', '#welcome'); } else { showTab('events'); history.replaceState(null, '', '#events'); } });
+
+/*__GAS_BRIDGE__*/
+/* boot */
+if (!remote) {
+const user = AUTH.get();
+if (user && organizers().find(o => o.name === user)) ME = user;
+renderAs(); render(); renderMaterials(); renderTeam(); renderLanding(); bindJoin(); renderVols();
+const h = (location.hash || '').slice(1);
+if (!user) { document.body.classList.add('out'); showTab(h === 'signin' ? 'signin' : 'landing'); }
+else if (h.startsWith('ev-') && EVENTS.find(e => e.id === h.slice(3))) openEvent(h.slice(3), 'page');
+else showTab(['architecture', 'materials', 'team'].includes(h) ? h : 'events');
+}
+})();
+</script>

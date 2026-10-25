@@ -1,0 +1,8 @@
+node_modules/
+.netlify/
+.DS_Store
+# build outputs (rebuilt by build.py)
+event-hub/index.html
+field-kit/index.html
+apps-script/dist/
+apps-script/site/

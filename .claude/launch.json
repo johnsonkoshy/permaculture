@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "event-hub-local",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["apps-script/test/dev-server.js"],
+      "port": 8766
+    }
+  ]
+}

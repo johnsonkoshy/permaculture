@@ -1,0 +1,1398 @@
+<title>EBPG Field Kit</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Mono:wght@400;600&family=Atkinson+Hyperlegible+Next:ital,wght@0,400;0,600;0,700;1,400&family=Young+Serif&display=swap">
+<style>
+/* Layout: field-guide pages under a sticky tab bar; the prototype sits in an app frame with a side rail that becomes a top strip on phones. */
+:root {
+  /* theme tokens (light) */
+  --paper: #F1F3EA;
+  --surface: #FAFBF5;
+  --raised: #FFFFFF;
+  --ink: #1B2A21;
+  --ink-2: #4A5A4F;
+  --ink-3: #737F75;
+  --line: #DADFCF;
+  --line-2: #C5CCB9;
+  --fern: #376451;
+  --fern-ink: #FFFFFF;
+  --fern-soft: #E1EAD9;
+  --sage: #8AA37C;
+  --lemon: #F2C14E;
+  --lemon-soft: #FBEFC7;
+  --lemon-ink: #5A430B;
+  --water: #3B6C8C;
+  --water-soft: #DCE7EE;
+  --soil: #7A5A43;
+  --soil-soft: #EEE4D8;
+  --flag: #C24A22;
+  --flag-soft: #F7E0D5;
+  --shadow: 0 1px 2px rgba(27, 42, 33, .06), 0 6px 20px rgba(27, 42, 33, .06);
+
+  /* fixed brand tokens: printed and social pieces look the same in every theme */
+  --b-sage: #8AA37C;
+  --b-sage-deep: #6E8962;
+  --b-canopy: #1C3A2B;
+  --b-fern: #376451;
+  --b-cream: #F6F1E3;
+  --b-lemon: #F2C14E;
+  --b-soil: #5E4434;
+  --b-flag: #E0592A;
+  --b-water: #3E7090;
+
+  /* type */
+  --display: "Young Serif", "Iowan Old Style", Georgia, serif;
+  --body: "Atkinson Hyperlegible Next", "Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "Atkinson Hyperlegible Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  --mk-bg: var(--fern);
+  --mk-line: #F6F1E3;
+  --mk-lemon: #F2C14E;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #0F1812; --surface: #151F18; --raised: #1B271F; --ink: #E5EADD; --ink-2: #AEBAA7; --ink-3: #849180;
+    --line: #26352A; --line-2: #34463A; --fern: #86BC97; --fern-ink: #0F1A13; --fern-soft: #1D3125; --sage: #9DB58F;
+    --lemon: #F2C14E; --lemon-soft: #3A3114; --lemon-ink: #F5DA92; --water: #8DBBD6; --water-soft: #172837;
+    --soil: #CFA785; --soil-soft: #2D231B; --flag: #F08B62; --flag-soft: #3A2017;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 8px 24px rgba(0, 0, 0, .25);
+    --mk-bg: #2E5544;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #0F1812; --surface: #151F18; --raised: #1B271F; --ink: #E5EADD; --ink-2: #AEBAA7; --ink-3: #849180;
+  --line: #26352A; --line-2: #34463A; --fern: #86BC97; --fern-ink: #0F1A13; --fern-soft: #1D3125; --sage: #9DB58F;
+  --lemon: #F2C14E; --lemon-soft: #3A3114; --lemon-ink: #F5DA92; --water: #8DBBD6; --water-soft: #172837;
+  --soil: #CFA785; --soil-soft: #2D231B; --flag: #F08B62; --flag-soft: #3A2017;
+  --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 8px 24px rgba(0, 0, 0, .25);
+  --mk-bg: #2E5544;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } * { transition: none !important; animation: none !important; } }
+body { background: var(--paper); color: var(--ink); font: 400 16px/1.55 var(--body); }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--surface); }
+h1, h2, h3, h4 { font-family: var(--display); font-weight: 400; line-height: 1.12; margin: 0; text-wrap: balance; letter-spacing: -.005em; }
+p { margin: 0; }
+button, input, select, textarea { font: inherit; color: inherit; }
+:focus-visible { outline: 2.5px solid var(--lemon); outline-offset: 2px; border-radius: 4px; }
+a { color: var(--fern); }
+.wrap { max-width: 1180px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.eyebrow { font: 600 12px/1.2 var(--mono); letter-spacing: .09em; text-transform: uppercase; color: var(--ink-3); }
+.muted { color: var(--ink-2); }
+.small { font-size: 14px; }
+.tnum { font-variant-numeric: tabular-nums; }
+.mono { font-family: var(--mono); }
+
+/* ---------- top bar ---------- */
+.top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; background: var(--surface); border-bottom: 1px solid var(--line); }
+.top .wrap { display: flex; align-items: center; gap: 20px; min-height: 60px; flex-wrap: wrap; padding-block: 8px; }
+.brandlock { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--ink); }
+.brandlock svg { width: 34px; height: 34px; flex: none; }
+.brandlock b { font: 400 20px/1 var(--display); }
+.brandlock span { font: 600 11px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); border: 1px solid var(--line-2); padding: 4px 6px; border-radius: 4px; }
+.tabs { display: flex; gap: 4px; margin-left: auto; flex-wrap: wrap; }
+.tabs a { text-decoration: none; color: var(--ink-2); font-weight: 600; font-size: 15px; padding: 8px 12px; border-radius: 999px; }
+.tabs a:hover { background: var(--fern-soft); color: var(--ink); }
+.tabs a[aria-current="page"] { background: var(--fern); color: var(--fern-ink); }
+@media (max-width: 640px) { .tabs { margin-left: 0; width: 100%; } .tabs a { padding: 6px 10px; font-size: 14px; } }
+
+section.page { padding-block: 40px 80px; }
+.page-head { display: grid; gap: 12px; margin-bottom: 36px; max-width: 760px; }
+.page-head h1 { font-size: clamp(34px, 5vw, 52px); }
+.page-head p { font-size: 18px; color: var(--ink-2); max-width: 64ch; }
+.block { margin-top: 56px; }
+.block > h2 { font-size: clamp(26px, 3.2vw, 34px); margin-bottom: 8px; }
+.block > .lede { color: var(--ink-2); max-width: 64ch; margin-bottom: 22px; }
+
+/* ---------- overview ---------- */
+.hero { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 40px; align-items: center; }
+@media (max-width: 860px) { .hero { grid-template-columns: 1fr; } }
+.hero h1 { font-size: clamp(38px, 5.6vw, 64px); margin-block: 12px 16px; }
+.hero h1 em { font-style: normal; color: var(--fern); }
+.hero p.big { font-size: 19px; color: var(--ink-2); max-width: 56ch; }
+.brief { margin-top: 20px; border-left: 3px solid var(--lemon); padding: 4px 0 4px 16px; color: var(--ink-2); font-size: 15px; max-width: 60ch; }
+.brief b { color: var(--ink); }
+.hero-photo { position: relative; aspect-ratio: 1 / .92; max-width: 520px; width: 100%; justify-self: center; }
+.hero-photo .disc { position: absolute; inset: 0 8% 0 0; border-radius: 50%; overflow: hidden; background: var(--b-sage); }
+.hero-photo .disc img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.hero-photo .ring { position: absolute; inset: 0 8% 0 0; transform: translate(-4%, 4%); border: 2px solid var(--sage); border-radius: 50%; }
+.hero-photo .lem { position: absolute; right: 4%; top: 8%; width: 18%; aspect-ratio: 1; border-radius: 50% 50% 50% 8%; background: var(--b-lemon); transform: rotate(-30deg); box-shadow: var(--shadow); }
+.hero-photo .cap { position: absolute; left: 0; bottom: 2%; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; font-size: 13px; color: var(--ink-2); box-shadow: var(--shadow); max-width: 70%; }
+
+.path { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 0; margin-top: 8px; counter-reset: step; }
+@media (max-width: 960px) { .path { grid-template-columns: repeat(3, minmax(0, 1fr)); row-gap: 20px; } }
+@media (max-width: 560px) { .path { grid-template-columns: 1fr; } }
+.step { position: relative; padding: 0 14px 0 0; }
+.step .dot { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; background: var(--surface); border: 2px solid var(--fern); color: var(--fern); font: 600 14px/1 var(--mono); position: relative; z-index: 1; }
+.step::before { content: ""; position: absolute; left: 34px; right: 0; top: 16px; height: 2px; background: var(--line-2); }
+.step:last-child::before { display: none; }
+.step.risk .dot { border-color: var(--flag); color: var(--flag); }
+.step h3 { font-size: 19px; margin: 12px 0 6px; }
+.step p { font-size: 14px; color: var(--ink-2); }
+.who { display: inline-block; margin-top: 8px; font: 600 11px/1 var(--mono); letter-spacing: .06em; text-transform: uppercase; padding: 4px 6px; border-radius: 4px; }
+.who.tool { background: var(--fern-soft); color: var(--fern); }
+.who.human { background: var(--lemon-soft); color: var(--lemon-ink); }
+.leak { margin-top: 18px; display: flex; gap: 10px; align-items: flex-start; padding: 14px 16px; border-radius: 10px; background: var(--flag-soft); color: var(--ink); font-size: 15px; max-width: 760px; }
+.leak b { color: var(--flag); }
+
+.tools3 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
+@media (max-width: 960px) { .tools3 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 560px) { .tools3 { grid-template-columns: 1fr; } }
+.toolcard { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 20px; display: grid; gap: 10px; align-content: start; text-decoration: none; color: var(--ink); transition: border-color .15s, transform .15s; }
+.toolcard:hover { border-color: var(--fern); transform: translateY(-2px); }
+.toolcard h3 { font-size: 22px; }
+.toolcard p { color: var(--ink-2); font-size: 15px; }
+.toolcard .go { font-weight: 700; color: var(--fern); font-size: 14px; }
+.toolcard .ico { width: 40px; height: 40px; border-radius: 10px; display: grid; place-items: center; }
+.toolcard .ico svg { width: 22px; height: 22px; }
+
+.principles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 40px; }
+@media (max-width: 720px) { .principles { grid-template-columns: 1fr; } }
+.principles div { padding: 16px 0; border-top: 1px solid var(--line); display: grid; gap: 4px; }
+.principles b { font-size: 17px; }
+.principles span { color: var(--ink-2); font-size: 15px; }
+
+/* ---------- brand ---------- */
+.two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px; }
+@media (max-width: 760px) { .two { grid-template-columns: 1fr; } }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 24px; min-width: 0; }
+.logo-stage { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 24px; align-items: center; }
+@media (max-width: 560px) { .logo-stage { grid-template-columns: 1fr; } }
+.logo-stage img { width: 200px; height: 200px; border-radius: 12px; display: block; }
+.lockups { display: grid; gap: 14px; }
+.lockup { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-radius: 10px; }
+.lockup svg { width: 44px; height: 44px; flex: none; }
+.lockup b { font: 400 clamp(19px, 2.4vw, 26px)/1.1 var(--display); }
+.lockup.on-cream { background: var(--b-cream); color: var(--b-canopy); --mk-bg: var(--b-fern); }
+.lockup.on-sage { background: var(--b-sage); color: var(--b-cream); --mk-bg: var(--b-canopy); }
+.lockup.on-canopy { background: var(--b-canopy); color: var(--b-cream); --mk-bg: var(--b-sage-deep); }
+.rules { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; font-size: 15px; color: var(--ink-2); }
+.rules li { display: flex; gap: 8px; }
+.rules li::before { content: "—"; color: var(--ink-3); }
+
+.swatches { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+.sw { border-radius: 12px; overflow: hidden; border: 1px solid var(--line); background: var(--surface); }
+.sw .chip { height: 92px; display: flex; align-items: flex-end; padding: 10px; font: 600 12px/1 var(--mono); }
+.sw .meta { padding: 10px 12px 12px; display: grid; gap: 2px; }
+.sw .meta b { font-size: 15px; }
+.sw .meta span { font: 400 12px/1.4 var(--mono); color: var(--ink-3); }
+.sw .meta i { font-style: normal; font-size: 13px; color: var(--ink-2); }
+.ratio { display: flex; height: 18px; border-radius: 999px; overflow: hidden; margin-top: 14px; border: 1px solid var(--line); }
+.ratio div { height: 100%; }
+
+.typespec { display: grid; gap: 0; }
+.typerow { display: grid; grid-template-columns: 180px minmax(0, 1fr); gap: 20px; padding: 18px 0; border-top: 1px solid var(--line); align-items: baseline; }
+@media (max-width: 640px) { .typerow { grid-template-columns: 1fr; gap: 6px; } }
+.typerow .eyebrow { line-height: 1.5; }
+.typerow .s1 { font: 400 clamp(36px, 5vw, 56px)/1.05 var(--display); }
+.typerow .s2 { font: 400 28px/1.2 var(--display); }
+.typerow .s3 { font: 400 18px/1.6 var(--body); max-width: 62ch; }
+.typerow .s4 { font: 400 15px/1.5 var(--mono); }
+
+.voice { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+@media (max-width: 860px) { .voice { grid-template-columns: 1fr; } }
+.voice .panel h3 { font-size: 22px; margin-bottom: 8px; }
+.voice .panel p { color: var(--ink-2); font-size: 15px; }
+.dodont { display: grid; gap: 8px; margin-top: 14px; }
+.dodont div { font-size: 14px; padding: 8px 10px; border-radius: 8px; }
+.dodont .do { background: var(--fern-soft); }
+.dodont .dont { background: var(--flag-soft); text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--flag) 60%, transparent); color: var(--ink-2); }
+.words { width: 100%; border-collapse: collapse; font-size: 15px; }
+.words th { text-align: left; font: 600 12px/1.2 var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); padding: 8px 12px 8px 0; border-bottom: 1px solid var(--line-2); }
+.words td { padding: 10px 12px 10px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+.words td:nth-child(2) { color: var(--ink-3); text-decoration: line-through; }
+.tablewrap { overflow-x: auto; }
+
+.pillars { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
+@media (max-width: 860px) { .pillars { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 480px) { .pillars { grid-template-columns: 1fr; } }
+.pillar { padding: 20px; border-radius: 14px; background: var(--surface); border: 1px solid var(--line); display: grid; gap: 8px; align-content: start; }
+.pillar h3 { font-size: 22px; }
+.pillar q { font-family: var(--display); font-size: 16px; color: var(--fern); quotes: "\201C" "\201D"; }
+.pillar p { font-size: 14px; color: var(--ink-2); }
+
+.photos { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+@media (max-width: 760px) { .photos { grid-template-columns: 1fr; } }
+.photos figure { margin: 0; display: grid; gap: 8px; }
+.photos img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 12px; display: block; }
+.photos figcaption { font-size: 14px; color: var(--ink-2); }
+.photos figcaption b { color: var(--ink); }
+
+.components { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+@media (max-width: 760px) { .components { grid-template-columns: 1fr; } }
+.components .panel { display: grid; gap: 14px; align-content: start; }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+
+/* shared UI atoms */
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; border: 1px solid transparent; border-radius: 999px; padding: 9px 16px; font-weight: 700; font-size: 15px; cursor: pointer; text-decoration: none; line-height: 1.1; white-space: nowrap; }
+.btn.primary { background: var(--fern); color: var(--fern-ink); }
+.btn.primary:hover { filter: brightness(1.08); }
+.btn.lemon { background: var(--lemon); color: #2A2208; }
+.btn.ghost { background: transparent; border-color: var(--line-2); color: var(--ink); }
+.btn.ghost:hover { border-color: var(--fern); }
+.btn.sm { padding: 6px 12px; font-size: 13px; }
+.btn[disabled] { opacity: .45; cursor: default; }
+.chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; font-size: 13px; font-weight: 600; background: var(--fern-soft); color: var(--ink); border: 1px solid transparent; line-height: 1.3; }
+.chip.lemon { background: var(--lemon-soft); color: var(--lemon-ink); }
+.chip.water { background: var(--water-soft); color: var(--water); }
+.chip.soil { background: var(--soil-soft); color: var(--soil); }
+.chip.flag { background: var(--flag-soft); color: var(--flag); }
+.chip.line { background: transparent; border-color: var(--line-2); color: var(--ink-2); }
+.chip .d { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+.bubble { max-width: 82%; padding: 9px 12px; border-radius: 16px; font-size: 14px; line-height: 1.4; white-space: pre-wrap; }
+.bubble.in { background: var(--raised); border: 1px solid var(--line); border-bottom-left-radius: 4px; justify-self: start; }
+.bubble.out { background: var(--fern); color: var(--fern-ink); border-bottom-right-radius: 4px; justify-self: end; }
+.bubble .k { font-family: var(--mono); font-weight: 600; }
+.thread { display: grid; gap: 8px; }
+
+/* ---------- materials (fixed brand colors, scale with container) ---------- */
+.mgrid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 24px; align-items: start; }
+.mgrid > figure { margin: 0; display: grid; gap: 10px; min-width: 0; }
+.mgrid figcaption { display: grid; gap: 2px; }
+.mgrid figcaption b { font-size: 16px; }
+.mgrid figcaption span { font-size: 14px; color: var(--ink-2); }
+.span4 { grid-column: span 4; } .span5 { grid-column: span 5; } .span3 { grid-column: span 3; } .span6 { grid-column: span 6; } .span7 { grid-column: span 7; } .span8 { grid-column: span 8; } .span12 { grid-column: span 12; }
+@media (max-width: 960px) { .span3, .span4, .span5 { grid-column: span 6; } .span7, .span8 { grid-column: span 12; } }
+@media (max-width: 600px) { .mgrid > figure { grid-column: span 12; } }
+.art { container-type: inline-size; position: relative; overflow: hidden; border-radius: 6px; box-shadow: var(--shadow); max-width: 100%; }
+.art * { box-sizing: border-box; }
+.art .serif { font-family: var(--display); line-height: 1.05; letter-spacing: -.01em; }
+
+.flyer { aspect-ratio: 8.5 / 11; background: var(--b-cream); color: var(--b-canopy); display: grid; grid-template-rows: 46% 1fr auto; }
+.flyer .ph { position: relative; }
+.flyer .ph img { width: 100%; height: 100%; object-fit: cover; display: block; filter: saturate(.9); }
+.flyer .ph .date { position: absolute; right: 6cqw; bottom: -9cqw; width: 22cqw; aspect-ratio: 1; border-radius: 50%; background: var(--b-lemon); display: grid; place-content: center; text-align: center; color: var(--b-canopy); z-index: 2; }
+.flyer .ph .date b { display: block; font: 400 9cqw/0.9 var(--display); }
+.flyer .ph .date span { font: 600 2.6cqw/1.2 var(--mono); letter-spacing: .08em; text-transform: uppercase; }
+.flyer .bd { padding: 7cqw 7cqw 0; display: grid; gap: 2.6cqw; align-content: start; }
+.flyer .kick { max-width: 58cqw; font: 600 2.6cqw/1.2 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--b-fern); }
+.flyer h4 { font-size: 9.4cqw; max-width: 15ch; }
+.flyer .when { font: 600 3.4cqw/1.35 var(--body); }
+.flyer .about { font: 400 3cqw/1.45 var(--body); color: var(--b-soil); max-width: 52ch; }
+.flyer .tags { display: flex; flex-wrap: wrap; gap: 1.6cqw; }
+.flyer .tags span { font: 600 2.5cqw/1 var(--body); padding: 1.4cqw 2.4cqw; border-radius: 99px; border: .3cqw solid var(--b-sage-deep); color: var(--b-canopy); }
+.flyer .ft { background: var(--b-sage); color: var(--b-cream); padding: 4cqw 7cqw; display: flex; align-items: center; gap: 4cqw; justify-content: space-between; }
+.flyer .ft .cta { font: 400 4.4cqw/1.1 var(--display); }
+.flyer .ft .cta small { display: block; font: 600 2.5cqw/1.4 var(--mono); letter-spacing: .04em; margin-top: 1cqw; }
+.flyer .ft svg { width: 12cqw; height: 12cqw; flex: none; --mk-bg: var(--b-canopy); }
+.qr { width: 15cqw; aspect-ratio: 1; flex: none; background: var(--b-cream); border-radius: 1.5cqw; display: grid; place-items: center; text-align: center; color: var(--b-canopy); font: 600 2cqw/1.2 var(--mono); padding: 1cqw; border: .4cqw dashed var(--b-canopy); }
+
+.ig { aspect-ratio: 1; background: var(--b-sage); color: var(--b-cream); }
+.ig .ring { position: absolute; width: 68cqw; aspect-ratio: 1; border-radius: 50%; right: -12cqw; top: 2cqw; border: .5cqw solid var(--b-cream); }
+.ig .disc { position: absolute; width: 56cqw; aspect-ratio: 1; border-radius: 50%; right: -6cqw; top: 8cqw; overflow: hidden; }
+.ig .disc img { width: 100%; height: 100%; object-fit: cover; }
+.ig .lem { position: absolute; width: 12cqw; aspect-ratio: 1; border-radius: 50% 50% 50% 10%; background: var(--b-lemon); right: 44cqw; top: 22cqw; transform: rotate(-25deg); }
+.ig .txt { position: absolute; left: 7cqw; bottom: 7cqw; right: 7cqw; display: grid; gap: 2cqw; }
+.ig .txt .k { font: 600 2.8cqw/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; }
+.ig .txt h4 { font-size: 9cqw; max-width: 10ch; text-shadow: 0 .3cqw 2cqw rgba(28,58,43,.35); }
+.ig .txt p { font: 600 3.4cqw/1.3 var(--body); }
+.ig .gs { position: absolute; left: 7cqw; top: 7cqw; display: flex; gap: 2cqw; align-items: center; font: 400 3.6cqw/1 var(--display); }
+.ig .gs svg { width: 8cqw; height: 8cqw; --mk-bg: var(--b-canopy); }
+
+.quote { aspect-ratio: 1; background: var(--b-canopy); color: var(--b-cream); display: grid; align-content: space-between; padding: 8cqw; }
+.quote .q { font: 400 10cqw/1.04 var(--display); }
+.quote .q em { font-style: normal; color: var(--b-lemon); }
+.quote .src { display: flex; justify-content: space-between; align-items: end; gap: 4cqw; font: 600 2.8cqw/1.4 var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--b-sage); }
+.quote .src svg { width: 11cqw; height: 11cqw; --mk-bg: var(--b-fern); }
+.quote .arc { position: absolute; width: 90cqw; aspect-ratio: 1; border-radius: 50%; border: .4cqw solid rgba(246,241,227,.18); left: 40cqw; top: -40cqw; }
+
+.story { aspect-ratio: 9 / 16; background: var(--b-cream); color: var(--b-canopy); display: grid; grid-template-rows: auto 1fr auto; }
+.story .hd { padding: 9cqw 8cqw 4cqw; display: grid; gap: 3cqw; }
+.story .hd .k { font: 600 3.6cqw/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--b-fern); }
+.story .hd h4 { font-size: 13cqw; }
+.story .mid { position: relative; margin: 0 8cqw; }
+.story .mid .disc { width: 100%; aspect-ratio: 1; border-radius: 50%; overflow: hidden; border: 1.2cqw solid var(--b-sage); }
+.story .mid img { width: 100%; height: 100%; object-fit: cover; }
+.story .tag { position: absolute; left: -2cqw; bottom: 2cqw; background: var(--b-lemon); color: var(--b-canopy); padding: 3cqw 4cqw; border-radius: 3cqw; transform: rotate(-4deg); font: 400 5cqw/1.05 var(--display); }
+.story .tag small { display: block; font: 600 2.8cqw/1.3 var(--mono); letter-spacing: .04em; }
+.story .ft { padding: 6cqw 8cqw 9cqw; display: grid; gap: 3cqw; }
+.story .ft p { font: 400 4.2cqw/1.4 var(--body); color: var(--b-soil); }
+.story .ft .pill { justify-self: start; background: var(--b-fern); color: var(--b-cream); padding: 3cqw 6cqw; border-radius: 99px; font: 700 4.2cqw/1 var(--body); }
+
+.mail { aspect-ratio: 3 / 1; background: var(--b-sage); color: var(--b-cream); display: grid; grid-template-columns: 1fr auto; align-items: center; padding: 0 6cqw; }
+.mail .k { font: 600 1.5cqw/1 var(--mono); letter-spacing: .12em; text-transform: uppercase; opacity: .9; }
+.mail h4 { font-size: 7cqw; margin-top: 1.4cqw; }
+.mail p { font: 400 1.9cqw/1.4 var(--body); margin-top: 1.2cqw; max-width: 48ch; }
+.mail .stamp { width: 21cqw; aspect-ratio: 1; border-radius: 50%; border: .3cqw solid var(--b-cream); display: grid; place-content: center; text-align: center; position: relative; }
+.mail .stamp b { font: 400 5cqw/1 var(--display); }
+.mail .stamp span { font: 600 1.4cqw/1.4 var(--mono); letter-spacing: .1em; text-transform: uppercase; }
+.mail .stamp i { position: absolute; width: 5cqw; aspect-ratio: 1; background: var(--b-lemon); border-radius: 50% 50% 50% 10%; right: 0; top: 1cqw; transform: rotate(-25deg); }
+
+.ptag { aspect-ratio: 2 / 1.25; background: var(--b-cream); color: var(--b-canopy); border-radius: 3cqw 3cqw 3cqw 3cqw; display: grid; grid-template-columns: 10cqw 1fr; }
+.ptag .hole { background: var(--b-fern); display: grid; place-items: start center; padding-top: 6cqw; }
+.ptag .hole i { width: 4cqw; aspect-ratio: 1; border-radius: 50%; background: var(--b-cream); }
+.ptag .bd { padding: 6cqw 7cqw 5cqw 6cqw; display: grid; gap: 1.6cqw; align-content: start; }
+.ptag .k { font: 600 2.4cqw/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--b-fern); }
+.ptag h4 { font-size: 9cqw; }
+.ptag .lat { font: italic 400 3.4cqw/1.2 var(--body); color: var(--b-soil); }
+.ptag .rowx { display: flex; justify-content: space-between; gap: 3cqw; margin-top: 2cqw; border-top: .3cqw solid var(--b-sage); padding-top: 2.4cqw; font: 400 2.9cqw/1.35 var(--body); }
+.ptag .rowx b { display: block; font: 600 2.2cqw/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--b-sage-deep); margin-bottom: .8cqw; }
+.ptag .txt { margin-top: 1.4cqw; font: 600 2.7cqw/1.3 var(--mono); background: var(--b-lemon); padding: 1.6cqw 2.4cqw; border-radius: 1.4cqw; justify-self: start; }
+
+.sign { aspect-ratio: 3 / 2; background: var(--b-fern); color: var(--b-cream); display: grid; grid-template-columns: 1.3fr 1fr; }
+.sign .l { padding: 7cqw; display: grid; align-content: space-between; gap: 3cqw; }
+.sign h4 { font-size: 7.6cqw; }
+.sign p { font: 400 2.3cqw/1.45 var(--body); opacity: .92; max-width: 34ch; }
+.sign .m { display: flex; gap: 2cqw; align-items: center; font: 400 2.8cqw/1 var(--display); }
+.sign .m svg { width: 7cqw; height: 7cqw; --mk-bg: var(--b-canopy); }
+.sign .r { background: var(--b-cream); color: var(--b-canopy); padding: 6cqw 5cqw; display: grid; gap: 2.4cqw; align-content: center; }
+.sign .r .k { font: 600 1.8cqw/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--b-fern); }
+.sign .r ol { margin: 0; padding-left: 3cqw; display: grid; gap: 1.6cqw; font: 400 2.3cqw/1.35 var(--body); }
+.sign .r .txt { font: 400 3.8cqw/1.1 var(--display); }
+.sign .r .txt small { display: block; font: 600 1.9cqw/1.4 var(--mono); margin-top: .8cqw; }
+
+.card5 { aspect-ratio: 7 / 5; background: var(--b-cream); color: var(--b-canopy); display: grid; grid-template-columns: 1fr 1fr; }
+.card5 .l { background: var(--b-sage); display: grid; place-items: center; position: relative; overflow: hidden; }
+.card5 .l .c { width: 80%; aspect-ratio: 1; border-radius: 50%; border: .4cqw solid var(--b-cream); display: grid; place-items: center; }
+.card5 .l .c svg { width: 60%; height: 60%; --mk-bg: transparent; }
+.card5 .r { padding: 6cqw; display: grid; gap: 2cqw; align-content: center; }
+.card5 h4 { font-size: 7cqw; }
+.card5 p { font: 400 2.5cqw/1.5 var(--body); color: var(--b-soil); }
+.card5 .sig { font: italic 400 3.4cqw/1.2 var(--display); color: var(--b-fern); }
+
+/* ---------- prototype app frame ---------- */
+.appframe { border: 1px solid var(--line-2); border-radius: 16px; overflow: hidden; background: var(--surface); box-shadow: var(--shadow); display: grid; grid-template-columns: 220px minmax(0, 1fr); min-height: 720px; }
+@media (max-width: 900px) { .appframe { grid-template-columns: 1fr; } }
+.rail { background: var(--raised); border-right: 1px solid var(--line); padding: 18px 12px; display: grid; gap: 4px; align-content: start; }
+.rail .org { display: flex; gap: 10px; align-items: center; padding: 4px 8px 16px; border-bottom: 1px solid var(--line); margin-bottom: 10px; }
+.rail .org svg { width: 30px; height: 30px; flex: none; }
+.rail .org b { font-size: 14px; line-height: 1.2; display: block; }
+.rail .org span { font-size: 12px; color: var(--ink-3); }
+.rail button { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; padding: 9px 10px; border-radius: 8px; border: 0; background: transparent; cursor: pointer; font-weight: 600; font-size: 15px; color: var(--ink-2); }
+.rail button svg { width: 18px; height: 18px; flex: none; }
+.rail button:hover { background: var(--fern-soft); color: var(--ink); }
+.rail button[aria-current="true"] { background: var(--fern-soft); color: var(--fern); }
+.rail button .n { margin-left: auto; font: 600 12px/1 var(--mono); background: var(--lemon); color: #2A2208; border-radius: 99px; padding: 3px 7px; }
+.rail .foot { margin-top: 16px; padding: 12px 10px 0; border-top: 1px solid var(--line); font-size: 12px; color: var(--ink-3); }
+@media (max-width: 900px) {
+  .rail { border-right: 0; border-bottom: 1px solid var(--line); display: flex; overflow-x: auto; padding: 10px; gap: 4px; }
+  .rail .org, .rail .foot { display: none; }
+  .rail button { width: auto; white-space: nowrap; flex: none; }
+}
+.view { padding: 24px; min-width: 0; }
+@media (max-width: 560px) { .view { padding: 16px; } }
+.vhead { display: flex; justify-content: space-between; gap: 16px; align-items: end; flex-wrap: wrap; margin-bottom: 20px; }
+.vhead h2 { font-size: 30px; }
+.vhead p { color: var(--ink-2); font-size: 15px; margin-top: 4px; max-width: 60ch; }
+.sample { font: 600 11px/1 var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); border: 1px dashed var(--line-2); padding: 5px 8px; border-radius: 4px; white-space: nowrap; }
+
+.card { background: var(--raised); border: 1px solid var(--line); border-radius: 12px; padding: 18px; min-width: 0; }
+.card > h3 { font-size: 20px; margin-bottom: 4px; }
+.card > .sub { color: var(--ink-3); font-size: 14px; margin-bottom: 14px; }
+.grid-week { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 16px; }
+@media (max-width: 1060px) { .grid-week { grid-template-columns: 1fr; } }
+.stack { display: grid; gap: 16px; align-content: start; min-width: 0; }
+
+.nudge { display: grid; grid-template-columns: 4px minmax(0, 1fr) auto; gap: 14px; align-items: center; padding: 12px 0; border-top: 1px solid var(--line); }
+.nudge:first-of-type { border-top: 0; }
+.nudge .sev { align-self: stretch; border-radius: 4px; background: var(--fern); }
+.nudge.over .sev { background: var(--flag); }
+.nudge.soon .sev { background: var(--lemon); }
+.nudge b { display: block; font-size: 15px; }
+.nudge span { font-size: 14px; color: var(--ink-2); }
+.nudge .when { font: 600 12px/1 var(--mono); color: var(--ink-3); display: block; margin-top: 4px; }
+.nudge.over .when { color: var(--flag); }
+@media (max-width: 520px) { .nudge { grid-template-columns: 4px minmax(0, 1fr); } .nudge .btn { grid-column: 2; justify-self: start; } }
+
+.evrow { display: grid; grid-template-columns: 52px minmax(0, 1fr); gap: 12px; padding: 12px 0; border-top: 1px solid var(--line); }
+.evrow:first-of-type { border-top: 0; }
+.cal { border-radius: 8px; background: var(--fern-soft); text-align: center; padding: 6px 0; align-self: start; }
+.cal span { display: block; font: 600 11px/1 var(--mono); letter-spacing: .08em; color: var(--fern); }
+.cal b { display: block; font: 400 22px/1.1 var(--display); }
+.evrow h4 { font: 700 15px/1.3 var(--body); }
+.evrow .m { font-size: 13px; color: var(--ink-3); }
+.bar { height: 8px; background: var(--line); border-radius: 99px; overflow: hidden; margin-top: 8px; }
+.bar i { display: block; height: 100%; background: var(--fern); border-radius: 99px; }
+.evrow .r { display: flex; justify-content: space-between; font-size: 13px; color: var(--ink-2); margin-top: 4px; }
+
+.hbars { display: grid; gap: 8px; }
+.hbar { display: grid; grid-template-columns: 150px minmax(0, 1fr) 24px; gap: 10px; align-items: center; font-size: 14px; }
+.hbar .t { height: 14px; background: var(--fern-soft); border-radius: 4px; overflow: hidden; }
+.hbar .t i { display: block; height: 100%; background: var(--fern); border-radius: 4px; }
+.hbar.hl .t i { background: var(--lemon); }
+.hbar .v { font: 600 13px/1 var(--mono); text-align: right; color: var(--ink-2); }
+@media (max-width: 480px) { .hbar { grid-template-columns: 110px minmax(0, 1fr) 20px; font-size: 13px; } }
+
+.funnel { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+@media (max-width: 640px) { .funnel { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.funnel button { border: 1px solid var(--line); background: var(--raised); border-radius: 10px; padding: 10px 12px; text-align: left; cursor: pointer; display: grid; gap: 2px; }
+.funnel button b { font: 400 26px/1 var(--display); }
+.funnel button span { font-size: 13px; color: var(--ink-2); font-weight: 600; }
+.funnel button[aria-pressed="true"] { border-color: var(--fern); background: var(--fern-soft); }
+
+.split { display: grid; grid-template-columns: minmax(0, 340px) minmax(0, 1fr); gap: 16px; margin-top: 16px; }
+@media (max-width: 1000px) { .split { grid-template-columns: 1fr; } }
+.plist { display: grid; gap: 6px; align-content: start; }
+.prow { display: grid; grid-template-columns: 38px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--raised); cursor: pointer; text-align: left; width: 100%; }
+.prow[aria-selected="true"] { border-color: var(--fern); box-shadow: 0 0 0 1px var(--fern); }
+.av { width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; font: 700 14px/1 var(--body); color: #1C3A2B; flex: none; }
+.prow b { display: block; font-size: 15px; }
+.prow .s { font-size: 13px; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
+.prow .st { font: 600 11px/1 var(--mono); letter-spacing: .04em; text-transform: uppercase; padding: 4px 6px; border-radius: 4px; }
+.st.new { background: var(--lemon-soft); color: var(--lemon-ink); }
+.st.welcomed { background: var(--water-soft); color: var(--water); }
+.st.first { background: var(--soil-soft); color: var(--soil); }
+.st.back, .st.rooted { background: var(--fern-soft); color: var(--fern); }
+.st.late { background: var(--flag-soft); color: var(--flag); }
+
+.detail { display: grid; gap: 16px; align-content: start; min-width: 0; }
+.dhead { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+.dhead .av { width: 52px; height: 52px; font-size: 18px; }
+.dhead h3 { font-size: 26px; }
+.kv { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px 20px; }
+.kv div { display: grid; gap: 2px; }
+.kv dt { font: 600 11px/1.2 var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); }
+.kv dd { margin: 0; font-size: 15px; }
+.note { background: var(--paper); border-radius: 8px; padding: 10px 12px; font-size: 14px; color: var(--ink-2); font-style: italic; }
+.match { display: flex; gap: 12px; align-items: center; padding: 12px; border-radius: 10px; background: var(--lemon-soft); }
+.match .av { width: 40px; height: 40px; }
+.match b { display: block; }
+.match span { font-size: 14px; color: var(--lemon-ink); }
+.draft { display: grid; gap: 10px; }
+.draft-top { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; align-items: center; }
+.seg { display: inline-flex; border: 1px solid var(--line-2); border-radius: 999px; padding: 2px; gap: 2px; flex-wrap: wrap; }
+.seg button { border: 0; background: transparent; padding: 5px 10px; border-radius: 999px; font-size: 13px; font-weight: 600; color: var(--ink-2); cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--fern); color: var(--fern-ink); }
+textarea.ed { width: 100%; min-height: 150px; resize: vertical; border: 1px solid var(--line-2); border-radius: 10px; padding: 12px; background: var(--surface); line-height: 1.5; font-size: 15px; }
+textarea.ed:focus { outline: none; border-color: var(--fern); box-shadow: 0 0 0 3px var(--fern-soft); }
+.meta-line { display: flex; gap: 12px; flex-wrap: wrap; font: 400 12px/1.4 var(--mono); color: var(--ink-3); }
+.timeline { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; }
+.timeline li { display: grid; grid-template-columns: 74px 14px minmax(0, 1fr); gap: 10px; font-size: 14px; padding-bottom: 12px; position: relative; }
+.timeline li .d { font: 400 12px/1.6 var(--mono); color: var(--ink-3); }
+.timeline li .p { width: 10px; height: 10px; border-radius: 50%; background: var(--sage); margin-top: 5px; position: relative; z-index: 1; }
+.timeline li::after { content: ""; position: absolute; left: 88px; top: 14px; bottom: -2px; width: 2px; background: var(--line); }
+.timeline li:last-child::after { display: none; }
+
+/* join form in phone */
+.joinwrap { display: grid; grid-template-columns: minmax(0, 400px) minmax(0, 1fr); gap: 28px; align-items: start; }
+@media (max-width: 960px) { .joinwrap { grid-template-columns: 1fr; } }
+.phone { border: 10px solid var(--ink); border-radius: 36px; background: var(--b-cream); color: var(--b-canopy); overflow: hidden; max-width: 380px; width: 100%; justify-self: center; }
+.phone .scr { height: 680px; overflow-y: auto; }
+.phone .bar0 { background: var(--b-sage); color: var(--b-cream); padding: 22px 20px 20px; display: grid; gap: 6px; }
+.phone .bar0 svg { width: 36px; height: 36px; --mk-bg: var(--b-canopy); }
+.phone .bar0 h3 { font-size: 26px; }
+.phone .bar0 p { font-size: 14px; opacity: .95; }
+.phone form { padding: 18px 20px 28px; display: grid; gap: 18px; }
+.phone label.q, .phone legend { font-weight: 700; font-size: 15px; display: block; margin-bottom: 6px; padding: 0; }
+.phone fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
+.phone .hint { font-size: 13px; color: var(--b-soil); margin: -2px 0 8px; }
+.phone input[type=text], .phone select, .phone textarea { width: 100%; border: 1.5px solid #CFC6AE; background: #FFFDF6; border-radius: 10px; padding: 10px 12px; color: var(--b-canopy); font-size: 15px; }
+.phone input[type=text]:focus, .phone select:focus, .phone textarea:focus { outline: none; border-color: var(--b-fern); }
+.picks { display: flex; flex-wrap: wrap; gap: 8px; }
+.picks label { position: relative; cursor: pointer; }
+.picks input { position: absolute; opacity: 0; inset: 0; cursor: pointer; }
+.picks span { display: inline-block; padding: 7px 12px; border-radius: 999px; border: 1.5px solid #CFC6AE; font-size: 14px; font-weight: 600; background: #FFFDF6; }
+.picks input:checked + span { background: var(--b-fern); border-color: var(--b-fern); color: var(--b-cream); }
+.picks input:focus-visible + span { outline: 2.5px solid var(--b-lemon); outline-offset: 2px; }
+.picks.lemonpick input:checked + span { background: var(--b-lemon); border-color: var(--b-lemon); color: var(--b-canopy); }
+.phone .submit { background: var(--b-fern); color: var(--b-cream); border: 0; border-radius: 999px; padding: 13px; font-weight: 700; font-size: 16px; cursor: pointer; }
+.phone .err { color: #B23A14; font-size: 14px; font-weight: 600; }
+.phone .thanks { padding: 36px 22px; display: grid; gap: 14px; text-align: left; }
+.phone .thanks h3 { font-size: 30px; }
+.phone .thanks p { font-size: 15px; color: var(--b-soil); }
+.adopt-opts { display: grid; gap: 8px; }
+.adopt-opts label { display: grid; grid-template-columns: 20px minmax(0, 1fr); gap: 10px; align-items: start; padding: 10px 12px; border: 1.5px solid #CFC6AE; border-radius: 10px; background: #FFFDF6; cursor: pointer; font-size: 14px; }
+.adopt-opts label:has(input:checked) { border-color: var(--b-fern); background: #EEF3E6; }
+.adopt-opts input { margin-top: 3px; accent-color: var(--b-fern); }
+.adopt-opts b { display: block; font-size: 15px; }
+.adopt-opts i { font-size: 13px; color: var(--b-soil); }
+.why { display: grid; gap: 14px; }
+.why .card p { color: var(--ink-2); font-size: 15px; }
+.why ol { margin: 8px 0 0; padding-left: 20px; display: grid; gap: 6px; color: var(--ink-2); font-size: 15px; }
+
+/* outreach */
+.outwrap { display: grid; grid-template-columns: minmax(0, 360px) minmax(0, 1fr); gap: 20px; align-items: start; }
+@media (max-width: 1060px) { .outwrap { grid-template-columns: 1fr; } }
+.evform { display: grid; gap: 12px; }
+.evform label { display: grid; gap: 4px; font-size: 13px; font-weight: 700; color: var(--ink-2); }
+.evform input, .evform textarea, .evform select { border: 1px solid var(--line-2); border-radius: 8px; padding: 8px 10px; background: var(--surface); font-weight: 400; font-size: 15px; color: var(--ink); width: 100%; min-width: 0; }
+.evform textarea { min-height: 84px; resize: vertical; line-height: 1.45; }
+.evform input:focus, .evform textarea:focus, .evform select:focus { outline: none; border-color: var(--fern); }
+.evform .r2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
+.evform .r3 { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
+@media (max-width: 420px) { .evform .r3 { grid-template-columns: 1fr 1fr; } .evform .r3 label:first-child { grid-column: span 2; } }
+.checks { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 14px; font-weight: 400 !important; color: var(--ink) !important; }
+.checks label { display: flex !important; align-items: center; gap: 6px; font-weight: 400 !important; color: var(--ink) !important; font-size: 14px !important; }
+.checks input { width: auto; accent-color: var(--fern); }
+.chgrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+@media (max-width: 760px) { .chgrid { grid-template-columns: 1fr; } }
+.ch { display: grid; gap: 10px; align-content: start; }
+.ch.wide { grid-column: 1 / -1; }
+.ch-h { display: flex; gap: 10px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+.ch-h .nm { display: flex; gap: 8px; align-items: center; font-weight: 700; }
+.ch-h .nm svg { width: 18px; height: 18px; color: var(--fern); }
+.ch textarea.ed { min-height: 170px; font-size: 14px; }
+.ch .foot { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+.ch .foot select { border: 1px solid var(--line-2); border-radius: 999px; padding: 5px 10px; background: var(--surface); font-size: 13px; }
+.status { font: 600 11px/1 var(--mono); letter-spacing: .05em; text-transform: uppercase; padding: 5px 8px; border-radius: 4px; }
+.status.draft { background: var(--line); color: var(--ink-2); }
+.status.review { background: var(--lemon-soft); color: var(--lemon-ink); }
+.status.approved { background: var(--fern-soft); color: var(--fern); }
+.reviewbar { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; padding: 12px 14px; border-radius: 10px; background: var(--raised); border: 1px solid var(--line); margin-bottom: 14px; }
+.reviewbar .prog { flex: 1; min-width: 160px; }
+.flyerbox { display: grid; grid-template-columns: minmax(0, 260px) minmax(0, 1fr); gap: 16px; align-items: start; }
+@media (max-width: 560px) { .flyerbox { grid-template-columns: 1fr; } }
+
+/* plants */
+.plantgrid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); gap: 16px; }
+@media (max-width: 1000px) { .plantgrid { grid-template-columns: 1fr; } }
+.pcards { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; align-content: start; }
+.pcard { text-align: left; border: 1px solid var(--line); background: var(--raised); border-radius: 12px; padding: 14px; cursor: pointer; display: grid; gap: 6px; align-content: start; }
+.pcard[aria-selected="true"] { border-color: var(--fern); box-shadow: 0 0 0 1px var(--fern); }
+.pcard.open { border-style: dashed; border-color: var(--lemon); background: var(--lemon-soft); }
+.pcard .glyph { width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; }
+.pcard .glyph svg { width: 20px; height: 20px; }
+.pcard b { font: 400 19px/1.15 var(--display); }
+.pcard .sp { font-size: 13px; color: var(--ink-2); }
+.pcard .who2 { font-size: 13px; font-weight: 700; }
+.passport { display: grid; gap: 16px; }
+.passport .top2 { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+.passport .top2 h3 { font-size: 30px; }
+.passport .lat { font-style: italic; color: var(--ink-2); }
+.stages { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; }
+.stages div { font: 600 11px/1.2 var(--mono); letter-spacing: .04em; text-transform: uppercase; color: var(--ink-3); border-top: 4px solid var(--line); padding-top: 6px; }
+.stages div.on { color: var(--fern); border-color: var(--fern); }
+.stages div.now { color: var(--ink); border-color: var(--lemon); }
+.phone-mini { border: 1px solid var(--line); border-radius: 14px; padding: 14px; background: var(--paper); }
+.phone-mini .hd { font: 600 12px/1 var(--mono); color: var(--ink-3); margin-bottom: 10px; display: flex; justify-content: space-between; }
+
+/* toast */
+.toast { position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%) translateY(20px); background: var(--ink); color: var(--paper); padding: 10px 16px; border-radius: 999px; font-weight: 600; font-size: 14px; opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; z-index: 50; max-width: calc(100% - 32px); text-align: center; }
+.toast.on { opacity: 1; transform: translateX(-50%) translateY(0); }
+footer.ft0 { border-top: 1px solid var(--line); padding-block: 24px 40px; color: var(--ink-3); font-size: 13px; }
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="gs-mark" viewBox="0 0 64 64">
+      <circle cx="32" cy="32" r="32" style="fill:var(--mk-bg)"/>
+      <circle cx="45" cy="20" r="7" style="fill:var(--mk-lemon)"/>
+      <g fill="none" style="stroke:var(--mk-line)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M7 41 C17 35 25 35 33 40 C41 45 49 43 57 37"/>
+        <path d="M11 48.5 C17 45.5 22 51 29 48.5 C36 46 41 51.5 48 48.5 C50 47.6 51.5 47 53 47.2"/>
+        <path d="M28 38 V22"/>
+        <path d="M28 27 C28 21 32.5 17.5 38 17.5 C38 23 33.5 27 28 27Z"/>
+        <path d="M28 31 C28 26 23.5 22.5 18 23 C18 28 22.5 31 28 31Z"/>
+      </g>
+    </symbol>
+    <symbol id="i-sprout" viewBox="0 0 24 24"><path d="M12 21v-9M12 12c0-4 3-7 8-7 0 4-3 7-8 7ZM12 14c0-3-2.5-6-7-6 0 3.5 2.5 6 7 6Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-hand" viewBox="0 0 24 24"><path d="M3 14c3 0 5 1 7 2h4a2 2 0 0 1 0 4H9M3 21h5l8-1 5-4c.8-.8.3-2-.8-2-.6 0-1.6.6-3.2 1.6M12 3c-2 2.2-2 5 0 7 2-2 2-4.8 0-7Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-form" viewBox="0 0 24 24"><path d="M6 3h12v18H6zM9 8h6M9 12h6M9 16h3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-mega" viewBox="0 0 24 24"><path d="M4 10v4h3l7 4V6L7 10H4ZM18 9c1 .8 1.5 1.8 1.5 3s-.5 2.2-1.5 3M8 14l1.5 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-sun" viewBox="0 0 24 24"><path d="M12 7a5 5 0 1 0 0 10 5 5 0 0 0 0-10ZM12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+    <symbol id="i-leaf" viewBox="0 0 24 24"><path d="M5 19C5 10 10 5 20 4c0 10-5 15-14 15M5 19l7-7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-web" viewBox="0 0 24 24"><path d="M3 5h18v14H3zM3 9h18M6 7h.01M8.5 7h.01" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-mail" viewBox="0 0 24 24"><path d="M3 6h18v12H3zM3 7l9 6 9-6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-chat" viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4V5ZM8 9h8M8 12h5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-sms" viewBox="0 0 24 24"><path d="M7 3h10v18H7zM11 18h2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-cam" viewBox="0 0 24 24"><path d="M4 4h16v16H4zM12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7ZM16.5 7h.01" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 16V11a6 6 0 0 1 12 0v5l2 2H4l2-2ZM10 20a2 2 0 0 0 4 0" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-print" viewBox="0 0 24 24"><path d="M7 3h10v5H7zM5 8h14v8h-2v5H7v-5H5zM9 14h6v5H9z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
+  </defs>
+</svg>
+
+<header class="top">
+  <div class="wrap">
+    <a class="brandlock" href="#overview" data-tab="overview"><svg><use href="#gs-mark"/></svg><b>East Bay Permaculture Guild</b><span>Field Kit</span></a>
+    <nav class="tabs" aria-label="Sections">
+      <a href="#overview" data-tab="overview">Overview</a>
+      <a href="#brand" data-tab="brand">Brand</a>
+      <a href="#materials" data-tab="materials">Materials</a>
+      <a href="#prototype" data-tab="prototype">Prototype</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+<!-- ================= OVERVIEW ================= -->
+<section class="page wrap" id="p-overview" data-page="overview">
+  <div class="hero">
+    <div>
+      <div class="eyebrow">Hack for Social Impact 2026 · Community Resilience</div>
+      <h1>Every neighbor who says hi gets a <em>hello back</em>, and a reason to return.</h1>
+      <p class="big">A field kit for the East Bay Permaculture Guild. It gives every flyer, post and text one shared look. It also adds simple tools that help a few volunteers welcome newcomers, learn how they want to take part, and turn one event into outreach for every channel.</p>
+      <p class="brief"><b>The brief:</b> welcoming and promoting falls on a handful of volunteers. Interest fades without follow-up. Keep it affordable, easy to maintain, and true to the personal connections that make the community worth joining.<br><br><b>What we found:</b> the Guild's Linktree has more than 30 links, including Partiful, Hylo, Facebook, a Google Group, Instagram, Kinlia and Simbi. A newcomer has no obvious first step, and nobody owns the follow-up.</p>
+      <div class="row" style="margin-top:24px">
+        <a class="btn primary" href="#prototype" data-tab="prototype">Open the prototype</a>
+        <a class="btn ghost" href="#brand" data-tab="brand">See the brand system</a>
+      </div>
+    </div>
+    <div class="hero-photo" aria-hidden="false">
+      <div class="ring"></div>
+      <div class="disc"><img src="__IMG_TRELLIS__" alt="A volunteer sitting in wood-chip mulch, tying a cattle-panel trellis in a community garden"></div>
+      <div class="lem"></div>
+      <div class="cap">Sample photo · a neighbor tying a cattle-panel trellis</div>
+    </div>
+  </div>
+
+  <div class="block">
+    <div class="eyebrow">The newcomer's path</div>
+    <h2>Where people drop off, and who catches them</h2>
+    <p class="lede">Six steps from first hello to steward. The tools handle the remembering and the drafting. People handle the welcoming.</p>
+    <div class="path">
+      <div class="step"><div class="dot">1</div><h3>Says hi</h3><p>Sees a flyer, a Partiful invite or a friend's post. Scans the code or taps the first link on the Linktree.</p><span class="who tool">Kit: one look, one link</span></div>
+      <div class="step"><div class="dot">2</div><h3>Tells us how</h3><p>A two-minute form: interests, time, how to reach them, and a plant to adopt.</p><span class="who tool">Tool: join form</span></div>
+      <div class="step risk"><div class="dot">3</div><h3>Gets a real welcome</h3><p>A host from their neighborhood writes within two days, using a draft that's ready to send.</p><span class="who human">Human: host sends it</span></div>
+      <div class="step"><div class="dot">4</div><h3>First work party</h3><p>Invited to a beginner-friendly event that matches what they said they like.</p><span class="who tool">Tool: event outreach</span></div>
+      <div class="step risk"><div class="dot">5</div><h3>Comes back</h3><p>Gets a thank-you, a photo and the next date. Their plant needs them on Saturday.</p><span class="who human">Human + plant</span></div>
+      <div class="step"><div class="dot">6</div><h3>Steward</h3><p>Waters a rota, hosts newcomers, teaches a skill. The loop starts again.</p><span class="who human">Human: becomes a host</span></div>
+    </div>
+    <div class="leak"><svg width="20" height="20" style="flex:none;margin-top:2px;color:var(--flag)"><use href="#i-bell"/></svg><span><b>Steps 3 and 5 are where interest fades.</b> Nobody follows up after the first hello, and nothing pulls people back after the first visit. Every tool below exists to cover one of those two gaps.</span></div>
+  </div>
+
+  <div class="block">
+    <div class="eyebrow">What we prototyped</div>
+    <h2>Four simple tools</h2>
+    <p class="lede">All four run in the prototype tab with sample data. Every message is a draft until a volunteer approves it.</p>
+    <div class="tools3">
+      <a class="toolcard" href="#join" data-view="join"><div class="ico" style="background:var(--lemon-soft);color:var(--lemon-ink)"><svg><use href="#i-form"/></svg></div><h3>Join form</h3><p>Asks how people want to take part: hands-on, teaching, cooking, kids, restoration. Also asks when they're free and how they want to hear from us.</p><span class="go">Try the form →</span></a>
+      <a class="toolcard" href="#newcomers" data-view="newcomers"><div class="ico" style="background:var(--water-soft);color:var(--water)"><svg><use href="#i-hand"/></svg></div><h3>Welcome desk</h3><p>Matches each newcomer to a host nearby and drafts a personal welcome. It also flags anyone who is drifting.</p><span class="go">See who needs a hello →</span></a>
+      <a class="toolcard" href="#outreach" data-view="outreach"><div class="ico" style="background:var(--fern-soft);color:var(--fern)"><svg><use href="#i-mega"/></svg></div><h3>Event to outreach</h3><p>Type the event details once. Get drafts for the website, email list, group chats, a text blast, Instagram and a flyer.</p><span class="go">Write a week of outreach →</span></a>
+      <a class="toolcard" href="#plants" data-view="plants"><div class="ico" style="background:var(--soil-soft);color:var(--soil)"><svg><use href="#i-sprout"/></svg></div><h3>Adopt a plant</h3><p>Newcomers adopt a fig, a toyon or a yarrow patch. Care reminders come by text, and the plant gives people a reason to come back.</p><span class="go">Meet the plants →</span></a>
+    </div>
+  </div>
+
+  <div class="block">
+    <div class="eyebrow">Built to last</div>
+    <h2>Cheap to run, easy to hand over</h2>
+    <div class="principles">
+      <div><b>A volunteer approves every message</b><span>The tool drafts and reminds. Hosts edit and send in their own name. Nothing goes out on its own.</span></div>
+      <div><b>No new app for newcomers</b><span>They get a text, an email, or a message in the group they already use. Only hosts open the Shed.</span></div>
+      <div><b>Runs on what the Guild already has</b><span>Partiful, the Google Group, Facebook and Instagram stay. The kit writes for them. Texts can go through a low-cost SMS service such as Garden Steward, which already handles replies like YES, SKIP and DONE. Records can live in one shared Google Sheet.</span></div>
+      <div><b>Templates first, AI optional</b><span>Drafts come from plain templates that cost nothing. Hackathon AI credits can add a "make it warmer" pass later.</span></div>
+      <div><b>One brand, many hands</b><span>Every flyer, Partiful cover and post uses the same fonts, colors and layouts. Anyone can make one without a designer.</span></div>
+      <div><b>Plants outlast volunteer turnover</b><span>A fig needs water for years. Each plant has a steward and a backup, and it's handed on when someone moves away.</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= BRAND ================= -->
+<section class="page wrap" id="p-brand" data-page="brand" hidden>
+  <div class="page-head">
+    <div class="eyebrow">Brand system · v0.1</div>
+    <h1>Sun, Sprout &amp; Bay</h1>
+    <p>Today the Guild has no shared look. Each Partiful invite, flyer and post is designed from scratch by whoever has time. This system gives the Guild one identity: a sage field, a cream line drawing of hills and water, a sprout, and a Meyer-lemon sun. It also sets typefaces that read well on a phone in full sun, and a voice that sounds like a neighbor.</p>
+  </div>
+
+  <div class="block" style="margin-top:0">
+    <h2>Logo</h2>
+    <p class="lede">A proposed mark: East Bay hills over the bay, a sprout, and the sun. It's simple enough to draw on a chalkboard and still reads as a 32px Partiful avatar.</p>
+    <div class="panel logo-stage">
+      <svg viewBox="0 0 64 64" role="img" aria-label="Proposed Guild mark: a sprout over a line of hills and water, with a lemon-yellow sun, in a sage circle" style="--mk-bg:var(--b-sage);width:200px;height:200px;max-width:100%"><use href="#gs-mark"/></svg>
+      <div class="lockups">
+        <div class="lockup on-cream"><svg><use href="#gs-mark"/></svg><b>East Bay Permaculture Guild</b></div>
+        <div class="lockup on-sage"><svg><use href="#gs-mark"/></svg><b>East Bay Permaculture Guild</b></div>
+        <div class="lockup on-canopy"><svg><use href="#gs-mark"/></svg><b>East Bay Permaculture Guild</b></div>
+        <ul class="rules">
+          <li>Leave clear space around the mark equal to the sun's width.</li>
+          <li>The sun is the only yellow in the mark. Never recolor it.</li>
+          <li>Below 24px, use the mark alone. Write "EBPG" only where space is tight.</li>
+          <li>Partner tools like Garden Steward appear as "Texts powered by …", never as the main logo.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="block">
+    <h2>Color</h2>
+    <p class="lede">Sage is the ground, canopy and fern carry the type, and lemon is the sun. Use lemon on one thing per piece: the date, the button, the plant's name.</p>
+    <div class="swatches" id="swatches"></div>
+    <div class="ratio" aria-label="Suggested color proportions: sage 40%, cream 30%, canopy 15%, fern 10%, lemon 5%">
+      <div style="width:40%;background:var(--b-sage)"></div><div style="width:30%;background:var(--b-cream)"></div><div style="width:15%;background:var(--b-canopy)"></div><div style="width:10%;background:var(--b-fern)"></div><div style="width:5%;background:var(--b-lemon)"></div>
+    </div>
+    <p class="small muted" style="margin-top:8px">Rough proportions for any piece: 40 sage, 30 cream, 15 canopy, 10 fern, 5 lemon.</p>
+  </div>
+
+  <div class="block">
+    <h2>Type</h2>
+    <p class="lede">Three faces, all free on Google Fonts. Young Serif is sturdy enough for a telephone pole and friendly enough for a thank-you card. Atkinson Hyperlegible was designed for low-vision readers, so it works for elders, kids and anyone reading in bright sun.</p>
+    <div class="typespec">
+      <div class="typerow"><div class="eyebrow">Display<br>Young Serif</div><div class="s1">Use small and slow solutions.</div></div>
+      <div class="typerow"><div class="eyebrow">Heading<br>Young Serif 28</div><div class="s2">Garden work day at the Oakland Peace Center</div></div>
+      <div class="typerow"><div class="eyebrow">Body<br>Atkinson Hyperlegible Next</div><div class="s3">We're planting fava beans and garlic, sheet-mulching the new bed by the fence, and finishing the herb spiral by the gate. No experience needed. Tools and gloves provided.</div></div>
+      <div class="typerow"><div class="eyebrow">Utility<br>Atkinson Hyperlegible Mono</div><div class="s4">SUN 11/8 · 10 AM · REPLY YES TO RSVP</div></div>
+    </div>
+  </div>
+
+  <div class="block">
+    <h2>What we say</h2>
+    <p class="lede">The three permaculture ethics, plus one principle that makes the first step easy. Every piece of outreach should land on at least one.</p>
+    <div class="pillars">
+      <div class="pillar"><div class="eyebrow">Ethic · Earth care</div><h3>Regenerate the land</h3><q>Observe and interact.</q><p>Name the plants, the creek, the pollinators. Be specific about what's coming back.</p></div>
+      <div class="pillar"><div class="eyebrow">Ethic · People care</div><h3>Neighbors, together</h3><q>Integrate rather than segregate.</q><p>Lead with the people. Name the host. Say who'll be there and that newcomers are expected.</p></div>
+      <div class="pillar"><div class="eyebrow">Ethic · Fair share</div><h3>Share the surplus</h3><q>Obtain a yield.</q><p>Potlucks, seed swaps, skill shares, extra figs. Something to take home and something to give.</p></div>
+      <div class="pillar"><div class="eyebrow">Principle</div><h3>Show up once</h3><q>Use small and slow solutions.</q><p>Make the first step tiny: one Sunday morning, one plant, one reply.</p></div>
+    </div>
+  </div>
+
+  <div class="block">
+    <h2>How we sound</h2>
+    <div class="voice">
+      <div class="panel"><h3>Like a neighbor</h3><p>Write the way you'd talk over a fence. Use first names and say who's hosting.</p><div class="dodont"><div class="do">Hi Maya, I'm Rosa. I live in Fruitvale too.</div><div class="dont">Dear Volunteer, thank you for registering.</div></div></div>
+      <div class="panel"><h3>Specific and practical</h3><p>Give the date, the time, the place, what to bring and what you'll do. People decide on details.</p><div class="dodont"><div class="do">Sun 11/15, 9:30. Planting garlic. Bring water.</div><div class="dont">Join us for an exciting regenerative event!</div></div></div>
+      <div class="panel"><h3>Open door</h3><p>Assume they've never gardened. Say it's fine to come late, bring kids, or just watch.</p><div class="dodont"><div class="do">No experience needed. Come for an hour.</div><div class="dont">Volunteers must commit to the full shift.</div></div></div>
+    </div>
+    <div class="panel" style="margin-top:16px">
+      <div class="tablewrap">
+        <table class="words">
+          <thead><tr><th>Say</th><th>Not</th><th>Why</th></tr></thead>
+          <tbody>
+            <tr><td>Work party</td><td>Volunteer shift</td><td>It's a party. There's usually lunch.</td></tr>
+            <tr><td>Neighbors</td><td>Users, participants</td><td>Everyone lives here. Nobody is a customer.</td></tr>
+            <tr><td>Host</td><td>Coordinator, admin</td><td>Hosts welcome people. Admins manage them.</td></tr>
+            <tr><td>Steward a plant</td><td>Sign up for a watering slot</td><td>Care for a living thing, not a calendar entry.</td></tr>
+            <tr><td>Reply YES</td><td>Click here to register</td><td>Most of our neighbors read texts, not links.</td></tr>
+            <tr><td>The Guild</td><td>EBPG (in prose)</td><td>Spell it out for newcomers. Use EBPG only where space is tight.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="block">
+    <h2>Photography</h2>
+    <p class="lede">Use real photos of real neighbors doing real work. Phone photos are fine. Keep the light natural and show hands in soil and the street around the garden. Before photos count too. The photos here are stand-ins until we have Guild photos from the Oakland Peace Center garden.</p>
+    <div class="photos">
+      <figure><img src="__IMG_TRELLIS__" alt="Volunteer tying a trellis in mulch"><figcaption><b>Hands at work.</b> One person, one task, the neighborhood in the background.</figcaption></figure>
+      <figure><img src="__IMG_MOAT__" alt="A dry curb-side verge marked with orange survey flags before a dig day"><figcaption><b>Before.</b> Orange flags mark the dig. Before photos make the after photo land.</figcaption></figure>
+      <figure><img src="__IMG_PANTRY__" alt="Two neighbors building a wooden free pantry in a garage"><figcaption><b>Building together.</b> Show more than one generation and the actual tools.</figcaption></figure>
+    </div>
+  </div>
+
+  <div class="block">
+    <h2>Components</h2>
+    <p class="lede">Shared pieces for the website, the Shed and the templates.</p>
+    <div class="components">
+      <div class="panel"><div class="eyebrow">Buttons</div><div class="row"><button class="btn primary" type="button">RSVP for Sunday</button><button class="btn lemon" type="button">Adopt this plant</button><button class="btn ghost" type="button">Maybe later</button></div></div>
+      <div class="panel"><div class="eyebrow">Project stages</div><div class="row"><span class="chip lemon"><i class="d"></i>Planning</span><span class="chip soil"><i class="d"></i>Building</span><span class="chip"><i class="d"></i>Tending</span><span class="chip water"><i class="d"></i>Watering</span><span class="chip flag"><i class="d"></i>Needs a hand</span></div><p class="small muted">Planning, Building and Tending tell people what a project needs right now.</p></div>
+      <div class="panel"><div class="eyebrow">Text message</div>
+        <div class="thread">
+          <div class="bubble in">EB Permaculture Guild: Garden work day, Sun 11/8 at 10 AM, Oakland Peace Center. Reply <span class="k">YES</span> to RSVP.</div>
+          <div class="bubble out">YES</div>
+          <div class="bubble in">You're in, Maya! Rosa will meet you at the garden gate. Bring water. 🌱</div>
+        </div>
+      </div>
+      <div class="panel"><div class="eyebrow">Ways to take part</div><div class="row"><span class="chip">Work parties</span><span class="chip">Adopt a plant</span><span class="chip">Teach a skill</span><span class="chip">Cooking &amp; potlucks</span><span class="chip">Seeds &amp; swaps</span><span class="chip">Kids &amp; families</span><span class="chip">Creek restoration</span></div><p class="small muted">The join form, newcomer profiles and event tags all use the same list.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= MATERIALS ================= -->
+<section class="page wrap" id="p-materials" data-page="materials" hidden>
+  <div class="page-head">
+    <div class="eyebrow">Marketing kit · templates</div>
+    <h1>One look, every channel</h1>
+    <p>Eight templates in the Sun, Sprout &amp; Bay system. Each one is a fill-in layout: swap the photo, date and headline, and it stays on brand. The flyer below updates when you edit an event in the prototype.</p>
+  </div>
+  <div class="mgrid">
+    <figure class="span4"><div class="art flyer" id="flyer-main"></div><figcaption><b>Work day flyer</b><span>Letter size, for telephone poles, Little Free Libraries and the Peace Center board. The top half doubles as a Partiful cover.</span></figcaption></figure>
+    <figure class="span4">
+      <div class="art ig">
+        <div class="gs"><svg><use href="#gs-mark"/></svg>East Bay Permaculture Guild</div>
+        <div class="ring"></div><div class="disc"><img src="__IMG_MOAT__" alt=""></div><div class="lem"></div>
+        <div class="txt"><span class="k">Dig day · Sat 11/21</span><h4>Help us turn this curb into a rain garden.</h4><p>Shovels provided · RSVP on Partiful</p></div>
+      </div>
+      <figcaption><b>Instagram post: event</b><span>1080 × 1080. The circle crop comes from the logo's ring.</span></figcaption>
+    </figure>
+    <figure class="span4">
+      <div class="art quote"><div class="arc"></div><div class="q">Use small and <em>slow</em> solutions.</div><div class="src"><span>Permaculture principle no. 9<br>East Bay Permaculture Guild</span><svg><use href="#gs-mark"/></svg></div></div>
+      <figcaption><b>Instagram post: words</b><span>For weeks with no event. One permaculture principle at a time.</span></figcaption>
+    </figure>
+    <figure class="span3">
+      <div class="art story">
+        <div class="hd"><span class="k">Adopt a plant</span><h4>Big Mama needs a backup.</h4></div>
+        <div class="mid"><div class="disc"><img src="__IMG_TRELLIS__" alt=""></div><div class="tag">Black Mission fig<small>OPC garden · since Mar 2025</small></div></div>
+        <div class="ft"><p>Water her two Saturdays a month. We'll text you when it's your turn.</p><span class="pill">Text FIG to adopt</span></div>
+      </div>
+      <figcaption><b>Story: adopt a plant</b><span>1080 × 1920, for Instagram and WhatsApp status.</span></figcaption>
+    </figure>
+    <figure class="span5">
+      <div class="art ptag">
+        <div class="hole"><i></i></div>
+        <div class="bd">
+          <span class="k">Stewarded plant · no. 014</span>
+          <h4>Big Mama</h4>
+          <span class="lat">Black Mission fig · Ficus carica</span>
+          <div class="rowx"><div><b>Planted</b>March 9, 2025</div><div><b>Steward</b>Nia T.</div><div><b>Backup</b>Rosa M.</div></div>
+          <span class="txt">Scan or text FIG14 to (510) 555-0142 to follow her</span>
+        </div>
+      </div>
+      <figcaption><b>Plant tag</b><span>Weatherproof stake label. People who walk by can follow the plant by text.</span></figcaption>
+    </figure>
+    <figure class="span4">
+      <div class="art card5"><div class="l"><div class="c"><svg><use href="#gs-mark"/></svg></div></div><div class="r"><h4>Glad you came.</h4><p>Thanks for spending Sunday with us. Next work day is Sun 12/13. Your fig says hi.</p><span class="sig">— Rosa</span></div></div>
+      <figcaption><b>First-visit card</b><span>5 × 7 postcard. Hosts write the last line by hand.</span></figcaption>
+    </figure>
+    <figure class="span7">
+      <div class="art sign">
+        <div class="l"><div class="m"><svg><use href="#gs-mark"/></svg>East Bay Permaculture Guild</div><h4>This garden is tended by neighbors.</h4><p>Guild work days are open to everyone. No experience needed.</p></div>
+        <div class="r"><span class="k">How to join</span><ol><li>Text JOIN to the number below</li><li>Tell us what you'd like to do</li><li>A neighbor will text you back</li></ol><div class="txt">(510) 555-0142<small>2ND SUNDAYS · 10 AM</small></div></div>
+      </div>
+      <figcaption><b>Garden sign</b><span>24 × 16 in. for the fence. It turns people walking by into newcomers.</span></figcaption>
+    </figure>
+    <figure class="span5">
+      <div class="art mail"><div><span class="k">Guild Letter · November 2026</span><h4>Garlic goes in.</h4><p>A work day, the monthly potluck, a seed swap, and Big Mama's first figs.</p></div><div class="stamp"><i></i><b>11</b><span>Oakland<br>East Bay</span></div></div>
+      <figcaption><b>Email header</b><span>600 × 200 for the Google Group or a newsletter. Change the month and the line.</span></figcaption>
+    </figure>
+  </div>
+  <p class="small muted" style="margin-top:24px">Phone numbers, plant numbers and dates are placeholders. Photos are stand-ins from an Oakland community-garden project until we have the Guild's own.</p>
+</section>
+
+<!-- ================= PROTOTYPE ================= -->
+<section class="page wrap" id="p-prototype" data-page="prototype" hidden>
+  <div class="page-head">
+    <div class="eyebrow">Prototype · "The Shed"</div>
+    <h1>The organizer's side</h1>
+    <p>What a Guild host sees. Everything here is clickable. The people, plants and numbers are sample data, and nothing is actually sent.</p>
+  </div>
+  <div class="appframe">
+    <nav class="rail" aria-label="Prototype screens">
+      <div class="org"><svg><use href="#gs-mark"/></svg><div><b>East Bay Permaculture Guild</b><span>Rosa M. · host</span></div></div>
+      <button type="button" data-view="week"><svg><use href="#i-sun"/></svg>This week</button>
+      <button type="button" data-view="newcomers"><svg><use href="#i-hand"/></svg>Newcomers<span class="n" id="n-new"></span></button>
+      <button type="button" data-view="join"><svg><use href="#i-form"/></svg>Join form</button>
+      <button type="button" data-view="outreach"><svg><use href="#i-mega"/></svg>Event outreach<span class="n" id="n-out"></span></button>
+      <button type="button" data-view="plants"><svg><use href="#i-sprout"/></svg>Adopt a plant<span class="n" id="n-plant"></span></button>
+      <div class="foot">Today is Saturday, Oct 24. Texts go out through a low-cost SMS service such as Garden Steward.</div>
+    </nav>
+    <div class="view" id="view"></div>
+  </div>
+</section>
+</main>
+
+<footer class="ft0"><div class="wrap">East Bay Permaculture Guild Field Kit · proof of concept · Hack for Social Impact 2026. Stand-in photos from an Oakland community-garden project. Names, phone numbers and figures in the prototype are samples.</div></footer>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(() => {
+const TODAY = '2026-10-24';
+const NUMBER = '(510) 555-0142';
+const $ = (s, el = document) => el.querySelector(s);
+const $$ = (s, el = document) => [...el.querySelectorAll(s)];
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const D = s => new Date(s + 'T12:00:00');
+const days = (a, b) => Math.round((D(b) - D(a)) / 864e5);
+const since = a => days(a, TODAY);
+const addDays = (s, n) => { const d = D(s); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
+const longDate = s => D(s).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+const shortDate = s => { const d = D(s); return d.toLocaleDateString('en-US', { weekday: 'short' }) + ' ' + (d.getMonth() + 1) + '/' + d.getDate(); };
+const mdy = s => D(s).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+const t12 = t => { if (!t) return ''; let [h, m] = t.split(':').map(Number); const ap = h >= 12 ? 'PM' : 'AM'; h = h % 12 || 12; return h + ':' + String(m).padStart(2, '0') + ' ' + ap; };
+const t12s = t => t12(t).replace(':00', '').replace(' AM', 'am').replace(' PM', 'pm');
+const first = n => String(n).split(' ')[0];
+const initials = n => n.split(' ').map(x => x[0]).join('').slice(0, 2);
+let toastTimer;
+const toast = msg => { const t = $('#toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('on'), 2600); };
+const copy = async (text, btn) => {
+  try { await navigator.clipboard.writeText(text); toast('Copied to clipboard'); }
+  catch { const ta = btn?.closest('.ch, .draft')?.querySelector('textarea'); if (ta) { ta.focus(); ta.select(); } toast('Select-all done. Press Ctrl+C or Cmd+C to copy.'); }
+};
+
+/* ---------------- reference data ---------------- */
+const WAYS = [
+  ['work', 'Work parties'], ['plants', 'Adopt a plant'], ['learn', 'Learn permaculture'], ['teach', 'Teach a skill'],
+  ['cooking', 'Cooking & potlucks'], ['seeds', 'Seeds & swaps'], ['build', 'Building & tools'], ['design', 'Garden design'],
+  ['kids', 'Kids & families'], ['restore', 'Creek restoration'], ['photo', 'Photos & outreach']
+];
+const WAY = Object.fromEntries(WAYS);
+const HOODS = { 'Fruitvale': 'East Oakland', 'San Antonio': 'East Oakland', 'Dimond': 'East Oakland', 'Temescal': 'North Oakland', 'Rockridge': 'North Oakland', 'West Oakland': 'West Oakland', 'Ghost Town': 'West Oakland', 'Downtown Oakland': 'Downtown', 'Berkeley': 'Berkeley', 'Albany': 'Berkeley', 'El Cerrito': 'Berkeley', 'Richmond': 'Richmond', 'Alameda': 'Alameda' };
+const AV_COLORS = ['#F2C14E', '#A8C49A', '#9EC3D6', '#D9B79A', '#C9D9A6', '#E8B9A0'];
+const avColor = n => AV_COLORS[[...n].reduce((a, c) => a + c.charCodeAt(0), 0) % AV_COLORS.length];
+const av = (n, extra = '') => `<span class="av" style="background:${avColor(n)};${extra}" aria-hidden="true">${esc(initials(n))}</span>`;
+
+const HOSTS = [
+  { name: 'Rosa M.', hood: 'Fruitvale', likes: ['seeds', 'cooking', 'work', 'plants'], channel: 'Text' },
+  { name: 'Theo A.', hood: 'West Oakland', likes: ['build', 'work', 'restore'], channel: 'Text' },
+  { name: 'Priya S.', hood: 'Berkeley', likes: ['design', 'teach', 'learn'], channel: 'Email' },
+  { name: 'June K.', hood: 'Temescal', likes: ['kids', 'plants', 'photo', 'learn'], channel: 'Text' },
+];
+
+const EVENTS = [
+  { id: 'e1', date: '2026-11-08', start: '10:00', title: 'OPC Garden Work Day', garden: 'Oakland Peace Center', rsvp: 11, cap: 20, tags: ['work', 'plants', 'kids', 'build'], beginner: true },
+  { id: 'e2', date: '2026-11-12', start: '18:30', title: 'Monthly Potluck & Discussion', garden: 'Oakland Peace Center', rsvp: 17, cap: 40, tags: ['cooking', 'learn', 'teach', 'design'], beginner: true },
+  { id: 'e3', date: '2026-11-21', start: '10:00', title: 'Rain Garden Dig Day', garden: 'Sausal Creek', rsvp: 6, cap: 12, tags: ['restore', 'work', 'build'], beginner: true },
+  { id: 'e4', date: '2026-12-06', start: '11:00', title: 'Seed Swap & Skill Share', garden: 'Oakland Peace Center', rsvp: 4, cap: 40, tags: ['seeds', 'cooking', 'kids', 'teach', 'photo'], beginner: true },
+];
+
+const PEOPLE = [
+  { id: 'p1', name: 'Maya Chen', hood: 'Fruitvale', joined: '2026-10-23', source: 'Flyer QR at the Peace Center', ways: ['seeds', 'cooking', 'work'], when: ['Weekends'], often: 'About once a month', channel: 'Text', stage: 'new', plantPick: 'p-yarrow', note: 'Grew up helping in my grandmother\'s garden. Rusty now but want to get back into it.', log: [['2026-10-23', 'Filled out the join form from the flyer QR code']] },
+  { id: 'p2', name: 'Devon Brooks', hood: 'West Oakland', joined: '2026-10-22', source: 'Partiful invite', ways: ['build', 'work', 'plants'], when: ['Weekend mornings'], often: 'A few times a month', channel: 'Text', stage: 'new', plantPick: 'p-passion', note: 'Have my own drill. Happy to build things.', log: [['2026-10-22', 'RSVPed on Partiful, then filled out the join form']] },
+  { id: 'p3', name: 'Amara Okafor', hood: 'Temescal', joined: '2026-10-20', source: 'Friend (June K.)', ways: ['kids', 'plants', 'learn'], when: ['Weekends'], often: 'About once a month', channel: 'Email', stage: 'new', plantPick: '', note: 'Would come with my 7-year-old. Is that OK?', log: [['2026-10-20', 'Filled out the join form from a link June shared']] },
+  { id: 'p4', name: 'Luis Hernández', hood: 'San Antonio', joined: '2026-10-09', source: 'Hylo group', ways: ['restore', 'work'], when: ['Weekday mornings', 'Weekends'], often: 'Every week', channel: 'WhatsApp', stage: 'welcomed', welcomed: '2026-10-10', plantPick: '', note: '', log: [['2026-10-09', 'Found the join form in the Hylo group'], ['2026-10-10', 'Welcomed by Rosa on WhatsApp']] },
+  { id: 'p5', name: 'Grace Liu', hood: 'Berkeley', joined: '2026-10-03', source: 'Potluck sign-in sheet', ways: ['design', 'teach', 'learn'], when: ['Weekday evenings'], often: 'About once a month', channel: 'Email', stage: 'first', welcomed: '2026-10-04', attended: '2026-10-18', plantPick: '', note: 'Finishing a permaculture design course. Could help with site plans.', log: [['2026-10-03', 'Signed the sheet at the monthly potluck'], ['2026-10-04', 'Welcomed by Priya by email'], ['2026-10-18', 'Came to the OPC garden work day']] },
+  { id: 'p6', name: 'Sam Rivera', hood: 'Alameda', joined: '2026-08-30', source: 'Seed swap', ways: ['seeds', 'photo'], when: ['Weekends'], often: 'Once in a while', channel: 'Text', stage: 'first', welcomed: '2026-08-31', attended: '2026-09-20', thanked: '2026-09-21', plantPick: '', note: '', log: [['2026-08-30', 'Signed the paper sheet at the seed swap'], ['2026-08-31', 'Welcomed by Rosa by text'], ['2026-09-20', 'Came to the OPC garden work day'], ['2026-09-21', 'Thank-you text with a photo from Rosa']] },
+  { id: 'p7', name: 'Nia Thompson', hood: 'Fruitvale', joined: '2025-02-14', source: 'Friend', ways: ['plants', 'work', 'cooking'], when: ['Weekends'], often: 'A few times a month', channel: 'Text', stage: 'back', plant: 'p-fig', note: '', log: [['2025-02-14', 'Joined at a potluck'], ['2025-03-09', 'Planted and adopted Big Mama the fig'], ['2026-10-17', 'Watered Big Mama (replied DONE)']] },
+  { id: 'p8', name: 'Ezra Cohen', hood: 'Rockridge', joined: '2024-06-14', source: 'Facebook group', ways: ['teach', 'design', 'plants'], when: ['Weekends'], often: 'Every week', channel: 'Email', stage: 'rooted', plant: 'p-lemon', note: 'Hosts newcomers at the OPC garden and teaches grafting.', log: [['2024-06-14', 'Joined'], ['2024-11-17', 'Adopted Sunny the Meyer lemon'], ['2025-05-01', 'Became a host']] },
+];
+
+const PLANTS = [
+  { id: 'p-fig', nick: 'Big Mama', species: 'Black Mission fig', latin: 'Ficus carica', garden: 'OPC Community Garden', planted: '2025-03-09', stage: 2, steward: 'Nia Thompson', backup: 'Rosa M.', rhythm: 'Water every other Saturday', lastCare: '2026-10-17', health: 'good', no: '014', waterings: 31,
+    log: [['2025-03-09', 'Planted by the Guild, adopted by Nia'], ['2025-08-02', 'Survived the August heat with mulch and deep watering'], ['2026-06-20', 'First figs. Photo by Rosa'], ['2026-10-17', 'Watered by Nia (replied DONE)']] },
+  { id: 'p-lemon', nick: 'Sunny', species: 'Meyer lemon', latin: 'Citrus × meyeri', garden: 'OPC front bed', planted: '2024-11-17', stage: 3, steward: 'Ezra Cohen', backup: '', rhythm: 'Water weekly, feed monthly', lastCare: '2026-10-15', health: 'thirsty', no: '007', waterings: 58,
+    log: [['2024-11-17', 'Planted, adopted by Ezra'], ['2025-12-12', 'First lemons went to the free pantry'], ['2026-10-15', 'Watered by Ezra']] },
+  { id: 'p-elder', nick: 'Blue', species: 'Blue elderberry', latin: 'Sambucus cerulea', garden: 'Sausal Creek', planted: '2025-12-06', stage: 1, steward: 'Theo A.', backup: 'Luis Hernández', rhythm: 'Water every Saturday until established', lastCare: '2026-10-24', health: 'good', no: '021', waterings: 22,
+    log: [['2025-12-06', 'Planted on the creek bank during restoration day'], ['2026-07-11', 'Flowered. Pollinators everywhere'], ['2026-10-24', 'Watered by Theo this morning']] },
+  { id: 'p-guava', nick: 'Pineapple', species: 'Pineapple guava', latin: 'Acca sellowiana', garden: 'OPC Community Garden', planted: '2024-04-20', stage: 3, steward: 'June K.', backup: 'Amara Okafor', rhythm: 'Water every other week', lastCare: '2026-10-11', health: 'good', no: '003', waterings: 40,
+    log: [['2024-04-20', 'Planted, adopted by June'], ['2026-10-11', 'Fruit dropping. Kids harvested a bowlful']] },
+  { id: 'p-passion', nick: 'The Climber', species: 'Passionfruit vine', latin: 'Passiflora edulis', garden: 'OPC garden · cattle trellis', planted: '2026-09-12', stage: 0, steward: '', backup: '', rhythm: 'Water twice a week while young', lastCare: '2026-10-21', health: 'needs', no: '028', waterings: 9,
+    log: [['2026-09-12', 'Planted at the foot of the new cattle trellis'], ['2026-10-21', 'Watered by whoever was around. Needs a steward']] },
+  { id: 'p-yarrow', nick: 'Yarrow patch', species: 'Common yarrow', latin: 'Achillea millefolium', garden: 'OPC pollinator strip', planted: '2026-10-11', stage: 0, steward: '', backup: '', rhythm: 'Water weekly until the rains', lastCare: '2026-10-18', health: 'needs', no: '030', waterings: 2,
+    log: [['2026-10-11', 'Planted along the pollinator strip on work day']] },
+  { id: 'p-toyon', nick: 'Toyon by the bridge', species: 'Toyon', latin: 'Heteromeles arbutifolia', garden: 'Sausal Creek', planted: '2026-01-17', stage: 1, steward: '', backup: '', rhythm: 'Water every other week in dry months', lastCare: '2026-10-03', health: 'needs', no: '024', waterings: 11,
+    log: [['2026-01-17', 'Planted during the January restoration day']] },
+];
+const STAGES = ['Seedling', 'Establishing', 'Fruiting', 'Mature'];
+const plantById = id => PLANTS.find(p => p.id === id);
+
+/* ---------------- matching & follow-up rules ---------------- */
+function matchHost(p) {
+  const region = HOODS[p.hood];
+  let best = null, bestScore = -1, why = [];
+  for (const h of HOSTS) {
+    const shared = p.ways.filter(w => h.likes.includes(w));
+    let score = shared.length * 2;
+    const r = [];
+    if (h.hood === p.hood) { score += 4; r.push('both in ' + p.hood); }
+    else if (HOODS[h.hood] === region) { score += 3; r.push('both in ' + region); }
+    if (shared.length) r.push('both into ' + shared.slice(0, 2).map(w => WAY[w].toLowerCase()).join(' and '));
+    if (h.channel === p.channel) score += 1;
+    if (score > bestScore) { best = h; bestScore = score; why = r; }
+  }
+  return { host: best, why: why.length ? why.join(' · ') : 'closest available host' };
+}
+function matchEvent(p) {
+  const upcoming = EVENTS.filter(e => e.date > TODAY);
+  let best = upcoming[0], bs = -1;
+  for (const e of upcoming) { const s = e.tags.filter(t => p.ways.includes(t)).length * 2 + (e.beginner ? 1 : 0) - days(TODAY, e.date) / 30; if (s > bs) { bs = s; best = e; } }
+  return best;
+}
+function nextStep(p) {
+  if (p.stage === 'new') { const d = since(p.joined); return { kind: 'welcome', label: 'Send a welcome', due: addDays(p.joined, 2), over: d > 2, soon: d >= 1 }; }
+  if (p.stage === 'welcomed') { if (p.invited && since(p.invited) < 14) return null; const d = since(p.welcomed); return { kind: 'invite', label: 'Invite to a first event', due: addDays(p.welcomed, 7), over: d > 10, soon: d > 5 }; }
+  if (p.stage === 'first' && !p.thanked) { const d = since(p.attended); return { kind: 'thanks', label: 'Say thanks, share a photo', due: addDays(p.attended, 2), over: d > 2, soon: true }; }
+  if (p.stage === 'first') { if (p.checked && since(p.checked) < 21) return null; const d = since(p.attended); return { kind: 'checkin', label: 'Personal check-in', due: addDays(p.attended, 21), over: d > 28, soon: d > 21 }; }
+  if (p.stage === 'back' && !p.plant) return { kind: 'adopt', label: 'Offer a plant to adopt', due: TODAY, over: false, soon: false };
+  return null;
+}
+const dueText = s => { if (!s) return ''; const d = days(TODAY, s.due); return d < 0 ? (-d) + (d === -1 ? ' day' : ' days') + ' overdue' : d === 0 ? 'Due today' : 'Due in ' + d + (d === 1 ? ' day' : ' days'); };
+
+function draftFor(p, kind, channel) {
+  const { host } = matchHost(p);
+  const h = first(host.name), n = first(p.name);
+  const e = matchEvent(p);
+  const ev = `${e.title} on ${longDate(e.date)} at ${t12(e.start)} (${e.garden})`;
+  const likes = p.ways.slice(0, 2).map(w => WAY[w].toLowerCase()).join(' and ');
+  const plant = p.plantPick ? plantById(p.plantPick) : null;
+  const sameHood = host.hood === p.hood ? ` and I live in ${p.hood} too` : '';
+  const short = channel === 'Text' || channel === 'WhatsApp';
+  let body = '';
+  if (kind === 'welcome') {
+    body = short
+      ? `Hi ${n}, it's ${h} from the East Bay Permaculture Guild${sameHood}. Thanks for saying hi! You mentioned ${likes}. Our ${e.title} is ${shortDate(e.date)} at ${t12s(e.start)}, ${e.garden}. Want me to save you a spot?${plant ? ` And yes, ${plant.nick} would love a steward. I can introduce you there.` : ''}${p.note && /kid|child|son|daughter|year-old/i.test(p.note) ? ' Kids are very welcome.' : ''} No experience needed.`
+      : `Hi ${n},\n\nI'm ${h}, one of the hosts with the East Bay Permaculture Guild${sameHood}. Thanks for reaching out. It's great to have you.\n\nYou said you're interested in ${likes}. A good first step is our ${ev}. It's beginner friendly, and I'll meet you at the gate.${p.note && /kid|child|son|daughter|year-old/i.test(p.note) ? '\n\nAnd yes, please bring your kid! We usually set up a small seed-sorting table for young gardeners.' : ''}${plant ? `\n\nYou also picked ${plant.nick} (${plant.species.toLowerCase()}) to adopt. I'll show you where it lives.` : ''}\n\nJust reply to this if you have any questions.\n\n${h}`;
+  } else if (kind === 'invite') {
+    body = short
+      ? `Hi ${n}, ${h} here. Hope you're well! ${e.title} is ${shortDate(e.date)} at ${t12s(e.start)}, ${e.garden}. It's a good one for ${likes}. Want to come? I'll look out for you.`
+      : `Hi ${n},\n\nIt's ${h} again. I wanted to make sure you saw the ${ev}. It's a good fit for ${likes}, and it's an easy first one.\n\nWould you like to come? I'll look out for you.\n\n${h}`;
+  } else if (kind === 'thanks') {
+    body = short
+      ? `${n}, thank you for coming on Sunday! Here's a photo of the bed you helped mulch. Next one is ${shortDate(e.date)}. Hope to see you there. – ${h}`
+      : `Hi ${n},\n\nThank you for coming out on ${mdy(p.attended)}. It was really good to work alongside you, and here's a photo from the day.${p.ways.includes('design') ? '\n\nYou mentioned garden design. We\'re sketching a new site plan for the OPC garden and would love your eye on it.' : ''}\n\nNext gathering is the ${ev}. Hope to see you there.\n\n${h}`;
+  } else if (kind === 'checkin') {
+    body = `Hi ${n}, it's ${h}. We missed you at the last couple of work parties. No pressure at all. Is there a time or kind of task that would work better for you? We also have a seed swap ${shortDate('2026-12-06')}, and you'd be great at taking photos there.`;
+  } else if (kind === 'adopt') {
+    body = `Hi ${n}, ${h} here. You've been coming regularly, thank you! Would you like to adopt a plant? The Climber (passionfruit on the OPC trellis) needs a steward. We'll text you when it's your turn to water.`;
+  }
+  return body;
+}
+
+/* ---------------- state ---------------- */
+const S = {
+  view: 'week', person: 'p1', stageFilter: 'all', plant: 'p-fig',
+  drafts: {}, // person id -> {channel, text, edited}
+  joinDone: null,
+};
+
+/* ---------------- top-level tabs ---------------- */
+const TABS = ['overview', 'brand', 'materials', 'prototype'];
+const VIEWS = ['week', 'newcomers', 'join', 'outreach', 'plants'];
+function showTab(t, scroll = true) {
+  $$('[data-page]').forEach(p => p.hidden = p.dataset.page !== t);
+  $$('.tabs a').forEach(a => a.setAttribute('aria-current', a.dataset.tab === t ? 'page' : 'false'));
+  if (scroll) window.scrollTo({ top: 0 });
+}
+function go(token) {
+  if (VIEWS.includes(token)) { showTab('prototype'); setView(token); }
+  else showTab(TABS.includes(token) ? token : 'overview');
+}
+document.addEventListener('click', e => {
+  const a = e.target.closest('[data-tab]');
+  if (a) { e.preventDefault(); showTab(a.dataset.tab); history.replaceState(null, '', '#' + a.dataset.tab); return; }
+  const v = e.target.closest('a[data-view]');
+  if (v) { e.preventDefault(); go(v.dataset.view); history.replaceState(null, '', '#' + v.dataset.view); }
+});
+
+/* ---------------- brand swatches ---------------- */
+const SWATCHES = [
+  ['Sage', '#8AA37C', 'The ground. Backgrounds, social posts, signs.', '#1C3A2B'],
+  ['Cream', '#F6F1E3', 'Paper, line art, text on sage.', '#1C3A2B'],
+  ['Canopy', '#1C3A2B', 'Headlines and dark grounds.', '#F6F1E3'],
+  ['Fern', '#376451', 'Buttons, links, the primary action.', '#F6F1E3'],
+  ['Meyer lemon', '#F2C14E', 'The one highlight per piece.', '#1C3A2B'],
+  ['Soil', '#5E4434', 'Body text on cream, captions.', '#F6F1E3'],
+  ['Watershed', '#3E7090', 'Water, watering and creek work.', '#F6F1E3'],
+  ['Flag', '#E0592A', 'Alerts and "dig here". Use sparingly.', '#1C3A2B'],
+];
+$('#swatches').innerHTML = SWATCHES.map(([n, hex, role, fg]) => `<div class="sw"><div class="chip" style="background:${hex};color:${fg}">${hex}</div><div class="meta"><b>${n}</b><i>${role}</i></div></div>`).join('');
+
+/* ---------------- flyer (materials + outreach) ---------------- */
+const OUT = {
+  ev: { title: 'OPC Garden Work Day', garden: 'Oakland Peace Center', city: '111 Fairmount Ave, Oakland', date: '2026-11-08', start: '10:00', end: '13:00', host: 'Rosa M.', about: 'We\'re planting fava beans and garlic, sheet-mulching the new bed by the fence, and finishing the herb spiral by the gate.', bring: 'Water bottle, gloves if you have them, a dish to share (optional)', beginner: true, potluck: true, kids: true, tools: true, spots: 20 },
+  ch: {},
+};
+function flyerHTML(ev) {
+  const d = D(ev.date);
+  const tags = [ev.beginner && 'No experience needed', ev.tools && 'Tools provided', ev.kids && 'Kids welcome', ev.potluck && 'Potluck after'].filter(Boolean);
+  return `<div class="ph"><img src="__IMG_TRELLIS__" alt=""><div class="date"><span>${d.toLocaleDateString('en-US', { month: 'short' })}</span><b>${d.getDate()}</b><span>${d.toLocaleDateString('en-US', { weekday: 'short' })}</span></div></div>
+  <div class="bd"><span class="kick">East Bay Permaculture Guild · Work day</span><h4 class="serif">${esc(ev.title)}</h4>
+  <div class="when">${esc(longDate(ev.date))} · ${esc(t12(ev.start))}–${esc(t12(ev.end))}<br>${esc(ev.garden)}, ${esc(ev.city)}</div>
+  <p class="about">${esc(ev.about)}</p>
+  <div class="tags">${tags.map(t => `<span>${t}</span>`).join('')}</div></div>
+  <div class="ft"><div class="cta">Text YES to ${NUMBER}<small>or RSVP on Partiful (link on our Linktree)</small></div><div class="qr">QR code<br>goes here</div></div>`;
+}
+function renderMainFlyer() { $('#flyer-main').innerHTML = flyerHTML(OUT.ev); }
+renderMainFlyer();
+
+/* ---------------- prototype views ---------------- */
+function setView(v) {
+  S.view = v;
+  $$('.rail button').forEach(b => b.setAttribute('aria-current', b.dataset.view === v ? 'true' : 'false'));
+  ({ week: vWeek, newcomers: vNewcomers, join: vJoin, outreach: vOutreach, plants: vPlants })[v]();
+  updateBadges();
+}
+$$('.rail button').forEach(b => b.addEventListener('click', () => { setView(b.dataset.view); history.replaceState(null, '', '#' + b.dataset.view); }));
+function updateBadges() {
+  const nNew = PEOPLE.filter(p => nextStep(p)).length;
+  const nOut = Object.values(OUT.ch).filter(c => c.status !== 'approved').length + (OUT.flyerOk ? 0 : 1);
+  const nPl = PLANTS.filter(p => !p.steward).length;
+  [['#n-new', nNew], ['#n-out', nOut], ['#n-plant', nPl]].forEach(([id, n]) => { $(id).textContent = n; $(id).hidden = !n; });
+}
+const viewEl = () => $('#view');
+const head = (title, sub, right = '<span class="sample">Sample data</span>') => `<div class="vhead"><div><h2>${title}</h2><p>${sub}</p></div>${right}</div>`;
+
+/* ---- This week ---- */
+function vWeek() {
+  const nudges = PEOPLE.map(p => ({ p, s: nextStep(p) })).filter(x => x.s).sort((a, b) => a.s.due.localeCompare(b.s.due));
+  const thirsty = PLANTS.filter(p => p.health !== 'good');
+  const counts = Object.fromEntries(WAYS.map(([k]) => [k, 0]));
+  PEOPLE.forEach(p => p.ways.forEach(w => counts[w]++));
+  const ways = WAYS.map(([k, l]) => [k, l, counts[k]]).filter(x => x[2] > 0).sort((a, b) => b[2] - a[2]);
+  const max = Math.max(...ways.map(w => w[2]));
+  const reviewLeft = Object.values(OUT.ch).filter(c => c.status !== 'approved').length + (OUT.flyerOk ? 0 : 1);
+  viewEl().innerHTML = head('Good morning, Rosa', `${nudges.length} people need a human this week. Everything else is handled or drafted.`) + `
+  <div class="grid-week">
+    <div class="stack">
+      <div class="card"><h3>Needs a human</h3><div class="sub">Follow-ups, oldest first. Each one has a draft ready to send.</div>
+        ${nudges.map(({ p, s }) => `<div class="nudge ${s.over ? 'over' : s.soon ? 'soon' : ''}"><span class="sev"></span><div><b>${esc(s.label)}: ${esc(p.name)}</b><span>${esc(whyLine(p, s))}</span><span class="when">${dueText(s)}</span></div><button class="btn ghost sm" type="button" data-open="${p.id}">Open draft</button></div>`).join('')}
+      </div>
+      <div class="card"><h3>Plants that need someone</h3><div class="sub">Care reminders go out by text. These ones need a decision.</div>
+        ${thirsty.map(pl => `<div class="nudge ${pl.health === 'thirsty' ? 'over' : 'soon'}"><span class="sev"></span><div><b>${esc(pl.nick)} · ${esc(pl.species)}</b><span>${pl.steward ? `${esc(first(pl.steward))} hasn't replied DONE in ${since(pl.lastCare)} days. Ask a backup?` : `No steward yet. ${esc(pl.garden)}.`}</span></div><button class="btn ghost sm" type="button" data-plant="${pl.id}">${pl.steward ? 'View' : 'Find a steward'}</button></div>`).join('')}
+      </div>
+    </div>
+    <div class="stack">
+      <div class="card"><h3>Coming up</h3><div class="sub">RSVPs by text (YES) and the website.</div>
+        ${EVENTS.map(e => { const d = D(e.date); return `<div class="evrow"><div class="cal"><span>${d.toLocaleDateString('en-US', { month: 'short' }).toUpperCase()}</span><b>${d.getDate()}</b></div><div><h4>${esc(e.title)}</h4><div class="m">${d.toLocaleDateString('en-US', { weekday: 'short' })} · ${t12(e.start)} · ${esc(e.garden)}</div><div class="bar"><i style="width:${Math.round(e.rsvp / e.cap * 100)}%"></i></div><div class="r tnum"><span>${e.rsvp} coming</span><span>${e.cap - e.rsvp} spots left</span></div></div></div>`; }).join('')}
+        <div class="row" style="margin-top:8px"><button class="btn primary sm" type="button" data-go="outreach">Outreach for ${shortDate(OUT.ev.date)} · ${reviewLeft ? reviewLeft + ' drafts to review' : 'all approved'}</button></div>
+      </div>
+      <div class="card"><h3>How newcomers want to take part</h3><div class="sub">From ${PEOPLE.length} join forms. Use it to plan what kind of events to run.</div>
+        <div class="hbars">${ways.map(([k, l, n]) => `<div class="hbar ${k === 'plants' ? 'hl' : ''}"><span>${esc(l)}</span><span class="t"><i style="width:${n / max * 100}%"></i></span><span class="v">${n}</span></div>`).join('')}</div>
+      </div>
+    </div>
+  </div>`;
+}
+function whyLine(p, s) {
+  const { host } = matchHost(p);
+  if (s.kind === 'welcome') return `Joined ${mdy(p.joined)} via ${p.source.toLowerCase()}. ${first(host.name)} is the best host match.`;
+  if (s.kind === 'invite') return `Welcomed ${mdy(p.welcomed)}, hasn't come to anything yet. ${matchEvent(p).title} fits.`;
+  if (s.kind === 'thanks') return `Came for the first time ${mdy(p.attended)}. No thank-you yet.`;
+  if (s.kind === 'checkin') return `One visit (${mdy(p.attended)}), then ${since(p.attended)} days of quiet.`;
+  if (s.kind === 'adopt') return 'Comes regularly. Ready for a plant of their own.';
+  return '';
+}
+viewEl().addEventListener('click', e => {
+  const o = e.target.closest('[data-open]');
+  if (o) { S.person = o.dataset.open; S.stageFilter = 'all'; setView('newcomers'); return; }
+  const pl = e.target.closest('[data-plant]');
+  if (pl) { S.plant = pl.dataset.plant; setView('plants'); return; }
+  const g = e.target.closest('[data-go]');
+  if (g) setView(g.dataset.go);
+});
+
+/* ---- Newcomers ---- */
+const STAGE_LABEL = { new: 'New', welcomed: 'Welcomed', first: 'First visit', back: 'Came back', rooted: 'Steward' };
+const STAGE_ORDER = ['new', 'welcomed', 'first', 'back', 'rooted'];
+function vNewcomers() {
+  const list = PEOPLE.filter(p => S.stageFilter === 'all' || p.stage === S.stageFilter);
+  if (!list.find(p => p.id === S.person)) S.person = (list[0] || PEOPLE[0]).id;
+  viewEl().innerHTML = head('Newcomers', 'Everyone who has said hi, where they are on the path, and what to do next.') + `
+  <div class="funnel" role="group" aria-label="Filter by stage">${STAGE_ORDER.map(st => `<button type="button" data-stage="${st}" aria-pressed="${S.stageFilter === st}"><b class="tnum">${PEOPLE.filter(p => p.stage === st).length}</b><span>${STAGE_LABEL[st]}</span></button>`).join('')}</div>
+  <div class="split">
+    <div class="plist" role="listbox" aria-label="Newcomers">
+      ${S.stageFilter !== 'all' ? `<button class="btn ghost sm" type="button" data-stage="all" style="justify-self:start">Show everyone</button>` : ''}
+      ${list.map(p => { const s = nextStep(p); return `<button type="button" class="prow" role="option" aria-selected="${p.id === S.person}" data-pid="${p.id}">${av(p.name)}<span style="min-width:0"><b>${esc(p.name)}</b><span class="s">${esc(p.hood)} · ${p.ways.slice(0, 2).map(w => WAY[w]).join(', ')}</span></span><span class="st ${s && s.over ? 'late' : p.stage}">${s && s.over ? 'Overdue' : STAGE_LABEL[p.stage]}</span></button>`; }).join('')}
+    </div>
+    <div class="card detail" id="pdetail"></div>
+  </div>`;
+  renderPerson();
+  $$('[data-stage]').forEach(b => b.addEventListener('click', () => { S.stageFilter = S.stageFilter === b.dataset.stage ? 'all' : b.dataset.stage; vNewcomers(); }));
+  $$('.prow').forEach(b => b.addEventListener('click', () => { S.person = b.dataset.pid; $$('.prow').forEach(x => x.setAttribute('aria-selected', x === b)); renderPerson(); }));
+}
+function renderPerson() {
+  const p = PEOPLE.find(x => x.id === S.person);
+  const s = nextStep(p);
+  const { host, why } = matchHost(p);
+  const plant = p.plant ? plantById(p.plant) : p.plantPick ? plantById(p.plantPick) : null;
+  let d = S.drafts[p.id];
+  if (!d || (!d.edited && d.kind !== s?.kind)) d = S.drafts[p.id] = { channel: p.channel, kind: s?.kind, text: s ? draftFor(p, s.kind, p.channel) : '', edited: false };
+  $('#pdetail').innerHTML = `
+    <div class="dhead">${av(p.name)}<div><h3>${esc(p.name)}</h3><div class="muted small">${esc(p.hood)} · joined ${mdy(p.joined)} · via ${esc(p.source)}</div></div></div>
+    <div class="row">${p.ways.map(w => `<span class="chip">${esc(WAY[w])}</span>`).join('')}${plant ? `<span class="chip lemon"><svg width="14" height="14"><use href="#i-sprout"/></svg>${p.plant ? 'Stewards' : 'Wants'} ${esc(plant.nick)}</span>` : ''}</div>
+    <dl class="kv"><div><dt>Free</dt><dd>${esc(p.when.join(', '))}</dd></div><div><dt>How often</dt><dd>${esc(p.often)}</dd></div><div><dt>Reach by</dt><dd>${esc(p.channel)}</dd></div><div><dt>Stage</dt><dd>${STAGE_LABEL[p.stage]}</dd></div></dl>
+    ${p.note ? `<div class="note">"${esc(p.note)}"</div>` : ''}
+    ${s ? `
+    <div class="match">${av(host.name)}<div><b>${esc(host.name)} should reach out</b><span>${esc(why)}</span></div></div>
+    <div class="draft">
+      <div class="draft-top"><div><div class="eyebrow">${esc(s.label)} · ${dueText(s)}</div></div>
+        <div class="seg" role="group" aria-label="Channel">${['Text', 'WhatsApp', 'Email'].map(c => `<button type="button" data-ch="${c}" aria-pressed="${d.channel === c}">${c}</button>`).join('')}</div></div>
+      <textarea class="ed" id="draft-${p.id}" aria-label="Message draft">${esc(d.text)}</textarea>
+      <div class="meta-line"><span id="draft-count">${d.text.length} characters</span><span>Sent as ${esc(host.name)} from the Guild number</span>${d.edited ? '<span>Edited by you</span>' : '<span>Drafted from template</span>'}</div>
+      <div class="row"><button class="btn primary" type="button" id="approve">Approve &amp; mark sent</button><button class="btn ghost" type="button" id="copy-d">Copy</button><button class="btn ghost" type="button" id="reset-d">Redraft</button></div>
+    </div>` : `<div class="note" style="font-style:normal">Nothing due. ${esc(first(p.name))} is ${p.stage === 'rooted' ? 'a host and plant steward' : 'coming regularly'}${plant ? ` and looks after ${esc(plant.nick)}` : ''}.</div>`}
+    <div><div class="eyebrow" style="margin-bottom:10px">History</div><ul class="timeline">${p.log.slice().reverse().map(([dt, t]) => `<li><span class="d">${mdy(dt)}</span><span class="p"></span><span>${esc(t)}</span></li>`).join('')}</ul></div>`;
+  if (!s) return;
+  const ta = $('#draft-' + p.id);
+  ta.addEventListener('input', () => { d.text = ta.value; d.edited = true; $('#draft-count').textContent = ta.value.length + ' characters'; });
+  $$('[data-ch]', $('#pdetail')).forEach(b => b.addEventListener('click', () => { d.channel = b.dataset.ch; if (!d.edited) d.text = draftFor(p, s.kind, d.channel); renderPerson(); }));
+  $('#reset-d').addEventListener('click', () => { d.edited = false; d.text = draftFor(p, s.kind, d.channel); renderPerson(); });
+  $('#copy-d').addEventListener('click', e => copy(ta.value, e.currentTarget));
+  $('#approve').addEventListener('click', () => {
+    const verb = { welcome: `Welcomed by ${host.name}`, invite: `Invited to ${matchEvent(p).title} by ${host.name}`, thanks: `Thank-you from ${host.name}`, checkin: `Check-in from ${host.name}`, adopt: `Offered a plant by ${host.name}` }[s.kind];
+    p.log.push([TODAY, verb + ' (' + d.channel.toLowerCase() + ')']);
+    if (s.kind === 'welcome') { p.stage = 'welcomed'; p.welcomed = TODAY; }
+    else if (s.kind === 'invite') { p.invited = TODAY; }
+    else if (s.kind === 'thanks') { p.thanked = TODAY; }
+    else if (s.kind === 'checkin') { p.checked = TODAY; }
+    delete S.drafts[p.id];
+    toast(`Marked as sent to ${first(p.name)}. Prototype only, nothing was sent.`);
+    vNewcomers(); updateBadges();
+  });
+}
+
+/* ---- Join form ---- */
+function vJoin() {
+  const open = PLANTS.filter(p => !p.steward);
+  viewEl().innerHTML = head('Join form', 'What a newcomer sees after scanning a flyer, tapping a link or texting JOIN. Fill it in, and they show up in Newcomers with a host and a draft.', '<span class="sample">Try it</span>') + `
+  <div class="joinwrap">
+    <div class="phone"><div class="scr" id="phone-scr">${S.joinDone ? thanksHTML(S.joinDone) : `
+      <div class="bar0"><svg><use href="#gs-mark"/></svg><h3>Hi, neighbor.</h3><p>Tell us a bit about how you'd like to take part. A host from your part of town will reach out personally.</p></div>
+      <form id="jf" novalidate>
+        <div><label class="q" for="j-name">Your name</label><input type="text" id="j-name" autocomplete="name" value="Jordan Park"></div>
+        <div><label class="q" for="j-hood">Neighborhood</label><select id="j-hood">${Object.keys(HOODS).map(h => `<option ${h === 'Temescal' ? 'selected' : ''}>${h}</option>`).join('')}</select></div>
+        <fieldset><legend>What sounds good?</legend><p class="hint">Pick as many as you like.</p><div class="picks">${WAYS.filter(w => w[0] !== 'plants').map(([k, l]) => `<label><input type="checkbox" name="ways" value="${k}" ${['work', 'cooking'].includes(k) ? 'checked' : ''}><span>${l}</span></label>`).join('')}</div></fieldset>
+        <fieldset><legend>Adopt a plant?</legend><p class="hint">Care for one plant over its life. We'll text you when it's your turn to water, and send news when it flowers or fruits.</p>
+          <div class="adopt-opts">${open.map(pl => `<label><input type="radio" name="plant" value="${pl.id}"><span><b>${esc(pl.nick)}</b><i>${esc(pl.species)} · ${esc(pl.garden)} · ${esc(pl.rhythm.toLowerCase())}</i></span></label>`).join('')}<label><input type="radio" name="plant" value="" checked><span><b>Not right now</b><i>You can adopt one any time.</i></span></label></div></fieldset>
+        <fieldset><legend>When are you usually free?</legend><div class="picks lemonpick">${['Weekday mornings', 'Weekday evenings', 'Weekend mornings', 'Weekends'].map(t => `<label><input type="checkbox" name="when" value="${t}" ${t === 'Weekend mornings' ? 'checked' : ''}><span>${t}</span></label>`).join('')}</div></fieldset>
+        <div><label class="q" for="j-often">How often would you like to come?</label><select id="j-often"><option>Once in a while</option><option selected>About once a month</option><option>A few times a month</option><option>Every week</option><option>I'd like to help lead</option></select></div>
+        <fieldset><legend>Best way to reach you</legend><div class="picks">${['Text', 'WhatsApp', 'Signal', 'Email'].map((c, i) => `<label><input type="radio" name="channel" value="${c}" ${i === 0 ? 'checked' : ''}><span>${c}</span></label>`).join('')}</div></fieldset>
+        <div><label class="q" for="j-note">Anything we should know?</label><textarea id="j-note" rows="3" placeholder="Accessibility needs, languages you speak, skills to share">Speak Korean and English. Bad knee, so no heavy digging.</textarea></div>
+        <p class="err" id="j-err" hidden></p>
+        <button class="submit" type="submit">Say hi</button>
+        <p class="hint" style="margin:0">We only use this to welcome you and invite you to things. Reply STOP to any text to opt out.</p>
+      </form>`}</div></div>
+    <div class="why">
+      <div class="card"><h3>Why these questions</h3><p>Each answer drives something the Guild does next.</p>
+        <ol><li><b>Neighborhood</b> picks a host who lives nearby.</li><li><b>What sounds good</b> picks the first event to invite them to and shapes future events. Hosts see the totals on This week.</li><li><b>Adopt a plant</b> gives them a reason to come back that doesn't depend on a calendar.</li><li><b>When and how often</b> keeps us from inviting weekday people to Sunday events, and keeps invites to a level they asked for.</li><li><b>Best way to reach you</b> means the welcome arrives where they actually read messages.</li></ol></div>
+      <div class="card"><h3>One way in</h3><p>Today a newcomer lands on a Linktree with more than 30 links. This form becomes the first link there. It also sits behind the flyer QR code, the garden sign, every Partiful invite and a text to the Guild's number. At the potluck, a host can fill it in on their phone for someone who'd rather talk than type.</p></div>
+    </div>
+  </div>`;
+  if (S.joinDone) { bindThanks(); return; }
+  $('#jf').addEventListener('submit', e => {
+    e.preventDefault();
+    const name = $('#j-name').value.trim();
+    const ways = $$('input[name=ways]:checked').map(i => i.value);
+    const plant = ($('input[name=plant]:checked') || {}).value || '';
+    if (plant) ways.push('plants');
+    const err = $('#j-err');
+    if (!name) { err.textContent = 'Add your name so your host knows who to say hi to.'; err.hidden = false; $('#j-name').focus(); return; }
+    if (!ways.length) { err.textContent = 'Pick at least one thing that sounds good. You can change it later.'; err.hidden = false; return; }
+    const p = { id: 'p' + (PEOPLE.length + 1) + Date.now() % 1000, name, hood: $('#j-hood').value, joined: TODAY, source: 'Join form (just now)', ways, when: $$('input[name=when]:checked').map(i => i.value), often: $('#j-often').value, channel: $('input[name=channel]:checked').value, stage: 'new', plantPick: plant, note: $('#j-note').value.trim(), log: [[TODAY, 'Filled out the join form']] };
+    if (!p.when.length) p.when = ['Not sure yet'];
+    PEOPLE.unshift(p);
+    S.joinDone = p.id; S.person = p.id; S.stageFilter = 'all';
+    $('#phone-scr').innerHTML = thanksHTML(p.id); bindThanks(); updateBadges();
+    toast(`${first(name)} added to Newcomers`);
+  });
+}
+function thanksHTML(pid) {
+  const p = PEOPLE.find(x => x.id === pid);
+  const { host } = matchHost(p);
+  const pl = p.plantPick ? plantById(p.plantPick) : null;
+  return `<div class="bar0"><svg><use href="#gs-mark"/></svg></div><div class="thanks"><h3>Thanks, ${esc(first(p.name))}.</h3><p>${esc(host.name)} from ${esc(host.hood)} will ${p.channel === 'Email' ? 'email' : 'message'} you within two days.</p>${pl ? `<p>We've noted that you'd like to adopt <b>${esc(pl.nick)}</b>. ${esc(first(host.name))} will introduce you.</p>` : ''}<p>In the meantime, the next work party is ${esc(longDate(matchEvent(p).date))}.</p><button class="submit" type="button" id="see-org">See it from the host's side</button><button class="btn ghost" type="button" id="again" style="justify-self:start">Fill it in again</button></div>`;
+}
+function bindThanks() {
+  $('#see-org').addEventListener('click', () => setView('newcomers'));
+  $('#again').addEventListener('click', () => { S.joinDone = null; vJoin(); });
+}
+
+/* ---- Event outreach ---- */
+const CHANNELS = [
+  ['web', 'Partiful / Luma listing', 'i-web'], ['email', 'Google Group email', 'i-mail'], ['group', 'Facebook, Hylo & group chats', 'i-chat'],
+  ['sms', 'Text blast', 'i-sms'], ['insta', 'Instagram caption', 'i-cam'], ['remind', 'Reminder text · 2 days before', 'i-bell']
+];
+const REVIEWERS = ['Rosa M.', 'Theo A.', 'Priya S.', 'June K.'];
+function gen(k, ev) {
+  const tags = [ev.beginner && 'No experience needed', ev.tools && 'tools and gloves provided', ev.kids && 'kids welcome with a grown-up', ev.potluck && 'we finish with a potluck lunch'].filter(Boolean);
+  const good = tags.length ? tags.join(', ').replace(/^./, c => c.toUpperCase()) + '.' : '';
+  const when = `${longDate(ev.date)} · ${t12(ev.start)}–${t12(ev.end)}`;
+  const hf = first(ev.host);
+  switch (k) {
+    case 'web': return `${ev.title}\n${when}\n${ev.garden}, ${ev.city}\n\n${ev.about}\n\nWhat to bring: ${ev.bring}.\n\nGood to know: ${good}\n\nHosted by ${ev.host} with the East Bay Permaculture Guild. RSVP here or text YES to ${NUMBER}. ${ev.spots} spots.`;
+    case 'email': return `Subject: ${shortDate(ev.date)}: ${ev.title.toLowerCase().replace(/^./, c => c.toUpperCase())} at ${ev.garden}${ev.potluck ? ' (potluck after)' : ''}\n\nHi {first name},\n\n${ev.about}\n\nWhen: ${when}\nWhere: ${ev.garden}, ${ev.city}\nBring: ${ev.bring}\n\n${good} Come for the whole morning or just an hour.\n\nRSVP on Partiful (link on our Linktree) or text YES to ${NUMBER} so we know how many to plan for.\n\nSee you in the garden,\n${hf} and the East Bay Permaculture Guild`;
+    case 'group': return `🌱 ${ev.title}, ${shortDate(ev.date)} ${t12s(ev.start)}–${t12s(ev.end)} at ${ev.garden}\n\n${ev.about}\n\n${good}\n\nWho's in? RSVP on Partiful or text YES to ${NUMBER}. Bring a friend who's been meaning to come!`;
+    case 'sms': return `EB Permaculture Guild: ${ev.title}, ${shortDate(ev.date)} ${t12s(ev.start)}, ${ev.garden}.${ev.beginner ? ' Beginners welcome.' : ''}${ev.potluck ? ' Potluck after.' : ''} Reply YES to RSVP, SKIP to pass.`;
+    case 'insta': return `${ev.title} 🌱 ${shortDate(ev.date)}, ${t12s(ev.start)} at ${ev.garden}.\n\n${ev.about}\n\n${good}\n\nRSVP: link in bio, or text YES to ${NUMBER}.\n\n#EastBayPermaculture #OaklandGardens #CommunityGarden #Permaculture #Regeneration`;
+    case 'remind': return `See you ${D(ev.date).toLocaleDateString('en-US', { weekday: 'long' })}! ${ev.title}, ${t12s(ev.start)} at ${ev.garden}. Bring: ${ev.bring.split(',')[0].toLowerCase()}. ${hf} will be at the gate. Reply SKIP if plans changed.`;
+  }
+}
+function smsInfo(text) {
+  const gsm = /^[\n\r\x20-\x7E£¥èéùìòÇØøÅåÆæßÉÄÖÑÜ§¿äöñüà€]*$/.test(text);
+  const per = gsm ? (text.length <= 160 ? 160 : 153) : (text.length <= 70 ? 70 : 67);
+  return { gsm, segs: Math.max(1, Math.ceil(text.length / per)), len: text.length };
+}
+function ensureChannels() {
+  CHANNELS.forEach(([k], i) => { if (!OUT.ch[k]) OUT.ch[k] = { text: gen(k, OUT.ev), edited: false, status: i < 2 ? 'review' : 'draft', reviewer: REVIEWERS[i % REVIEWERS.length] }; });
+}
+function regen() { CHANNELS.forEach(([k]) => { const c = OUT.ch[k]; if (!c.edited) c.text = gen(k, OUT.ev); }); }
+function vOutreach() {
+  ensureChannels();
+  const ev = OUT.ev;
+  viewEl().innerHTML = head('Event outreach', 'Fill in the event once. Every channel gets a draft in the Guild voice, and a volunteer approves each one before it goes out.', '<span class="sample">Live drafts</span>') + `
+  <div class="outwrap">
+    <div class="card"><h3>The event</h3><div class="sub">Change anything. Drafts you haven't edited update as you type.</div>
+      <form class="evform" id="evf" onsubmit="return false">
+        <label>Event name<input id="f-title" value="${esc(ev.title)}"></label>
+        <div class="r2"><label>Garden<input id="f-garden" value="${esc(ev.garden)}"></label><label>City<input id="f-city" value="${esc(ev.city)}"></label></div>
+        <div class="r3"><label>Date<input type="date" id="f-date" value="${ev.date}"></label><label>Start<input type="time" id="f-start" value="${ev.start}"></label><label>End<input type="time" id="f-end" value="${ev.end}"></label></div>
+        <label>What we'll do<textarea id="f-about">${esc(ev.about)}</textarea></label>
+        <label>What to bring<input id="f-bring" value="${esc(ev.bring)}"></label>
+        <div class="r2"><label>Host<select id="f-host">${REVIEWERS.map(r => `<option ${r === ev.host ? 'selected' : ''}>${r}</option>`).join('')}</select></label><label>Spots<input type="number" min="1" id="f-spots" value="${ev.spots}"></label></div>
+        <div class="checks"><label><input type="checkbox" id="f-beginner" ${ev.beginner ? 'checked' : ''}>Beginner friendly</label><label><input type="checkbox" id="f-tools" ${ev.tools ? 'checked' : ''}>Tools provided</label><label><input type="checkbox" id="f-kids" ${ev.kids ? 'checked' : ''}>Kids welcome</label><label><input type="checkbox" id="f-potluck" ${ev.potluck ? 'checked' : ''}>Potluck after</label></div>
+      </form>
+    </div>
+    <div>
+      <div class="reviewbar"><div class="prog"><div class="eyebrow" id="rv-label"></div><div class="bar"><i id="rv-bar"></i></div></div><button class="btn primary sm" type="button" id="send-all">Send drafts for review</button></div>
+      <div class="chgrid" id="chgrid"></div>
+    </div>
+  </div>`;
+  renderChannels();
+  const map = { 'f-title': 'title', 'f-garden': 'garden', 'f-city': 'city', 'f-date': 'date', 'f-start': 'start', 'f-end': 'end', 'f-about': 'about', 'f-bring': 'bring', 'f-host': 'host', 'f-spots': 'spots' };
+  $('#evf').addEventListener('input', e => {
+    const id = e.target.id;
+    if (map[id]) OUT.ev[map[id]] = e.target.value;
+    if (['f-beginner', 'f-tools', 'f-kids', 'f-potluck'].includes(id)) OUT.ev[id.slice(2)] = e.target.checked;
+    if (!OUT.ev.date) return;
+    regen();
+    CHANNELS.forEach(([k]) => { const ta = $('#ta-' + k); if (ta && !OUT.ch[k].edited) { ta.value = OUT.ch[k].text; updateCount(k); } });
+    $('#flyer-mini').innerHTML = flyerHTML(OUT.ev); renderMainFlyer();
+  });
+  $('#send-all').addEventListener('click', () => { CHANNELS.forEach(([k]) => { if (OUT.ch[k].status === 'draft') OUT.ch[k].status = 'review'; }); renderChannels(); toast('Sent to reviewers. They get a text with a link.'); });
+}
+function updateCount(k) {
+  const el = $('#cnt-' + k); if (!el) return;
+  const t = OUT.ch[k].text;
+  if (k === 'sms' || k === 'remind') { const i = smsInfo(t); el.textContent = `${i.len} chars · ${i.segs} SMS ${i.segs > 1 ? 'segments' : 'segment'}${i.gsm ? '' : ' (emoji uses more)'}`; el.style.color = i.segs > 1 ? 'var(--flag)' : ''; }
+  else el.textContent = t.length + ' chars';
+}
+function renderChannels() {
+  const st = { draft: 'Draft', review: 'In review', approved: 'Approved' };
+  const total = CHANNELS.length + 1, appr = Object.values(OUT.ch).filter(c => c.status === 'approved').length + (OUT.flyerOk ? 1 : 0);
+  $('#rv-label').textContent = `${appr} of ${total} approved`;
+  $('#rv-bar').style.width = (appr / total * 100) + '%';
+  $('#chgrid').innerHTML = CHANNELS.map(([k, name, ico]) => { const c = OUT.ch[k]; return `
+    <div class="card ch" data-k="${k}">
+      <div class="ch-h"><span class="nm"><svg><use href="#${ico}"/></svg>${name}</span><span class="status ${c.status}">${st[c.status]}</span></div>
+      <textarea class="ed" id="ta-${k}" aria-label="${name} draft">${esc(c.text)}</textarea>
+      <div class="meta-line"><span id="cnt-${k}"></span>${c.edited ? '<span>Edited by hand</span>' : ''}</div>
+      <div class="foot"><label class="small muted">Reviewer <select data-rev="${k}">${REVIEWERS.map(r => `<option ${r === c.reviewer ? 'selected' : ''}>${r}</option>`).join('')}</select></label>
+        <span class="row"><button class="btn ghost sm" type="button" data-copy="${k}">Copy</button>${c.status === 'approved' ? `<button class="btn ghost sm" type="button" data-undo="${k}">Reopen</button>` : `<button class="btn primary sm" type="button" data-approve="${k}">Approve</button>`}</span></div>
+    </div>`; }).join('') + `
+    <div class="card ch wide"><div class="ch-h"><span class="nm"><svg><use href="#i-print"/></svg>Flyer &amp; post image</span><span class="status ${OUT.flyerOk ? 'approved' : 'review'}">${OUT.flyerOk ? 'Approved' : 'In review'}</span></div>
+      <div class="flyerbox"><div class="art flyer" id="flyer-mini">${flyerHTML(OUT.ev)}</div><div style="display:grid;gap:10px;align-content:start"><p class="muted small">Same layout as the flyer in Materials, filled from the event. Print it letter size, or use the top half as the Partiful cover.</p><p class="muted small">Swap the photo for one from this garden. Real photos from the last work party do best.</p><div class="row"><button class="btn ${OUT.flyerOk ? 'ghost' : 'primary'} sm" type="button" id="flyer-ok">${OUT.flyerOk ? 'Reopen' : 'Approve'}</button><a class="btn ghost sm" href="#materials" data-tab="materials">See all templates</a></div></div></div>
+    </div>`;
+  CHANNELS.forEach(([k]) => {
+    updateCount(k);
+    const ta = $('#ta-' + k);
+    ta.addEventListener('input', () => { OUT.ch[k].text = ta.value; OUT.ch[k].edited = true; if (OUT.ch[k].status === 'approved') { OUT.ch[k].status = 'review'; } updateCount(k); });
+  });
+  $$('[data-approve]').forEach(b => b.addEventListener('click', () => { const c = OUT.ch[b.dataset.approve]; c.status = 'approved'; renderChannels(); updateBadges(); toast(`Approved by ${c.reviewer}`); }));
+  $$('[data-undo]').forEach(b => b.addEventListener('click', () => { OUT.ch[b.dataset.undo].status = 'review'; renderChannels(); updateBadges(); }));
+  $$('[data-copy]').forEach(b => b.addEventListener('click', e => copy(OUT.ch[b.dataset.copy].text, e.currentTarget)));
+  $$('[data-rev]').forEach(s => s.addEventListener('change', () => { OUT.ch[s.dataset.rev].reviewer = s.value; }));
+  $('#flyer-ok').addEventListener('click', () => { OUT.flyerOk = !OUT.flyerOk; renderChannels(); });
+}
+
+/* ---- Plants ---- */
+function vPlants() {
+  const pl = plantById(S.plant) || PLANTS[0];
+  const glyph = p => { const c = !p.steward ? ['var(--lemon-soft)', 'var(--lemon-ink)'] : p.health === 'thirsty' ? ['var(--flag-soft)', 'var(--flag)'] : ['var(--fern-soft)', 'var(--fern)']; return `<span class="glyph" style="background:${c[0]};color:${c[1]}"><svg><use href="#${p.stage >= 2 ? 'i-leaf' : 'i-sprout'}"/></svg></span>`; };
+  const candidates = PEOPLE.filter(p => p.ways.includes('plants') && !p.plant);
+  viewEl().innerHTML = head('Adopt a plant', 'Every perennial the Guild plants gets a steward and a backup. Care reminders go out by text, and stewards get news when their plant flowers or fruits. It gives people a reason to come back between work parties.') + `
+  <div class="plantgrid">
+    <div class="stack">
+      <div class="pcards" role="listbox" aria-label="Plants">${PLANTS.map(p => `<button type="button" role="option" class="pcard ${p.steward ? '' : 'open'}" aria-selected="${p.id === pl.id}" data-pl="${p.id}">${glyph(p)}<b>${esc(p.nick)}</b><span class="sp">${esc(p.species)} · ${esc(p.garden.split(' · ')[0])}</span><span class="who2" style="color:${p.steward ? (p.health === 'thirsty' ? 'var(--flag)' : 'var(--fern)') : 'var(--lemon-ink)'}">${p.steward ? (p.health === 'thirsty' ? 'Thirsty · ' : '') + esc(p.steward) : 'Needs a steward'}</span></button>`).join('')}</div>
+      <div class="card"><h3>The idea we'd test</h3><div class="sub">A hypothesis for the pilot, not a result yet.</div><p class="muted small">People who adopt a plant in their first month come back more often than people who don't. Compare return rates for the two groups over one season. The garden also gets watered either way.</p></div>
+    </div>
+    <div class="card passport">
+      <div class="top2">${glyph(pl)}<div><div class="eyebrow">Plant passport · no. ${pl.no}</div><h3>${esc(pl.nick)}</h3><div class="lat">${esc(pl.species)} · ${esc(pl.latin)}</div></div></div>
+      <div class="stages">${STAGES.map((s, i) => `<div class="${i < pl.stage ? 'on' : i === pl.stage ? 'now' : ''}">${s}</div>`).join('')}</div>
+      <dl class="kv"><div><dt>Lives at</dt><dd>${esc(pl.garden)}</dd></div><div><dt>Planted</dt><dd>${mdy(pl.planted)}, ${D(pl.planted).getFullYear()}</dd></div><div><dt>Steward</dt><dd>${pl.steward ? esc(pl.steward) : '<span class="chip lemon">Open</span>'}</dd></div><div><dt>Backup</dt><dd>${pl.backup ? esc(pl.backup) : '—'}</dd></div><div><dt>Care</dt><dd>${esc(pl.rhythm)}</dd></div><div><dt>Last watered</dt><dd>${since(pl.lastCare) === 0 ? 'Today' : since(pl.lastCare) + ' days ago'} · ${pl.waterings} times total</dd></div></dl>
+      ${pl.steward ? `
+      <div class="phone-mini"><div class="hd"><span>Texts with ${esc(first(pl.steward))}</span><span>Guild SMS</span></div>
+        <div class="thread">
+          <div class="bubble in">${esc(pl.nick)} the ${esc(pl.species.toLowerCase())} is due for water this Saturday. Reply <span class="k">YES</span> to take it, <span class="k">MORNING</span> for Sunday morning, or <span class="k">VACATION</span> if you're away and we'll ask ${esc(pl.backup ? first(pl.backup) : 'a backup')}.</div>
+          <div class="bubble out">YES</div>
+          <div class="bubble in">Thanks ${esc(first(pl.steward))}! Reply <span class="k">DONE</span> when ${esc(pl.nick)} is watered.</div>
+          <div class="bubble out">DONE</div>
+          <div class="bubble in">Logged. That's ${pl.waterings} waterings since ${D(pl.planted).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}. ${pl.stage >= 2 ? 'Fruit season is close. Send us a photo when you see some!' : 'Roots are getting established.'}</div>
+        </div></div>
+      ${pl.health === 'thirsty' ? `<div class="row"><button class="btn primary" type="button" id="ask-backup">Ask a backup to water</button><button class="btn ghost" type="button" id="nudge-st">Nudge ${esc(first(pl.steward))}</button></div>` : ''}` : `
+      <div class="match"><span class="glyph" style="background:var(--b-lemon);color:#1C3A2B;width:40px;height:40px;border-radius:50%;display:grid;place-items:center"><svg width="20" height="20"><use href="#i-hand"/></svg></span><div><b>${candidates.length} newcomers said they'd like a plant</b><span>${candidates.map(c => esc(first(c.name)) + (c.plantPick === pl.id ? ' (picked this one)' : '')).join(', ') || 'Nobody yet. Share the story template.'}</span></div></div>
+      <div class="row">${candidates.slice(0, 3).map(c => `<button class="btn ${c.plantPick === pl.id ? 'primary' : 'ghost'} sm" type="button" data-adopt="${c.id}">Offer to ${esc(first(c.name))}</button>`).join('')}</div>`}
+      <div><div class="eyebrow" style="margin-bottom:10px">Life so far</div><ul class="timeline">${pl.log.slice().reverse().map(([dt, t]) => `<li><span class="d">${mdy(dt)} ${String(D(dt).getFullYear()).slice(2)}</span><span class="p"></span><span>${esc(t)}</span></li>`).join('')}</ul></div>
+    </div>
+  </div>`;
+  $$('[data-pl]').forEach(b => b.addEventListener('click', () => { S.plant = b.dataset.pl; vPlants(); }));
+  $$('[data-adopt]').forEach(b => b.addEventListener('click', () => {
+    const p = PEOPLE.find(x => x.id === b.dataset.adopt);
+    pl.steward = p.name; pl.backup = matchHost(p).host.name; pl.health = 'good';
+    pl.log.push([TODAY, `Adopted by ${p.name}, with ${pl.backup} as backup`]);
+    p.plant = pl.id; p.plantPick = pl.id; p.log.push([TODAY, `Adopted ${pl.nick} (${pl.species.toLowerCase()})`]);
+    toast(`${first(p.name)} is now ${pl.nick}'s steward. Prototype only.`); vPlants(); updateBadges();
+  }));
+  $('#ask-backup')?.addEventListener('click', () => { pl.health = 'good'; pl.lastCare = TODAY; pl.waterings++; pl.log.push([TODAY, 'Watered by a backup after a nudge']); toast('Backup asked by text. Prototype only.'); vPlants(); });
+  $('#nudge-st')?.addEventListener('click', () => toast(`Drafted a friendly nudge for ${first(pl.steward)}. Prototype only.`));
+}
+
+/* ---------------- boot ---------------- */
+ensureChannels();
+setView('week');
+const h = (location.hash || '').slice(1);
+go(h || 'overview');
+if (VIEWS.includes(h)) $('#p-prototype').scrollIntoView();
+})();
+</script>
