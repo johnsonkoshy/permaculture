@@ -37,6 +37,9 @@ The Event Hub prototype, now saving to a real Google Sheet. The page is hosted o
 
 - **Landing page** for the public: upcoming events, a garden map and the volunteer sign-up. Sign-ups go to the **Volunteers** tab. The volunteer gets a welcome email and the lead organizer gets a "new volunteer" email.
 - **Organizer sign-in** with the organizer code. You can change the code on the **Settings** tab at any time. The header shows who is signed in.
+- **Saving you can see:** a note under the top bar says *Saving…*, then *All changes saved*. If the Sheet doesn't answer (Apps Script can take a few seconds to wake up, or a phone loses signal), it says *Not saved* with a **Retry** button, retries on its own after 2, 5 and 15 seconds and then every minute, and marks the event's tile *Not saved*. Saves of one event go out one at a time, newest last. "Saved" and "added" messages appear only once the Sheet has the change, and the browser asks before closing a tab with unsaved changes.
+- **Staying current:** when you come back to the tab, and every 2 minutes while it's open, the page reads the Sheet again and says *Updated with the latest changes* if someone else changed something. Events with unsaved changes here, or being edited, are left alone.
+- **Signing in:** the name you pick says *Signing in…* while the Sheet wakes up. Tick **Remember this device for 30 days** to stay signed in on that phone or laptop; otherwise the code is forgotten when the tab closes. Sign out forgets it either way.
 - **Help tab** for organizers: where the data lives (with a link to the Sheet), the organizer code, test mode, when reminders go out, hand edits, and who the lead organizer is.
 - **Events:** creating, editing, the host and co-hosts, the timeline and "who's bringing what" all save to the Sheet in under a second.
 - **Post button:**
@@ -79,6 +82,8 @@ node --test test/                # all tests (or: npm test, which builds first)
                                  #   smoke.test.js: the built site/ page in jsdom against that mock
                                  #   (landing, sign-in, saving an edit, volunteer sign-up, honest starter data)
 node test/dev-server.js          # the real page + mock backend at http://localhost:8766/
+                                 #   curl 'localhost:8766/_ctl?latency=3000&fail=saveEvent' makes the mock Sheet slow,
+                                 #   and saveEvent answer with an HTML error page; '_ctl?latency=0&fail=' undoes it
 clasp push --force               # upload dist/ (after build.py)
 netlify deploy --dir site --prod # publish site/ to https://ebpg-event-hub.netlify.app
 clasp redeploy AKfycbxy4le3b-fRgH9BjhSZrcPf3TDcSgzMZ0sDnZEeRiZsCnPoX5jPVy6GU5DPtyoUjERf -d "update"

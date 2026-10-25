@@ -1,13 +1,21 @@
 /* Serve the built page with a fake google.script.run that calls Code.js
    running on the mock. Run: node test/dev-server.js, open http://localhost:8766/
    GET /site serves the Netlify build, calling the mock through POST /_api (doPost).
-   GET /_state dumps the mock Sheet and the emails it "sent". */
+   GET /_state dumps the mock Sheet and the emails it "sent".
+
+   Slow or failing Sheet, for trying the save status and retries (test only; the page knows nothing of it):
+     GET /_ctl?latency=3000&fail=saveEvent   every /_api call waits 3 s, and saveEvent answers with an HTML error page
+     GET /_ctl?latency=0&fail=               back to normal (fail takes a comma-separated list of functions)
+     GET /_ctl                               shows the current settings
+   One call can also carry its own: POST /_api?latency=500&fail=signIn
+   PORT=9000 node test/dev-server.js serves on another port. */
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const { makeGas } = require('./gas-mock');
 
 const g = makeGas({ page: path.join(__dirname, '..', 'dist', 'index.html') });
+const ctl = { latency: 0, fail: '' };
 const SHIM = `<script>(() => {
   const runner = (ok, no) => new Proxy({}, { get: (_, fn) => {
     if (fn === 'withSuccessHandler') return f => runner(f, no);
@@ -17,8 +25,12 @@ const SHIM = `<script>(() => {
   } });
   window.google = { script: { run: runner() } };
 })();</script>`;
+// what Apps Script sends when it falls over: a web page, not JSON
+const ERROR_PAGE = '<!DOCTYPE html><html><head><title>Error</title></head><body><p>Sorry, unable to open the file at this time.</p></body></html>';
+const latencyOf = v => Math.max(0, Math.min(60000, Number(v) || 0));
+const failing = (list, fn) => String(list || '').split(',').map(s => s.trim()).filter(Boolean).includes(fn);
 
-http.createServer((req, res) => {
+const server = http.createServer((req, res) => {
   const url = new URL(req.url, 'http://x');
   const send = (code, type, body) => { res.writeHead(code, { 'content-type': type }); res.end(body); };
   if (url.pathname === '/') {
@@ -26,13 +38,26 @@ http.createServer((req, res) => {
     return send(200, 'text/html; charset=utf-8', SHIM + out.content);
   }
   if (url.pathname === '/site') {
-    const html = fs.readFileSync(path.join(__dirname, '..', 'site', 'index.html'), 'utf8').replace(/https:\/\/script\.google\.com\/macros\/s\/[\w-]+\/exec/, 'http://localhost:8766/_api');
+    const api = 'http://' + (req.headers.host || 'localhost:8766') + '/_api';
+    const html = fs.readFileSync(path.join(__dirname, '..', 'site', 'index.html'), 'utf8').replace(/https:\/\/script\.google\.com\/macros\/s\/[\w-]+\/exec/, api);
     return send(200, 'text/html; charset=utf-8', html);
   }
+  if (url.pathname === '/_ctl') {
+    if (url.searchParams.has('latency')) ctl.latency = latencyOf(url.searchParams.get('latency'));
+    if (url.searchParams.has('fail')) ctl.fail = url.searchParams.get('fail');
+    return send(200, 'application/json', JSON.stringify(ctl));
+  }
   if (url.pathname === '/_api' && req.method === 'POST') {
+    const latency = url.searchParams.has('latency') ? latencyOf(url.searchParams.get('latency')) : ctl.latency;
+    const fail = url.searchParams.has('fail') ? url.searchParams.get('fail') : ctl.fail;
     let body = '';
     req.on('data', c => { body += c; });
-    req.on('end', () => send(200, 'application/json', g.ctx.doPost({ postData: { contents: body } }).content));
+    req.on('end', () => setTimeout(() => {
+      let fn = '';
+      try { fn = JSON.parse(body).fn; } catch {}
+      if (failing(fail, fn)) return send(502, 'text/html; charset=utf-8', ERROR_PAGE);
+      send(200, 'application/json', g.ctx.doPost({ postData: { contents: body } }).content);
+    }, latency));
     return;
   }
   if (url.pathname === '/_state') {
@@ -57,4 +82,10 @@ http.createServer((req, res) => {
     return;
   }
   send(404, 'text/plain', 'not found');
-}).listen(8766, () => console.log('dev server on http://localhost:8766/'));
+});
+
+if (require.main === module) {
+  const port = Number(process.env.PORT) || 8766;
+  server.listen(port, () => console.log(`dev server on http://localhost:${port}/`));
+}
+module.exports = { server, ctl, gas: g };

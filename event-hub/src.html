@@ -94,6 +94,22 @@ a { color: var(--fern); }
   .who > span:last-child { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 }
 @media (max-width: 400px) { #signout .ic { display: none; } }
+/* save status: a small tab hanging from the top bar's right edge, so showing it never moves the page */
+.top .wrap { position: relative; }
+.savest { position: absolute; top: 100%; right: max(16px, env(safe-area-inset-right, 0px)); z-index: 1; display: flex; align-items: center; gap: 6px; padding: 5px 12px 6px; border: 1px solid var(--line); border-top: 0; border-radius: 0 0 12px 12px; background: var(--surface); color: var(--ink-2); font-size: 13px; font-weight: 700; line-height: 1.2; white-space: nowrap; box-shadow: 0 8px 18px rgba(27, 42, 33, .08); transition: opacity .6s; }
+.savest:focus { outline: none; }
+.savest[data-state="idle"] { opacity: 0; pointer-events: none; padding: 0; border: 0; box-shadow: none; }
+.savest.fade { opacity: 0; }
+.savest > span { display: inline-flex; align-items: center; gap: 6px; }
+.savest .ic { width: 15px; height: 15px; }
+.savest[data-state="saving"] .ic { animation: spin 1s linear infinite; }
+.savest[data-state="saved"] .ic { color: var(--fern); }
+.savest[data-state="failed"] { background: var(--flag-soft); border-color: var(--flag); color: var(--ink); }
+.savest[data-state="failed"] > span > .ic { color: var(--flag); }
+.savest button { display: inline-flex; align-items: center; gap: 5px; min-height: 30px; margin-left: 4px; padding: 0 2px 0 10px; border: 0; border-left: 1px solid var(--line-2); background: none; color: var(--fern); font-weight: 700; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+.savest button .ic { width: 14px; height: 14px; }
+body.out .savest { display: none; }
+@keyframes spin { to { transform: rotate(360deg); } }
 
 /* icons: the symbol sprite below this stylesheet, used through ic() in the script */
 .ic { width: 16px; height: 16px; flex: none; vertical-align: -3px; }
@@ -516,6 +532,12 @@ legend { font-size: 13px; font-weight: 700; color: var(--ink-2); margin-bottom: 
 .cover .flyer { width: 28%; }
 .cover .story { width: 17%; }
 .tile.past .cover { filter: saturate(.75); }
+/* an event whose last save didn't reach the Sheet */
+.tile { position: relative; }
+.tile.unsaved { border-color: var(--flag); }
+.nsave { display: none; position: absolute; top: 12px; right: 12px; z-index: 1; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; background: var(--raised); color: var(--flag); font-size: 12px; font-weight: 700; line-height: 1.3; box-shadow: var(--shadow); }
+.nsave i { width: 8px; height: 8px; border-radius: 50%; background: var(--flag); }
+.tile.unsaved .nsave { display: inline-flex; }
 .tbody { padding: 16px; display: grid; gap: 10px; align-content: start; }
 .trow { display: grid; grid-template-columns: 50px minmax(0, 1fr); gap: 12px; align-items: start; }
 .tile h3 { font: 400 20px/1.15 var(--display); }
@@ -678,6 +700,15 @@ body.out .topbtns { margin-left: auto; }
 .pick button { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--raised); cursor: pointer; text-align: left; font-weight: 700; }
 .pick button:hover { border-color: var(--fern); background: var(--fern-soft); }
 .pick small { display: block; font-weight: 400; color: var(--ink-3); font-size: 12px; }
+.pick button[aria-busy="true"] { border-color: var(--fern); background: var(--fern-soft); cursor: progress; }
+.pick button[aria-busy="true"] small { color: var(--fern); font-weight: 700; }
+.si-wait { font-size: 13px; color: var(--ink-2); text-align: center; }
+.si-wait:not(:empty) { margin-top: 12px; }
+.chk { display: flex; align-items: center; gap: 10px; font-size: 14px; color: var(--ink-2); cursor: pointer; }
+.chk input { width: 18px; height: 18px; margin: 0; flex: none; accent-color: var(--fern); }
+.scard.resume { justify-items: center; text-align: center; }
+.scard.resume .ic { width: 22px; height: 22px; color: var(--fern); animation: spin 1s linear infinite; }
+@media (prefers-reduced-motion: reduce) { .savest .ic, .scard.resume .ic { animation: none !important; } }
 .scard .demo { font-size: 12px; color: var(--ink-3); text-align: center; }
 @media (prefers-reduced-motion: reduce) { .land *, .scard { animation: none !important; } .scene .hill, .scene .water { stroke-dashoffset: 0; } }
 
@@ -869,7 +900,7 @@ td code, .code code { font: 400 13px/1.5 var(--mono); }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 /* phones: small buttons and inline action links are at least 44px tall, so they're easy to tap */
 @media (max-width: 600px) {
-  .btn.sm, .tog, .x, .obody a.hint, .dh .meta a, .doc-kv a { min-height: 44px; }
+  .btn.sm, .tog, .x, .obody a.hint, .dh .meta a, .doc-kv a, .savest button, .chk { min-height: 44px; }
   .dh .meta a, .doc-kv a { display: inline-flex; align-items: center; }
   .x { min-width: 44px; }
 }
@@ -929,6 +960,7 @@ td code, .code code { font: 400 13px/1.5 var(--mono); }
   <symbol id="i-message-circle" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></g></symbol>
   <symbol id="i-history" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></g></symbol>
   <symbol id="i-eye" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></g></symbol>
+  <symbol id="i-loader" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></g></symbol>
   <symbol id="i-rotate-ccw" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></g></symbol>
   <symbol id="i-printer" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6"/><rect x="6" y="14" width="12" height="8" rx="1"/></g></symbol>
   <symbol id="i-help-circle" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></g></symbol>
@@ -951,6 +983,7 @@ td code, .code code { font: 400 13px/1.5 var(--mono); }
 <!--PROTO-->
     <label class="whosel"><span>Viewing as</span><select id="as" aria-label="Viewing as"></select></label>
 <!--/PROTO-->
+    <div class="savest live" id="savest" role="status" tabindex="-1" data-state="idle"><span id="savest-t"></span><button type="button" id="savest-retry" hidden><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-rotate-ccw"/></svg>Retry</button></div>
     <div class="topbtns"><span class="who live" id="who"></span><button class="btn ghost sm" type="button" id="signout"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-log-out"/></svg>Sign out</button><button class="btn primary sm" type="button" id="signin-top"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-log-in"/></svg>Sign in</button></div>
   </div>
 </header>
@@ -1039,14 +1072,24 @@ td code, .code code { font: 400 13px/1.5 var(--mono); }
       <div class="or">or choose who you are</div>
 <!--/PROTO-->
       <label class="fld live" id="si-codew">Organizer code<input id="si-code" type="password" autocomplete="off"></label>
+      <label class="chk live" id="si-remw"><input type="checkbox" id="si-rem">Remember this device for 30 days</label>
       <p class="err" id="si-err" role="alert" hidden></p>
       <div class="or live" id="si-then">then choose who you are</div>
-      <div class="pick" id="si-pick" aria-label="Who are you?" role="group"></div>
+      <div><div class="pick" id="si-pick" aria-label="Who are you?" role="group"></div><p class="si-wait live" id="si-wait" role="status"></p></div>
 <!--PROTO-->
       <p class="demo">Prototype sign-in. No password, nothing is saved.</p>
 <!--/PROTO-->
       <p class="demo live">Ask the lead organizer for the code.</p>
       <button class="tog" type="button" id="si-back" style="justify-self:center"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-arrow-left"/></svg>Back to the home page</button>
+    </div>
+  </div>
+
+  <!-- shown while a stored organizer code signs back in on reload -->
+  <div id="p-resume" data-page="resume" class="signin live" hidden>
+    <div class="scard resume" role="status">
+      <svg><use href="#mark"/></svg>
+      <div><h1>Signing you back in…</h1><p class="muted">Waking up the Guild Sheet. This can take a few seconds.</p></div>
+      <svg class="ic" aria-hidden="true" focusable="false"><use href="#i-loader"/></svg>
     </div>
   </div>
 
@@ -1467,7 +1510,7 @@ await supabase.from('volunteers').insert({
     <div class="helpg">
       <section aria-labelledby="hp-data">
         <h2 id="hp-data">Where everything is saved</h2>
-        <p>Everything you do here is saved to the Guild's Google Sheet a moment after you change it. Each tab holds one kind of thing: Events, Bringing, Posts, Team, Volunteers, Activity and Gardens. Settings holds the organizer code and switches like <code>TEST_MODE</code> and <code>REMINDERS</code>.</p>
+        <p>Everything you do here is saved to the Guild's Google Sheet a moment after you change it. A note under the top bar says <b>Saving…</b>, then <b>All changes saved</b>. If the Sheet doesn't answer, it says <b>Not saved</b>, keeps trying on its own, and has a Retry button; your browser also asks before you close the tab. Each tab holds one kind of thing: Events, Bringing, Posts, Team, Volunteers, Activity and Gardens. Settings holds the organizer code and switches like <code>TEST_MODE</code> and <code>REMINDERS</code>.</p>
         <div id="help-sheet"></div>
       </section>
       <section aria-labelledby="hp-code">
@@ -1484,7 +1527,7 @@ await supabase.from('volunteers').insert({
       </section>
       <section aria-labelledby="hp-edit">
         <h2 id="hp-edit">Fixing things in the Sheet</h2>
-        <p>You can change an event's title, date, times, place, host, co-hosts, description, notes or timeline, or who's bringing what, right in the Sheet. Your change shows up here the next time the page loads. Leave the last Events column, "data (don't edit)", as it is.</p>
+        <p>You can change an event's title, date, times, place, host, co-hosts, description, notes or timeline, or who's bringing what, right in the Sheet. Your change shows up here within two minutes, or as soon as you come back to this tab. An event with changes here that haven't been saved yet keeps those until they are. Leave the last Events column, "data (don't edit)", as it is.</p>
       </section>
       <section aria-labelledby="hp-lead">
         <h2 id="hp-lead">Who to ask</h2>
@@ -1507,6 +1550,8 @@ const iso = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0
 const TODAY = window.EBPG_GAS ? iso(new Date()) : '2026-10-24';
 let ME = 'Jessie';
 let remote = null, sync = () => {}, sheetUrl = '', problems = []; // set by the live (Apps Script) build; problems: Sheet rows it couldn't read
+// also set by the live build: say "Saved" only once the Sheet has it, mark events whose save failed, and ask before signing out with unsaved changes
+let whenSaved = f => f(), unsaved = id => false, leaveOk = () => true;
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -1865,13 +1910,13 @@ function renderTeam() {
     ${PERMS.map(([k, l]) => `<td class="c">${t.role === 'vol' ? '<span class="hint">—</span>' : `<input type="checkbox" data-perm="${i}" data-k="${k}" ${t.perms[k] ? 'checked' : ''} ${lock ? 'disabled' : ''} aria-label="${esc(t.name)}: ${l}">`}</td>`).join('')}
     <td>${t.role === 'lead' || !edit ? '' : `<button class="tog" type="button" data-rm="${i}" aria-label="Remove ${esc(t.name)}">${ic('user-minus')}Remove</button>`}</td></tr>`;
   }).join('')}</tbody>`;
-  $$('[data-perm]').forEach(c => c.addEventListener('change', () => { TEAM[c.dataset.perm].perms[c.dataset.k] = c.checked; toast('Permissions saved', 'check'); render(); }));
+  $$('[data-perm]').forEach(c => c.addEventListener('change', () => { TEAM[c.dataset.perm].perms[c.dataset.k] = c.checked; whenSaved(() => toast('Permissions saved', 'check')); render(); }));
   $$('[data-role]').forEach(sl => sl.addEventListener('change', () => {
     const t = TEAM[sl.dataset.role]; t.role = sl.value;
     t.perms = sl.value === 'co' ? { create: true, edit: true, approve: false, tasks: true, team: false } : allPerms(false);
-    toast(`${t.name} is now a ${ROLE[t.role].toLowerCase()}`); renderAs(); renderTeam(); render();
+    whenSaved(() => toast(`${t.name} is now a ${ROLE[t.role].toLowerCase()}`)); renderAs(); renderTeam(); render();
   }));
-  $$('[data-rm]').forEach(b => b.addEventListener('click', () => { const t = TEAM.splice(b.dataset.rm, 1)[0]; toast(`${t.name} removed`); renderAs(); renderTeam(); render(); }));
+  $$('[data-rm]').forEach(b => b.addEventListener('click', () => { const t = TEAM.splice(b.dataset.rm, 1)[0]; whenSaved(() => toast(`${t.name} removed`)); renderAs(); renderTeam(); render(); }));
   $$('#addp input, #addp select, #addp button').forEach(el => el.disabled = !edit);
   sync();
 }
@@ -1884,7 +1929,7 @@ $('#addp').addEventListener('submit', e => {
   const role = $('#ap-role').value;
   TEAM.push({ name, contact, via: $('#ap-via').value, role, perms: role === 'co' ? { create: true, edit: true, approve: false, tasks: true, team: false } : allPerms(false) });
   $('#ap-name').value = ''; $('#ap-contact').value = '';
-  toast(`${name} added as ${ROLE[role].toLowerCase()}`, 'check'); renderAs(); renderTeam(); render();
+  whenSaved(() => toast(`${name} added as ${ROLE[role].toLowerCase()}`, 'check')); renderAs(); renderTeam(); render();
 });
 /* Sheet rows the app couldn't read, each with a Dismiss button. Rebuilt only when the list changes, so focus stays put. */
 const goneProbs = new Set(), probKey = p => [p.tab, p.row, p.what].join('|');
@@ -1911,12 +1956,21 @@ function renderAttn() {
     : `<div class="attn ok">${ic('check')}<span class="grow"><b>All posted.</b></span></div>`
   $('#jump')?.addEventListener('click', () => { S.dtab = 'outreach'; openEvent(need[0][0].id, 'modal'); });
 }
+const tileLabel = e => `Open ${e.title}, ${longDate(e.date)}${unsaved(e.id) ? '. Changes not saved yet' : ''}`;
+// flag the tiles of events whose last save failed, without redrawing them (so focus stays put)
+function markUnsaved() {
+  $$('#tiles [data-open]').forEach(t => {
+    const e = EVENTS.find(x => x.id === t.dataset.open); if (!e) return;
+    t.classList.toggle('unsaved', unsaved(e.id)); t.setAttribute('aria-label', tileLabel(e));
+  });
+}
 function renderTiles() {
   $$('[data-when]').forEach(b => b.setAttribute('aria-pressed', b.dataset.when === S.when));
   const list = visible();
   $('#tiles').innerHTML = list.length ? list.map(e => {
     const d = D(e.date), c = counts(e), open = (e.tasks || []).filter(t => !t.who || t.status === 'cant').length;
-    return `<article class="tile ${e.date < TODAY ? 'past' : ''}" tabindex="0" role="button" data-open="${e.id}" aria-label="Open ${esc(e.title)}, ${esc(longDate(e.date))}">
+    return `<article class="tile ${e.date < TODAY ? 'past' : ''} ${unsaved(e.id) ? 'unsaved' : ''}" tabindex="0" role="button" data-open="${esc(e.id)}" aria-label="${esc(tileLabel(e))}">
+      <span class="nsave" aria-hidden="true"><i></i>Not saved</span>
       <div class="cover" aria-hidden="true">${igArt(e)}${flyerArt(e)}${storyArt(e)}</div>
       <div class="tbody"><div class="trow"><span class="cal"><span>${d.toLocaleDateString('en-US', { month: 'short' }).toUpperCase()}</span><b>${d.getDate()}</b></span>
         <div style="min-width:0">${e.label ? `<div class="lbl">${esc(e.label)}</div>` : ''}<h3>${esc(e.title)}</h3><div class="m">${d.toLocaleDateString('en-US', { weekday: 'short' })} · ${range(e.start, e.end)} · ${ic('map-pin')}${esc(e.place)}</div></div></div>
@@ -2117,7 +2171,7 @@ function bindEdit(ev) {
     ev.log.push([nowStamp(), wasNew ? `${ME} created the event` : `${ME} edited the event`]);
     if (wasNew) S.when = ev.date >= TODAY ? 'up' : 'past';
     render(); renderMaterials();
-    toast(wasNew ? 'Event created. Posts are ready to go out.' : 'Saved', 'check');
+    whenSaved(() => toast(wasNew ? 'Event created. Posts are ready to go out.' : 'Saved', 'check'));
   });
 }
 function bindPlan(ev) {
@@ -2445,6 +2499,7 @@ function finishSignIn(name) {
   toast(`Signed in as ${name}`, 'check');
 }
 function signOut() {
+  if (!leaveOk()) return;
   if (!$('#modal').hidden) closeEvent();
   AUTH.clear(); document.body.classList.add('out'); renderLanding(); showTab('landing'); history.replaceState(null, '', '#welcome'); window.scrollTo({ top: 0 });
 }
