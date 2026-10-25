@@ -90,6 +90,15 @@ if (window.EBPG_GAS) {
   };
   const ID_OK = /^[A-Za-z0-9_-]{1,40}$/; // the ids the Sheet accepts (ID_RE in Code.js)
   const BLANK_PLAN = () => ({ leadStart: '', leadEnd: '', leadNote: '', roles: [], pending: [], setup: [], supplies: [], food: null, timeline: [], icebreaker: '', questions: [], notes: [], areas: [], debrief: [] });
+  /* Is a draft's text in the Posts tab still the one the app wrote? It is when it's what the app writes for the event
+     as this page last saved it (r.data, so a time typed into the Events tab since doesn't count as a hand edit), or for
+     the event as the Sheet has it now. A draft of an unpublished event that has the event page's link also counts: an
+     earlier version of the page wrote those. Anything else was changed by hand in the Sheet. */
+  function appsText(id, r, ev, p) {
+    const was = Object.assign({ tags: [], host: '' }, r.data, { id: ev.id });
+    const ways = [ev, was, Object.assign({}, was, { status: 'published' })];
+    try { return ways.some(e => freshText(id, e, p) === p.text); } catch { return false; } // a row typed by hand may lack a field
+  }
   function fromRows(r) {
     const c = r.cols, ev = Object.assign({ tags: [], photo: 'trellis' }, r.data);
     ev.plan = Object.assign(BLANK_PLAN(), ev.plan || {});
@@ -108,10 +117,13 @@ if (window.EBPG_GAS) {
     CHANNELS.forEach(ch => {
       const p = r.posts[ch.id], st = p && STATUS[p.status] ? p.status : 'review';
       // a draft nobody edited, still waiting for review, is written again from the event as the Sheet has it now
-      // (an RSVP link or a new time typed into the Events tab by hand). Approved and posted texts stay as they are.
-      const text = p && st === 'review' && !p.edited ? freshText(ch.id, ev, p) : (p && p.text) || draft(ch.id, ev);
+      // (an RSVP link or a new time typed into the Events tab by hand), but only while its text in the Posts tab is still
+      // the app's own. A draft fixed by hand there keeps its text, and counts as edited from now on, so nothing writes
+      // over it. Approved and posted texts stay as they are.
+      const review = !!p && st === 'review' && !!p.text && !p.edited, mine = review && appsText(ch.id, r, ev, p);
+      const text = mine ? freshText(ch.id, ev, p) : (p && p.text) || draft(ch.id, ev);
       // who approved it and when, and who posted it, when and where: the Posts tab's own columns
-      ev.posts[ch.id] = p ? { status: st, text, edited: !!p.edited,
+      ev.posts[ch.id] = p ? { status: st, text, edited: !!p.edited || (review && !mine),
         by: p.by || '', approvedBy: p.approvedBy || '', approvedAt: p.approvedAt || '', at: p.at || '', url: safeUrl(p.url), stale: !!p.stale, open: false }
         : { status: 'off', text: draft(ch.id, ev), edited: false, ...NO_TRAIL, open: false };
     });
@@ -372,7 +384,9 @@ if (window.EBPG_GAS) {
       const fresh = fromRows(r), s = snapEv(fresh), ours = mine.delete(k);
       base[k] = raw; saved[k] = s;
       if (cur && s === snapEv(cur)) return; // the Sheet has what this page shows
-      if (cur) { CHANNELS.forEach(c => { if (cur.posts[c.id]?.open && fresh.posts[c.id]) fresh.posts[c.id].open = true; }); EVENTS[i] = fresh; }
+      // what only this page knows about a post stays: a draft being read, and the RSVP question nobody has answered yet
+      // (the row still shows it only while that post is posted with its link and the event has no RSVP link)
+      if (cur) { CHANNELS.forEach(c => { const q = cur.posts[c.id], f = fresh.posts[c.id]; if (q && f) { if (q.open) f.open = true; if (q.askRsvp) f.askRsvp = true; } }); EVENTS[i] = fresh; }
       else EVENTS.push(fresh);
       evs = true; if (!ours) news = true; if (id === open) openRedo = true;
     });

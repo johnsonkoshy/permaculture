@@ -1837,6 +1837,11 @@ const CHANNELS = [
   { id: 'instagram', name: 'Instagram', mode: 'copy', color: '#B5477A', abbr: 'Ig', url: '', used: true, onNew: true },
   { id: 'chats', name: 'WhatsApp & Hylo chats', mode: 'copy', color: '#5E7F3A', abbr: 'Ch', url: '', used: true, onNew: true },
 ];
+/*PROTO*/
+// the artifact has no Sheet, so no Channels tab to add links on: Open <name> goes to each site
+[['luma', 'https://lu.ma/'], ['meetup', 'https://www.meetup.com/'], ['facebook', 'https://www.facebook.com/groups/'], ['instagram', 'https://www.instagram.com/'], ['chats', 'https://www.hylo.com/']]
+  .forEach(([id, url]) => { CHANNELS.find(c => c.id === id).url = url; });
+/*/PROTO*/
 const CH = Object.fromEntries(CHANNELS.map(c => [c.id, c]));
 const chSnap = () => JSON.stringify(CHANNELS.map(({ id, name, used, url, onNew }) => ({ id, name, used, url, onNew })));
 const CH_BASE = chSnap();
@@ -1962,14 +1967,15 @@ function goodToKnow(ev) {
   return t.length ? t.join(', ').replace(/^./, c => c.toUpperCase()) + '.' : '';
 }
 /* A channel's post, written from the event. The Group email, the Calendar, Facebook and the chats link to the event's
-   public page (details, directions and sign-up) and, once the event has one, to its RSVP link. Partiful is the RSVP
-   itself, so its post has no link; Instagram points to the link in bio. */
+   public page (details, directions and sign-up) once it's published, as the flyer's QR code does: a draft's page isn't
+   there yet, so its posts have no link until Publish writes them again. Once the event has an RSVP link they link to it
+   too. Partiful is the RSVP itself, so its post has no link; Instagram points to the link in bio. */
 function draft(ch, ev) {
   const when = `${longDate(ev.date)}, ${t12(ev.start)}–${t12(ev.end)}`;
   const where = ev.address ? `${ev.place}, ${ev.address}` : ev.place;
   const g = goodToKnow(ev);
   const host = ev.host.split(' ')[0];
-  const link = qrLink(ev.id), rsvp = safeUrl(ev.rsvp), site = rsvp ? rsvpSite(rsvp) : '';
+  const link = onSite(ev) ? qrLink(ev.id) : '', rsvp = safeUrl(ev.rsvp), site = rsvp ? rsvpSite(rsvp) : '';
   const links = [link && `Details, directions and sign-up: ${link}`, rsvp && `${site ? 'RSVP on ' + site : 'RSVP'}: ${rsvp}`].filter(Boolean).join('\n');
   switch (ch) {
     case 'partiful': case 'luma': case 'meetup':

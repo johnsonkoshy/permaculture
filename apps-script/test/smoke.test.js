@@ -1773,6 +1773,9 @@ test('the edit form: Status choice, and an RSVP link that must start with https:
   await waitFor(() => p.api.toasts.includes('Saved as a draft. Only organizers can see it.'), 2000, 'the toast');
   assert.deepEqual(p.g.tab('Activity').filter(r => r[0] === 'w7').slice(-2).map(r => r[2]), ['Jessie edited the event', 'Jessie made the event a draft']);
   assert.deepEqual(pubIds(p), [], 'off the public page');
+  const w7Posts = () => p.g.tab('Posts').filter(r => r[0] === 'w7').map(r => r[4]);
+  assert.ok(w7Posts().every(x => !x.includes('?ev=')), "a draft's posts don't link to its page, which isn't there now");
+  assert.ok(postText(p, 'w7', 'calendar').endsWith('RSVP on Partiful: https://partiful.com/e/seedswap'), 'the RSVP link stays');
   // published again from the form, with the link on the public page
   (await waitFor(() => p.$('#detail #edit-ev'), 2000, 'the event')).click();
   await waitFor(() => p.$('#editf'), 2000, 'the edit form');
@@ -1782,6 +1785,7 @@ test('the edit form: Status choice, and an RSVP link that must start with https:
   await waitFor(() => evCell(p, 'w7', 'status') === 'published', 3000, 'published again');
   await waitFor(() => p.api.toasts.includes("Saved and published. It's on the public site now."), 2000, 'the toast');
   assert.equal(p.g.ctx.getPublic().events[0].rsvp, 'https://partiful.com/e/seedswap');
+  assert.ok(postText(p, 'w7', 'calendar').endsWith(URL_SITE + '?ev=w7\nRSVP on Partiful: https://partiful.com/e/seedswap'), 'published, the drafts link to its page again');
   await waitFor(p.idle, 2000, 'calls to finish');
   p.noErrors();
 });
@@ -2915,6 +2919,13 @@ const chCell = (g, id, head, v) => { const tab = g.tab('Channels'); g.sheets.get
 const shownChannels = p => p.$$('#dp-out .orow').map(r => r.dataset.row);
 const alsoPostTo = p => p.$$('#add-ch option').map(o => o.value).filter(Boolean);
 const postText = (p, id, ch) => (p.g.tab('Posts').find(r => r[0] === id && r[1] === ch) || [])[4];
+// coming back to the tab: the page reads the Sheet again (a few ms on, so a save that just finished counts as older)
+async function readAgain(p) {
+  const reads = () => p.api.done.filter(c => c.fn === 'signIn').length, before = reads();
+  await sleep(5);
+  p.d.dispatchEvent(new p.w.Event('visibilitychange'));
+  await waitFor(() => reads() === before + 1 && p.idle(), 3000, 'the Sheet to be read again');
+}
 // a new event, saved: its id and the channels it has Posts rows for
 async function newEventChannels(p, title) {
   p.$('#new-ev').click();
@@ -3008,7 +3019,15 @@ test("Partiful marked posted with its link: Yes makes it the event's RSVP link, 
   p.$('#dp-out [data-act=mark][data-ch=partiful]').click();
   p.set('#mk-w7-partiful', 'https://partiful.com/e/w7dig');
   p.$('form[data-mark=partiful] button[type=submit]').click();
-  assert.equal(p.$('#dp-out [data-row=partiful] .oask p').textContent, "Use this as the event's RSVP link?https://partiful.com/e/w7dig");
+  const ASK = "Use this as the event's RSVP link?https://partiful.com/e/w7dig";
+  assert.equal(p.$('#dp-out [data-row=partiful] .oask p').textContent, ASK);
+  // read first, answered later: the question stays once the Sheet has the post, and through a read of the Sheet
+  // that brings in someone else's change to the event
+  await waitFor(() => postRow(p, 'w7', 'partiful')?.status === 'posted' && p.idle(), 3000, 'the post to be saved');
+  setEvCell(p.g, 'w7', 'notes', 'Bring the long hose');
+  await readAgain(p);
+  assert.match(p.$('#detail').textContent, /Bring the long hose/, "the Sheet's change is in");
+  assert.equal(p.$('#dp-out [data-row=partiful] .oask p')?.textContent, ASK, 'the question is still there');
   assert.deepEqual(p.$$('#dp-out .oask button').map(b => b.textContent), ['Yes', 'No']);
   checkIcons(p, 'the RSVP question');
   p.$('#dp-out [data-act=rsvp-yes][data-ch=partiful]').click();
@@ -3065,6 +3084,98 @@ test("the RSVP question: only when the event has no RSVP link yet, only with a l
   assert.match(q.$('#ta-w7-ggroup').value, /\nRSVP on Partiful: https:\/\/partiful\.com\/e\/already\n/, 'a draft nobody edited has the RSVP link typed into the Sheet');
   await waitFor(q.idle, 2000, 'saves to finish');
   p.noErrors(); q.noErrors();
+});
+
+test("a draft event's posts don't link to its page until Publish; then the drafts nobody edited do, and approved ones need review again", async t => {
+  const p = await openPage(t);
+  await signIn(p, 'Phil');
+  const m2Posts = () => p.g.tab('Posts').filter(r => r[0] === 'm2');
+  assert.deepEqual(m2Posts().map(r => r[1]), ['partiful', 'ggroup', 'calendar', 'instagram', 'chats']);
+  assert.ok(m2Posts().every(r => !r[4].includes('?ev=')), "no starter draft links to a page that isn't there yet");
+  // an earlier version of the page did put the link in a draft event's posts: the page takes it out again
+  const link = 'Details, directions and sign-up: ' + URL_SITE + '?ev=m2', cal = postText(p, 'm2', 'calendar');
+  p.g.sheets.get('Posts').set(p.g.tab('Posts').findIndex(r => r[0] === 'm2' && r[1] === 'calendar') + 1, p.g.tab('Posts')[0].indexOf('text') + 1, cal + '\n\n' + link);
+  p.$('#signout').click();
+  await signIn(p, 'Phil');
+  await outreach(p, 'm2');
+  p.$('#dp-out [data-row=calendar] [data-act=toggle]').click();
+  assert.equal(p.$('#ta-m2-calendar').value, cal, 'not counted as a hand edit');
+  p.$('#dp-out [data-row=ggroup] [data-act=toggle]').click();
+  const group = p.$('#ta-m2-ggroup').value;
+  assert.ok(!group.includes('?ev=') && /\nWhere: [^\n]+\nBring: [^\n]+\n\n[^\n]+\n\nSee you there,/.test(group), group);
+  // Phil approves the Group email (it could be posted now, with no link to a missing page), and adds a line to the chats by hand
+  p.$('#dp-out [data-act=approve][data-ch=ggroup]').click();
+  assert.deepEqual(acts(p, 'ggroup'), ['Post']);
+  p.$('#dp-out [data-row=chats] [data-act=toggle]').click();
+  const mine = p.$('#ta-m2-chats').value + ' Bring a friend!';
+  p.set('#ta-m2-chats', mine);
+  await waitFor(() => postRow(p, 'm2', 'ggroup')?.status === 'approved' && postText(p, 'm2', 'chats') === mine && p.idle(), 3000, 'the approval and the edit to be saved');
+  p.$('#detail #publish-ev').click();
+  await waitFor(() => p.api.toasts.includes("Published. It's on the public site now. 1 approved post changed, so it needs review again."), 3000, 'the toast');
+  assert.equal(pill(p, 'ggroup'), 'Draft · needs review', 'the approved Group email goes back to review');
+  assert.equal(p.$('#ta-m2-ggroup').value, group.replace('\n\nSee you there,', '\n\n' + link + '\n\nSee you there,'), 'with the link added');
+  assert.equal(postRow(p, 'm2', 'ggroup').status, 'review');
+  assert.equal(postText(p, 'm2', 'ggroup'), p.$('#ta-m2-ggroup').value, 'and so does the Sheet');
+  assert.ok(postText(p, 'm2', 'calendar').endsWith(link), 'the Calendar draft has it too');
+  assert.equal(postText(p, 'm2', 'chats'), mine, 'a draft changed by hand keeps its text');
+  assert.ok(!postText(p, 'm2', 'partiful').includes('https'), 'the Partiful post still has no link');
+  // the link works: a visitor gets the event's page
+  p.$('#m-x').click();
+  await waitFor(p.idle, 2000, 'saves to finish');
+  const q = await eventPage(t, 'm2', null, p.g);
+  assert.ok(!q.$('.pe-gone'), "not \"This event isn't on the calendar anymore\"");
+  assert.equal(q.$('#pe-title').textContent, 'OPC Community Meeting');
+  p.noErrors(); q.noErrors();
+});
+
+test('a draft fixed by hand in the Posts tab keeps its text after signing in again, through a read of the Sheet and after Approve', async t => {
+  const p = await openPage(t);
+  await signIn(p, 'Jessie');
+  const g = p.g, posts = g.sheets.get('Posts'), TEXT = g.tab('Posts')[0].indexOf('text') + 1;
+  const at = ch => g.tab('Posts').findIndex(r => r[0] === 'w7' && r[1] === ch) + 1;
+  // a typo fixed in the Group email's text, and a new start time typed into the Events tab
+  const fixed = postText(p, 'w7', 'ggroup').replace('See you there,', 'See you in the garden,');
+  posts.set(at('ggroup'), TEXT, fixed);
+  setEvCell(g, 'w7', 'start', '09:30');
+  p.$('#signout').click();
+  await signIn(p, 'Jessie');
+  await outreach(p, 'w7');
+  p.$('#dp-out [data-row=ggroup] [data-act=toggle]').click();
+  assert.equal(p.$('#ta-w7-ggroup').value, fixed, 'the page shows the fix');
+  p.$('#dp-out [data-row=chats] [data-act=toggle]').click();
+  assert.match(p.$('#ta-w7-chats').value, /^OPC Garden Work Party is Sun 10\/25 at 9:30am, Oakland Peace Center\./, 'a draft nobody touched has the new time');
+  p.$('#dp-out [data-act=approve][data-ch=ggroup]').click();
+  await waitFor(() => postRow(p, 'w7', 'ggroup')?.status === 'approved' && p.idle(), 3000, 'the approval to be saved');
+  assert.equal(postText(p, 'w7', 'ggroup'), fixed, 'the Sheet keeps the fix');
+  assert.ok(postRow(p, 'w7', 'ggroup').edited, 'and says it was edited');
+  assert.match(postText(p, 'w7', 'chats'), /at 9:30am/, 'the untouched draft is saved with the new time');
+  assert.ok(!postRow(p, 'w7', 'chats').edited);
+  // a line added to the chats message in the Sheet while the page is open comes in with the next read, and stays
+  const fix2 = postText(p, 'w7', 'chats') + '\nCarpool from Fruitvale BART at 9.';
+  posts.set(at('chats'), TEXT, fix2);
+  await readAgain(p);
+  assert.equal(p.$('#ta-w7-chats').value, fix2);
+  // changing the event doesn't write over either fix
+  (await waitFor(() => p.$('#detail #edit-ev'), 2000, 'the event')).click();
+  await waitFor(() => p.$('#editf'), 2000, 'the edit form');
+  p.set('#ed-end', '13:30');
+  p.$('#editf button[type=submit]').click();
+  await waitFor(() => p.api.toasts.includes('Saved') && p.idle(), 3000, 'the save');
+  assert.equal(postText(p, 'w7', 'ggroup'), fixed);
+  assert.equal(postText(p, 'w7', 'chats'), fix2);
+  assert.ok(postText(p, 'w7', 'calendar').length && !postRow(p, 'w7', 'calendar').edited, 'the others are still the app\'s own');
+  // clearing the text and edited cells has the app write the draft again
+  assert.ok(postRow(p, 'w7', 'chats').edited, 'the chats fix counts as edited now');
+  posts.set(at('chats'), TEXT, '');
+  posts.set(at('chats'), TEXT + 1, '');
+  p.$('#m-x').click();
+  p.$('#signout').click();
+  await signIn(p, 'Jessie');
+  await outreach(p, 'w7');
+  p.$('#dp-out [data-row=chats] [data-act=toggle]').click();
+  assert.match(p.$('#ta-w7-chats').value, /^OPC Garden Work Party is Sun 10\/25 at 9:30am, [^\n]+ Who's in\?\n/);
+  assert.ok(!p.$('#ta-w7-chats').value.includes('Carpool'));
+  p.noErrors();
 });
 
 /* ---------- the Posting Helper (chrome-extension/): Open & fill, and how to get it ---------- */
@@ -3285,6 +3396,14 @@ test('the prototype artifact never finds the helper: Copy stays, and the install
   p.$('#detail [data-dtab="outreach"]').click();
   p.$('#dp-out [data-act=approve][data-ch=partiful]').click();
   assert.deepEqual(acts(p, 'partiful'), ['Copy text', 'Open Partiful', 'Mark as posted']);
+  // the artifact has no Channels tab, so its copy-and-paste channels open their sites instead of saying to add a link there
+  p.$('#dp-out [data-row=chats] [data-act=toggle]').click();
+  assert.equal(p.$('#dp-out [data-row=chats] .obody a.hint').href, 'https://www.hylo.com/');
+  p.$('#dp-out [data-act=approve][data-ch=instagram]').click();
+  p.$('#dp-out [data-act=approve][data-ch=chats]').click();
+  assert.deepEqual(acts(p, 'instagram'), ['Download image', 'Copy caption', 'Open Instagram', 'Mark as posted']);
+  assert.deepEqual(acts(p, 'chats'), ['Copy text', 'Open WhatsApp & Hylo chats', 'Share to WhatsApp', 'Mark as posted']);
+  assert.ok(!p.$('#dp-out .nolink') && !/Channels tab/.test(p.$('#dp-out').textContent), 'no Channels tab hint');
   p.$('#helper-tog').click();
   assert.equal(p.$('#helper-body a[download]').getAttribute('href'), 'https://ebpg-event-hub.netlify.app/ebpg-posting-helper.zip');
   assert.deepEqual(p.api.calls, [], 'the artifact calls no server');
