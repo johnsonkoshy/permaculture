@@ -23,6 +23,7 @@ class Range {
     return Array.from({ length: this.nr }, (_, i) => Array.from({ length: this.nc }, (_, j) => display(this.sh.get(this.r + i, this.c + j))));
   }
   clearContent() { for (let i = 0; i < this.nr; i++) for (let j = 0; j < this.nc; j++) this.sh.set(this.r + i, this.c + j, ''); return this; }
+  clearDataValidations() { return this; }
   setFontWeight() { return this; }
   setBackground() { return this; }
   setNumberFormat() { return this; }
@@ -44,7 +45,8 @@ class Sheet {
   table() { return Array.from({ length: this.getLastRow() }, (_, i) => (this.cells[i] || []).map(display)); }
 }
 
-function makeGas({ page, now, url = 'http://localhost:8766/' } = {}) {
+/* activeUser: who is running the code. The owner when run from the script editor; '' for an anonymous web-app visitor. */
+function makeGas({ page, now, url = 'http://localhost:8766/', activeUser = 'owner@example.com' } = {}) {
   const sheets = new Map([['Sheet1', new Sheet('Sheet1')]]);
   const ss = {
     getId: () => 'sheet-1',
@@ -86,7 +88,7 @@ function makeGas({ page, now, url = 'http://localhost:8766/' } = {}) {
     PropertiesService: { getScriptProperties: () => ({ getProperty: k => props[k] || null, setProperty: (k, v) => { props[k] = v; } }) },
     CacheService: { getScriptCache: () => ({ get: k => cache[k] || null, put: (k, v) => { cache[k] = v; } }) },
     LockService: { getScriptLock: () => ({ waitLock() {}, releaseLock() {} }) },
-    Session: { getScriptTimeZone: () => TZ, getEffectiveUser: () => ({ getEmail: () => 'owner@example.com' }) },
+    Session: { getScriptTimeZone: () => TZ, getEffectiveUser: () => ({ getEmail: () => 'owner@example.com' }), getActiveUser: () => ({ getEmail: () => activeUser }) },
     Utilities,
     MailApp: { sendEmail: (to, subject, body, opts) => mail.push({ to, subject, body, opts }) },
     CalendarApp: {

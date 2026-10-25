@@ -12,8 +12,18 @@ The Event Hub prototype, now saving to a real Google Sheet. The page is hosted o
 ## Morning: 5 minutes to turn it on
 
 1. **Approve it once.** Open the script editor link and pick **setup** in the function menu at the top. Click **Run**, then **Review permissions**, and choose your account. Google will say *"Google hasn't verified this app"*. That's normal for a script you wrote yourself: click **Advanced → Go to EBPG Event Hub (unsafe) → Allow**. This sets up the Sheet tabs and the hourly reminder check.
-2. **Open the web app link.** You'll see the Guild's landing page. Click **Sign in**, type the organizer code `sprout-4821-bay`, and pick a name. The first sign-in fills the empty Sheet with the six starter events, the team and the volunteers.
+2. **Open the site and sign in.** Go to https://ebpg-event-hub.netlify.app and you'll see the Guild's landing page. Click **Sign in**, type the organizer code `sprout-4821-bay`, and pick your name. The first sign-in on an empty Sheet fills it with the Guild's six events from the OPC planning notes and the team's names, roles and permissions. Contacts start blank, the volunteer list starts empty, and Workday #7 and Community Meeting #2 are drafts: their posts wait for review and their tasks need someone. This happens only once. Afterwards `SEEDED` on the Settings tab says TRUE, so emptying a tab by hand never brings the starter events back.
 3. **If the link still says "Access Denied":** in the script editor go to **Deploy → Manage deployments → ✏️**. Set *Execute as* to **Me** and *Who has access* to **Anyone**, then click **Deploy**. Or just tell Claude, and it will redeploy.
+
+## Before the demo
+
+1. On the Settings tab, set `REMINDERS` to **FALSE**, so nobody gets a reminder while you set up.
+2. In the script editor, pick **resetStarterData** in the function menu and click **Run**. It empties the data tabs (Events, Bringing, Posts, Activity, Volunteers, Reminders, Team and Gardens). Headers and Settings stay. It also deletes real volunteer sign-ups, so copy any you want to keep first. It can't be run from the page.
+3. Open the site and sign in once. That fills the Sheet with the starter events again.
+4. Fill in the real contacts on the Team tab (email or phone). Until then the Team page shows "No contact yet".
+5. Confirm the Workday #7 date and description with Jessie, and fix them in the app or the Sheet.
+6. In Google Calendar, create an **EBPG Events** calendar and put its ID in `CALENDAR_ID` (Calendar settings → Integrate calendar → Calendar ID). Create a test Google Group and put its address in `GROUP_EMAIL`.
+7. Set `REMINDERS` back to **TRUE**.
 
 ## How the pieces fit
 
@@ -41,7 +51,7 @@ The Event Hub prototype, now saving to a real Google Sheet. The page is hosted o
 
 To go live:
 1. Put the Group's address in `GROUP_EMAIL`.
-2. Swap the placeholder team members on the Team tab for real names and emails.
+2. Fill in each person's email or phone on the Team tab.
 3. Set `TEST_MODE` to FALSE.
 
 ## Moving it to a Guild account
@@ -64,7 +74,7 @@ python3 build.py                 # event-hub/src.html + src/bridge.js -> dist/ (
 node --test test/                # all tests (or: npm test, which builds first)
                                  #   server.test.js: backend against a mock of Google's services
                                  #   smoke.test.js: the built site/ page in jsdom against that mock
-                                 #   (landing, sign-in, saving an edit, volunteer sign-up)
+                                 #   (landing, sign-in, saving an edit, volunteer sign-up, honest starter data)
 node test/dev-server.js          # the real page + mock backend at http://localhost:8766/
 clasp push --force               # upload dist/ (after build.py)
 netlify deploy --dir site --prod # publish site/ to https://ebpg-event-hub.netlify.app

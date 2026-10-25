@@ -349,6 +349,8 @@ legend { font-size: 13px; font-weight: 700; color: var(--ink-2); margin-bottom: 
 .team input[type=checkbox] { accent-color: var(--fern); width: 16px; height: 16px; }
 .team select { border: 1px solid var(--line-2); border-radius: 8px; padding: 5px 8px; background: var(--raised); font-size: 13px; }
 .team .nm { display: flex; gap: 10px; align-items: center; }
+.warnchip { display: inline-block; margin-top: 2px; padding: 2px 8px; border-radius: 999px; background: var(--flag-soft); color: var(--flag); font-size: 12px; font-weight: 700; line-height: 1.4; white-space: nowrap; }
+.team td.vol-empty { white-space: normal; padding: 16px 14px; }
 .av { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font: 700 12px/1 var(--body); color: #1C3A2B; flex: none; }
 .addp { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.2fr) minmax(0, .8fr) minmax(0, 1fr) auto; gap: 8px; align-items: end; margin-top: 14px; }
 @media (max-width: 760px) { .addp { grid-template-columns: 1fr 1fr; } }
@@ -484,6 +486,7 @@ legend { font-size: 13px; font-weight: 700; color: var(--ink-2); margin-bottom: 
 .who-tbl .rm { width: 1%; white-space: nowrap; text-align: right; }
 .who-tbl .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 .who-tbl .needs { color: var(--flag); font-weight: 700; }
+.who-tbl .last { display: block; font-size: 12px; font-weight: 400; color: var(--ink-3); }
 .who-tbl tfoot td { border-bottom: 0; padding-top: 10px; }
 .who-tbl input, .who-tbl select { width: 100%; border: 1px solid var(--line-2); border-radius: 8px; padding: 7px 9px; background: var(--surface); font-size: 14px; }
 
@@ -910,8 +913,8 @@ td code, .code code { font: 400 13px/1.5 var(--mono); }
     <h2 style="font-size:26px;margin:36px 0 6px">Volunteer list</h2><p class="muted" style="margin-bottom:12px">People who signed up on the home page. <span class="sample">Sample + this tab's sign-ups</span></p>
     <div class="tbl"><table class="team" id="vol-tbl"></table></div>
     <form class="addp" id="addp" novalidate>
-      <label class="fld">Name<input id="ap-name" placeholder="Janice W."></label>
-      <label class="fld">Phone or email<input id="ap-contact" placeholder="(510) 555-0100"></label>
+      <label class="fld">Name<input id="ap-name" placeholder="Name"></label>
+      <label class="fld">Phone or email<input id="ap-contact" placeholder="Phone or email"></label>
       <label class="fld">Remind by<select id="ap-via"><option>Text</option><option>Email</option></select></label>
       <label class="fld">Role<select id="ap-role"><option value="vol">Volunteer</option><option value="co">Co-organizer</option></select></label>
       <button class="btn primary" type="submit"><svg><use href="#i-plus"/></svg>Add</button>
@@ -1314,17 +1317,17 @@ const PERMS = [['create', 'Create events'], ['edit', 'Edit events'], ['approve',
 const ROLE = { lead: 'Lead organizer', co: 'Co-organizer', vol: 'Volunteer' };
 const allPerms = v => Object.fromEntries(PERMS.map(([k]) => [k, v]));
 const CO = { create: true, edit: true, approve: false, tasks: true, team: false };
-const TEAM = [
-  { name: 'Jessie', role: 'lead', contact: 'jessie@example.org', via: 'Email', perms: allPerms(true) },
-  { name: 'Phil', role: 'co', contact: '(510) 555-0111', via: 'Text', perms: { create: true, edit: true, approve: true, tasks: true, team: false } },
-  { name: 'Kalynn', role: 'co', contact: '(510) 555-0112', via: 'Text', perms: { ...CO } },
-  { name: 'Sky', role: 'co', contact: 'sky@example.org', via: 'Email', perms: { create: false, edit: false, approve: true, tasks: true, team: false } },
-  { name: 'Karen', role: 'vol', contact: '(510) 555-0120', via: 'Text', perms: allPerms(false) },
-  { name: 'Meena', role: 'vol', contact: '(510) 555-0121', via: 'Text', perms: allPerms(false) },
-  { name: 'Ajay', role: 'vol', contact: '(510) 555-0122', via: 'Text', perms: allPerms(false) },
-  { name: 'Marissa', role: 'vol', contact: 'marissa@example.org', via: 'Email', perms: allPerms(false), note: 'Neighborhood outreach' },
-  { name: 'Rob', role: 'vol', contact: '(510) 555-0124', via: 'Text', perms: allPerms(false) },
-  { name: 'Lauren', role: 'vol', contact: '(510) 555-0125', via: 'Text', perms: allPerms(false) },
+const TEAM = [ // real names, roles and permissions; contacts are blank until an organizer adds them
+  { name: 'Jessie', role: 'lead', contact: '', via: '', perms: allPerms(true) },
+  { name: 'Phil', role: 'co', contact: '', via: '', perms: { create: true, edit: true, approve: true, tasks: true, team: false } },
+  { name: 'Kalynn', role: 'co', contact: '', via: '', perms: { ...CO } },
+  { name: 'Sky', role: 'co', contact: '', via: '', perms: { create: false, edit: false, approve: true, tasks: true, team: false } },
+  { name: 'Karen', role: 'vol', contact: '', via: '', perms: allPerms(false) },
+  { name: 'Meena', role: 'vol', contact: '', via: '', perms: allPerms(false) },
+  { name: 'Ajay', role: 'vol', contact: '', via: '', perms: allPerms(false) },
+  { name: 'Marissa', role: 'vol', contact: '', via: '', perms: allPerms(false), note: 'Neighborhood outreach' },
+  { name: 'Rob', role: 'vol', contact: '', via: '', perms: allPerms(false) },
+  { name: 'Lauren', role: 'vol', contact: '', via: '', perms: allPerms(false) },
 ];
 const person = n => TEAM.find(t => t.name === n);
 const organizers = () => TEAM.filter(t => t.role !== 'vol');
@@ -1364,7 +1367,7 @@ const TASKS = {
   w6: [['food', 'Bring plates, cups, napkins, utensils', 'Phil', 'done'], ['setup', 'Snacks and water station', 'Karen', 'done'], ['signin', 'Nametags and sign-in sheet', 'Meena', 'done']],
 };
 let taskSeq = 0;
-const mkTask = (type, text, who, status, rems) => ({ id: 't' + (++taskSeq), type, text, who, status, rems: rems || defaultRems(type), assignedOn: who ? '2026-10-19' : '', open: false });
+const mkTask = (type, text, who, status, rems) => ({ id: 't' + (++taskSeq), type, text, who, status, rems: rems || defaultRems(type), assignedOn: who ? TODAY : '', open: false });
 const HOSTS = { map: f => organizers().map(t => t.name).map(f) };
 const PHOTOS = [['trellis', 'Garden work'], ['moat', 'Before the dig'], ['pantry', 'Building'], ['none', 'Illustration']];
 const STATUS = { off: 'Not used', review: 'Needs approval', approved: 'Approved', posted: 'Posted' };
@@ -1441,15 +1444,17 @@ const sup = (item, status = 'packed', who = '') => ({ item, status, who });
 const WORK_SUPPLIES = st => [sup('Nametags and markers', st), sup('Hand fruit', st), sup('Granola bars', st), sup('Water dispenser', st), sup('5-gallon buckets', st), sup('Shovels', st), sup('Rakes', st), sup('Weeding and pruning tools', st)];
 const area = (name, items) => ({ name, items: items.map(t => ({ text: t, done: false })) });
 const EVENTS = [];
-function addEvent(ev, states, log) {
-  ev.posts = makePosts(ev, Object.keys(states), 'review');
-  Object.entries(states).forEach(([k, st]) => { ev.posts[k].status = st; if (st !== 'review') ev.posts[k].by = ev.host; });
-  ev.log = log; ev.tasks = (TASKS[ev.id] || []).map(([ty, tx, w, st]) => mkTask(ty, tx, w, st));
+// past events from the Guild's planning notes: no outreach on record, one log line saying where they came from
+function addEvent(ev) {
+  ev.posts = makePosts(ev, []);
+  ev.log = [[D(ev.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }), 'Imported from the Guild planning notes']];
+  ev.tasks = (TASKS[ev.id] || []).map(([ty, tx, w, st]) => mkTask(ty, tx, w, st));
   EVENTS.push(ev); return ev;
 }
-const ALL_POSTED = { partiful: 'posted', ggroup: 'posted', calendar: 'posted', instagram: 'posted', chats: 'posted' };
+// the channels the Guild announces OPC events on; new drafts start with these when the source has no outreach on record
+const USUAL_CHANNELS = ['partiful', 'ggroup', 'calendar', 'instagram', 'chats'];
 
-addEvent({ id: 'w2', series: 'workday', num: 2, label: 'Workday #2 · Part Deux', dateNote: 'date assumed', photo: 'pantry',
+addEvent({ id: 'w2', series: 'workday', num: 2, label: 'Workday #2 · Part Deux', photo: 'pantry',
   title: 'OPC Garden Work Party', date: '2026-05-24', start: '10:00', end: '14:00', ...OPC, host: 'Jessie', tags: ['beginner', 'tools', 'potluck', 'outdoor'],
   about: 'Garden work, a homemade lunch, and a conversation about signs: what first-time visitors need, and plant labels you can design yourself.', bring: 'water bottle, gloves if you have them',
   plan: {
@@ -1463,7 +1468,7 @@ addEvent({ id: 'w2', series: 'workday', num: 2, label: 'Workday #2 · Part Deux'
     questions: ['What do we want to tell the community about this garden?', 'What do we want to say about specific plants?', 'How do we encourage harvesting with least harm, at the right time, without overpicking?', 'Which languages are most common in this community?', 'What signs would help a first-time visitor to OPC: parking, entrances, emergency exits?', 'How can the garden use the bulletin board in front of OPC?', 'Plant label: what material, how is it attached, what info? Could it have a QR code?'],
     notes: ['Walk: garden, tool center, water spigot, front door, meeting room, back patio', 'Lunch and conversation on the back patio, weather permitting'],
     areas: [], debrief: [],
-  } }, ALL_POSTED, [['May 10 · 9:00 AM', 'Jessie created the event'], ['May 11 · 8:30 AM', 'All channels approved and posted']]);
+  } });
 
 addEvent({ id: 'w5', series: 'workday', num: 5, label: 'Workday #5', photo: 'moat',
   title: 'OPC Garden Work Party', date: '2026-08-23', start: '10:00', end: '14:00', ...OPC, host: 'Jessie', tags: ['beginner', 'tools', 'potluck', 'outdoor'],
@@ -1480,9 +1485,9 @@ addEvent({ id: 'w5', series: 'workday', num: 5, label: 'Workday #5', photo: 'moa
     notes: ['Walk: garden, tool center, water spigot, front door, meeting room, back patio, parking lot', 'Back patio: support the work Wood Street has done, don\'t interfere', 'Safety: the parking lot has a slope. Know your physical limits', 'Gauge interest in clearing fennel from the back'],
     areas: [area('Front garden', ['General garden tasks']), area('Back patio', ['Beautify alongside Wood Street\'s work']), area('Parking lot', ['Clear out fennel from the back'])],
     debrief: ['More trellis gardening: vining vegetables, planting upwards', 'Start in Sept/Oct: kohlrabi, native plants for the slope', 'Buy cattle fence', 'Paint the garden beds', 'Gathering spaces by the oak and the staircase', 'Shade garden: herbs, oak understory, California rose', 'Brush pile', 'Erosion control on the slope: logs, woven sticks, brush pile', 'El Niño and ground stability: a crew per storm?'].map(t => ({ text: t, used: false })),
-  } }, ALL_POSTED, [['Aug 9 · 10:00 AM', 'Jessie created the event'], ['Aug 10 · 9:15 AM', 'All channels approved and posted']]);
+  } });
 
-addEvent({ id: 'm1', series: 'meeting', num: 1, label: 'Community Meeting #1', dateNote: 'date assumed', photo: 'none',
+addEvent({ id: 'm1', series: 'meeting', num: 1, label: 'Community Meeting #1', photo: 'none',
   title: 'OPC Community Meeting', date: '2026-09-09', start: '18:00', end: '20:00', ...OPC, host: 'Jessie', tags: ['beginner', 'potluck'],
   about: 'Share food, hear the state of the garden, and help plan what comes next: signage, the back garden and the greenhouse.', bring: 'yourself, and a dish to share if you like',
   plan: {
@@ -1496,7 +1501,7 @@ addEvent({ id: 'm1', series: 'meeting', num: 1, label: 'Community Meeting #1', d
     questions: ['What services and functions can a community garden serve for the community?', 'State of the garden: what are we forgetting?', 'What do we want to accomplish at the next work party?', 'Who wants to do what role?'],
     notes: ['Initial site visit 2/18/26', 'Groundbreaking 4/18 with the Office of the Governor and the City of Oakland. Monthly workdays since', 'Partners: Acta Non Verba, Urban Farm Oasis, Grand Lake ACE, Wood Street Commons', 'Mutual aid pantry renovated and installed by Bay Resistance', 'Next: greenhouse 9/26–27, seed library by November. Maybe: entrance garden, Fennel Hill, parking lot'],
     areas: [], debrief: [],
-  } }, ALL_POSTED, [['Aug 30 · 7:00 PM', 'Jessie created the event'], ['Aug 31 · 9:00 AM', 'All channels approved and posted']]);
+  } });
 
 addEvent({ id: 'w6', series: 'workday', num: 6, label: 'Workday #6', photo: 'trellis',
   title: 'OPC Garden Work Party', date: '2026-09-27', start: '10:00', end: '14:00', ...OPC, host: 'Jessie', tags: ['beginner', 'tools', 'potluck', 'outdoor'],
@@ -1513,7 +1518,7 @@ addEvent({ id: 'w6', series: 'workday', num: 6, label: 'Workday #6', photo: 'tre
     notes: [],
     areas: [area('Front garden', ['Top dressing', 'Put in a new bed', 'Show the succulents some love', 'Cull plants as needed (tomatoes)', 'Seed bombs']), area('Back lot', ['Clear out and pot up pride of Madeira', 'Clear under the oak for an oak guild'])],
     debrief: [],
-  } }, ALL_POSTED, [['Sep 13 · 10:00 AM', 'Jessie created the event'], ['Sep 14 · 8:45 AM', 'All channels approved and posted']]);
+  } });
 // what got done on #6 (sample ticks so the carry-over shows)
 EVENTS.find(e => e.id === 'w6').plan.areas.forEach(a => a.items.forEach((it, i) => { it.done = a.name === 'Front garden' ? i < 3 : i === 0; }));
 
@@ -1536,6 +1541,8 @@ function copyPlan(pl) {
   c.debrief = [];
   return c;
 }
+// tasks carried into a new event start open; 'last' remembers who did it last time
+const copyTasks = src => (src.tasks || []).filter(t => t.who || t.last).map(t => Object.assign(mkTask(t.type, t.text, '', 'open', t.rems.slice()), { last: t.who || t.last }));
 function seriesIdeas(ev) {
   return EVENTS.filter(e => e.series === ev.series && e.date < ev.date).flatMap(e => e.plan.debrief.filter(d => !d.used).map(d => ({ d, from: e })));
 }
@@ -1543,37 +1550,29 @@ function planNext(src, date) {
   const same = EVENTS.filter(e => e.series === src.series);
   const num = Math.max(...same.map(e => e.num)) + 1;
   if (!date) { const d = D(src.date); d.setDate(d.getDate() + 28); date = d.toISOString().slice(0, 10); }
-  const ev = { ...JSON.parse(JSON.stringify({ ...src, posts: null, log: null, tasks: null })), id: src.series[0] + num + '-' + Date.now() % 10000, num, label: (src.series === 'workday' ? 'Workday #' : 'Community Meeting #') + num, date, dateNote: '' };
+  const ev = { ...JSON.parse(JSON.stringify({ ...src, posts: null, log: null, tasks: null })), id: src.series[0] + num + '-' + Date.now() % 10000, num, label: (src.series === 'workday' ? 'Workday #' : 'Community Meeting #') + num, date };
   ev.plan = copyPlan(src.plan);
-  const chans = CHANNELS.filter(c => src.posts[c.id].status !== 'off').map(c => c.id);
-  ev.posts = makePosts(ev, chans, 'review');
-  ev.tasks = (src.tasks || []).filter(t => t.who).map(t => { const n = mkTask(t.type, t.text, t.who, 'asked', t.rems.slice()); n.assignedOn = TODAY; return n; });
-  ev.log = [[nowStamp(), `${ME} planned ${ev.label} from ${src.label}`], [nowStamp(), `Copied run of show, supplies and ${ev.tasks.length} tasks. Drafts written for ${chans.length} channels`]];
+  const used = CHANNELS.filter(c => src.posts[c.id].status !== 'off').map(c => c.id);
+  ev.posts = makePosts(ev, used.length ? used : USUAL_CHANNELS, 'review');
+  ev.tasks = copyTasks(src);
+  ev.log = [[nowStamp(), `${ME} drafted ${ev.label} from ${src.label}`]];
   EVENTS.push(ev);
   return ev;
 }
-// upcoming, drafted from the last ones (sample)
+// upcoming: drafted from the last ones, waiting for an organizer to review the posts and fill the tasks
 const w7 = planNext(EVENTS.find(e => e.id === 'w6'), '2026-10-25');
-w7.id = 'w7'; w7.about = 'Finishing the back lot under the oak, planting kohlrabi and natives for the slope, and showing off the new greenhouse.';
+w7.id = 'w7'; w7.about = 'Our monthly garden work day at the Oakland Peace Center. We pick up where Workday #6 left off, then share lunch and a short debrief. No experience needed.';
 CHANNELS.forEach(c => { w7.posts[c.id].text = draft(c.id, w7); });
-w7.log = [['Oct 11 · 10:00 AM', 'Jessie planned Workday #7 from Workday #6'], ['Oct 11 · 10:01 AM', 'Copied run of show, supplies and 3 tasks'], ['Oct 12 · 9:30 AM', 'Phil approved Partiful, Google Group, Calendar'], ['Oct 12 · 9:31 AM', 'Google Group email and Calendar posted automatically']];
-['partiful', 'ggroup', 'calendar'].forEach(k => { w7.posts[k].status = 'posted'; w7.posts[k].by = 'Phil'; });
-w7.posts.luma = { ...w7.posts.luma, status: 'approved', by: 'Phil' };
-w7.tasks.forEach(t => { t.assignedOn = '2026-10-11'; t.status = t.who === 'Karen' ? 'asked' : 'confirmed'; });
-w7.tasks.push(mkTask('tools', 'Ask neighbors for wheelbarrows', 'Ajay', 'asked'), mkTask('other', 'Make a parking sign', '', 'open'), mkTask('notes', 'Take notes at the debrief', 'Sky', 'confirmed'));
-w7.plan.supplies.slice(0, 5).forEach(x => x.status = 'packed');
-w7.plan.areas[0].items.push({ text: 'Plant kohlrabi', done: false }, { text: 'Native plants for the slope', done: false });
+w7.tasks.push(mkTask('other', 'Make a parking sign', '', 'open'));
 
-seriesIdeas(w7).forEach(({ d }) => { if (/kohlrabi/.test(d.text)) d.used = true; });
 const m2 = planNext(EVENTS.find(e => e.id === 'm1'), '2026-11-12');
 m2.id = 'm2'; m2.about = 'Potluck and planning for winter at the OPC garden: the seed library, signage, and storm prep for the slope.';
 CHANNELS.forEach(c => { m2.posts[c.id].text = draft(c.id, m2); });
-m2.log = [['Oct 24 · 8:02 AM', 'Jessie planned Community Meeting #2 from #1']];
 m2.plan.notes = ['Greenhouse is up (9/26–27)', 'Seed library by November', 'Storm crew for El Niño?'];
-m2.tasks.forEach(t => { t.assignedOn = '2026-10-24'; t.status = t.who === 'Jessie' ? 'confirmed' : 'asked'; });
 m2.tasks.push(mkTask('notes', 'Notetaker', '', 'open'), mkTask('cleanup', 'Clean-up crew', '', 'open'), mkTask('other', 'Timekeeper', '', 'open'));
 
-const S = { dtab: (() => { try { return sessionStorage.getItem('ebpg-dtab') || 'plan'; } catch { return 'plan'; } })(), when: 'up', sel: 'w7', fold: { mats: false, chs: false, tasks: false, log: true, run: false, areas: false, sups: false, talk: false, ideas: false } };
+const nextEvent = () => EVENTS.filter(e => !e.isNew && e.date >= TODAY).sort((a, b) => a.date.localeCompare(b.date))[0] || EVENTS[0];
+const S = { dtab: (() => { try { return sessionStorage.getItem('ebpg-dtab') || 'plan'; } catch { return 'plan'; } })(), when: 'up', sel: nextEvent()?.id, fold: { mats: false, chs: false, tasks: false, log: true, run: false, areas: false, sups: false, talk: false, ideas: false } };
 try { Object.assign(S.fold, JSON.parse(localStorage.getItem('ebpg-fold') || '{}')); } catch {}
 const visible = () => EVENTS.filter(e => !e.isNew).filter(e => S.when === 'up' ? e.date >= TODAY : e.date < TODAY).sort((a, b) => S.when === 'up' ? a.date.localeCompare(b.date) : b.date.localeCompare(a.date));
 const counts = ev => { const c = { off: 0, review: 0, approved: 0, posted: 0 }; Object.values(ev.posts).forEach(p => c[p.status]++); return c; };
@@ -1614,9 +1613,9 @@ function renderTeam() {
   $('#team-note').innerHTML = edit ? '' : `<div class="perm-note" style="margin-bottom:12px">Viewing as ${esc(ME)}. ${NOPE.team} to change the team.</div>`;
   $('#team-tbl').innerHTML = `<thead><tr><th>Person</th><th>Role</th><th>Reminders</th>${PERMS.map(([, l]) => `<th class="c">${l}</th>`).join('')}<th></th></tr></thead><tbody>${TEAM.map((t, i) => {
     const lock = !edit || t.role === 'lead';
-    return `<tr><td><span class="nm">${avatar(t.name)}<span><b>${esc(t.name)}</b><br><span class="hint">${esc(t.contact)}</span></span></span></td>
+    return `<tr><td><span class="nm">${avatar(t.name)}<span><b>${esc(t.name)}</b><br>${t.contact ? `<span class="hint">${esc(t.contact)}</span>` : '<span class="warnchip">No contact yet</span>'}</span></span></td>
     <td>${t.role === 'lead' ? ROLE.lead : `<select data-role="${i}" ${edit ? '' : 'disabled'} aria-label="Role for ${esc(t.name)}"><option value="co" ${t.role === 'co' ? 'selected' : ''}>Co-organizer</option><option value="vol" ${t.role === 'vol' ? 'selected' : ''}>Volunteer</option></select>`}</td>
-    <td>${esc(t.via)}</td>
+    <td>${t.via ? esc(t.via) : '<span class="hint">—</span>'}</td>
     ${PERMS.map(([k, l]) => `<td class="c">${t.role === 'vol' ? '<span class="hint">—</span>' : `<input type="checkbox" data-perm="${i}" data-k="${k}" ${t.perms[k] ? 'checked' : ''} ${lock ? 'disabled' : ''} aria-label="${esc(t.name)}: ${l}">`}</td>`).join('')}
     <td>${t.role === 'lead' || !edit ? '' : `<button class="tog" type="button" data-rm="${i}">Remove</button>`}</td></tr>`;
   }).join('')}</tbody>`;
@@ -1719,7 +1718,7 @@ function renderDetail() {
   const open = (ev.tasks || []).filter(t => !t.who || t.status === 'cant').length;
   $('#detail').innerHTML = `
     <div class="hstrip" aria-label="Flyers and posts for this event">${MATS.map(([k, name, use, fn]) => `<figure>${fn(ev)}<figcaption><b>${name}</b> · ${use}</figcaption></figure>`).join('')}</div>
-    <div class="dh"><div><div class="eyebrow">${past ? 'Past event' : 'Upcoming'}</div><h2>${esc(ev.title)}</h2><div class="meta">${esc(longDate(ev.date))}${ev.dateNote ? ` <span class="hint">(${esc(ev.dateNote)})</span>` : ''} · ${t12(ev.start)}–${t12(ev.end)} · ${esc(ev.place)}${ev.map ? ` · <a href="${ev.map}" target="_blank" rel="noopener">Map</a>` : ''}</div></div>
+    <div class="dh"><div><div class="eyebrow">${past ? 'Past event' : 'Upcoming'}</div><h2>${esc(ev.title)}</h2><div class="meta">${esc(longDate(ev.date))} · ${t12(ev.start)}–${t12(ev.end)} · ${esc(ev.place)}${ev.map ? ` · <a href="${ev.map}" target="_blank" rel="noopener">Map</a>` : ''}</div></div>
       <div class="actions">${S.editing ? '' : `<button class="btn ghost sm" type="button" id="edit-ev">Edit event</button>`}</div></div>
     <div class="dtabs" role="tablist" aria-label="Event sections">
       <button type="button" role="tab" id="dt-plan" aria-selected="${S.dtab === 'plan'}" aria-controls="dp-plan" data-dtab="plan">Event plan${open ? `<span class="n">${open} open</span>` : ''}</button>
@@ -1727,9 +1726,9 @@ function renderDetail() {
     </div>
     <div class="dpanel" id="dp-plan" role="tabpanel" aria-labelledby="dt-plan" ${S.dtab === 'plan' ? '' : 'hidden'}>${docHTML(ev)}</div>
     <div class="dpanel" id="dp-out" role="tabpanel" aria-labelledby="dt-out" ${S.dtab === 'outreach' ? '' : 'hidden'}>
-      <div class="osum"><span>${c.review + c.approved ? `<b>${c.review + c.approved} ready to post</b>` : 'Everything is posted'} · ${c.posted} posted</span></div>
-      <ul class="olist">${CHANNELS.filter(ch => ev.posts[ch.id].status !== 'off').map(ch => chRow(ev, ch)).join('')}</ul>
-      ${c.off ? `<label class="addch"><span class="hint">Also post to</span><select id="add-ch" aria-label="Add a channel"><option value="">Choose a channel</option>${CHANNELS.filter(ch => ev.posts[ch.id].status === 'off').map(ch => `<option value="${ch.id}">${esc(ch.name)}</option>`).join('')}</select></label>` : ''}
+      <div class="osum"><span>${c.off === CHANNELS.length ? 'No outreach recorded for this event.' : `${c.review + c.approved ? `<b>${c.review + c.approved} ready to post</b>` : 'Everything is posted'} · ${c.posted} posted`}</span></div>
+      ${c.off < CHANNELS.length ? `<ul class="olist">${CHANNELS.filter(ch => ev.posts[ch.id].status !== 'off').map(ch => chRow(ev, ch)).join('')}</ul>` : ''}
+      ${c.off && !past ? `<label class="addch"><span class="hint">Also post to</span><select id="add-ch" aria-label="Add a channel"><option value="">Choose a channel</option>${CHANNELS.filter(ch => ev.posts[ch.id].status === 'off').map(ch => `<option value="${ch.id}">${esc(ch.name)}</option>`).join('')}</select></label>` : ''}
       <div class="chs"><div class="chs-h">${fold('log', 'Activity', ev.log.length)}</div><ul class="log" id="log-body" ${hid('log')}>${ev.log.slice().reverse().map(([t, w]) => `<li><span>${esc(t)}</span><span>${esc(w)}</span></li>`).join('')}</ul></div>
     </div>`;
   $$('[data-dtab]').forEach(b => b.addEventListener('click', () => { S.dtab = b.dataset.dtab; try { sessionStorage.setItem('ebpg-dtab', S.dtab); } catch {} renderDetail(); }));
@@ -1812,7 +1811,7 @@ function bindEdit(ev) {
     ev.num = Math.max(0, ...EVENTS.filter(e => e.series === src.series && e !== ev).map(e => e.num || 0)) + 1;
     ev.label = (src.series === 'workday' ? 'Workday #' : 'Community Meeting #') + ev.num;
     ev.plan = copyPlan(src.plan);
-    ev.tasks = src.tasks.filter(t => t.who).map(t => { const n = mkTask(t.type, t.text, t.who, 'asked', t.rems.slice()); n.assignedOn = TODAY; return n; });
+    ev.tasks = copyTasks(src);
     renderDetail();
   });
   form.addEventListener('submit', x => {
@@ -1868,7 +1867,7 @@ function tasksHTML(ev) {
   return `<div class="chs"><div class="chs-h">${fold('tasks', "Who's bringing what", ts.length + ' items')}</div>
   <div id="tasks-body" ${hid('tasks')}><table class="who-tbl">
     <thead><tr><th>What</th><th>Who</th>${up ? '<th class="sr">Remove</th>' : ''}</tr></thead>
-    <tbody>${ts.map(t => `<tr><td>${esc(t.text)}</td><td>${t.who ? esc(t.who) : '<span class="needs">Needs someone</span>'}</td>${up ? `<td class="rm"><button class="x" type="button" data-tdel="${t.id}" aria-label="Remove ${esc(t.text)}">×</button></td>` : ''}</tr>`).join('') || `<tr><td colspan="${up ? 3 : 2}" class="hint">Nothing yet.</td></tr>`}</tbody>
+    <tbody>${ts.map(t => `<tr><td>${esc(t.text)}</td><td>${t.who ? esc(t.who) : '<span class="needs">Needs someone</span>'}${t.last && t.last !== t.who ? `<span class="last">Last time: ${esc(t.last)}</span>` : ''}</td>${up ? `<td class="rm"><button class="x" type="button" data-tdel="${t.id}" aria-label="Remove ${esc(t.text)}">×</button></td>` : ''}</tr>`).join('') || `<tr><td colspan="${up ? 3 : 2}" class="hint">Nothing yet.</td></tr>`}</tbody>
     ${up ? `<tfoot><tr><td><input id="nt-text" placeholder="e.g. Plates, cups, napkins" aria-label="What"></td><td><select id="nt-who" aria-label="Who"><option value="">Needs someone</option>${people}</select></td><td class="rm"><button class="btn ghost sm" type="button" id="nt-add">Add</button></td></tr></tfoot>` : ''}
   </table></div></div>`;
 }
@@ -1921,7 +1920,7 @@ function bindDetail(ev) {
       case 'post':
         if (ch.mode === 'copy') { try { await navigator.clipboard.writeText(p.text); toast(`Copied. Paste it on ${ch.name}.`); } catch { toast(`Open the text and copy it for ${ch.name}.`); } ev.log.push([nowStamp(), `${ME} posted to ${ch.name}`]); }
         else if (remote) { b.disabled = true; try { toast(await remote.post(ev, id)); } catch (er) { b.disabled = false; toast(er.message); return; } ev.log.push([nowStamp(), `${ME} posted to ${ch.name}`]); }
-        else { ev.log.push([nowStamp(), `${ch.name} posted automatically (simulated)`]); toast(`Posted to ${ch.name} (simulated)`); }
+        else { ev.log.push([nowStamp(), `${ME} posted to ${ch.name} (simulated)`]); toast(`Posted to ${ch.name} (simulated)`); }
         p.status = 'posted'; p.by = ME; p.open = false; break;
       case 'copy': try { await navigator.clipboard.writeText(p.text); toast('Copied. Paste it on ' + ch.name + '.'); } catch { p.open = true; renderDetail(); const ta = $(`#ta-${ev.id}-${id}`); ta?.focus(); ta?.select(); toast('Text selected. Press Ctrl+C or Cmd+C to copy.'); } return;
       case 'mark': p.status = 'posted'; ev.log.push([nowStamp(), `${ME} marked ${ch.name} posted`]); toast(`${ch.name} marked as posted`); break;
@@ -2053,7 +2052,7 @@ function openDrawer(ev) {
       if (src) { ne.series = src.series; ne.num = Math.max(...EVENTS.filter(x => x.series === src.series).map(x => x.num)) + 1; ne.label = (src.series === 'workday' ? 'Workday #' : 'Community Meeting #') + ne.num; ne.plan = copyPlan(src.plan); ne.map = src.map; }
       else ne.plan = { leadStart: '', leadEnd: '', leadNote: '', roles: [['Event leads', [ME]]], pending: [], setup: [], supplies: [], food: null, timeline: [], icebreaker: '', questions: [], notes: [], areas: [], debrief: [] };
       ne.plan.leadStart = ls; ne.plan.leadEnd = le; readPlanFields(ne.plan);
-      ne.tasks = src ? src.tasks.filter(t => t.who).map(t => { const n = mkTask(t.type, t.text, t.who, 'asked', t.rems.slice()); n.assignedOn = TODAY; return n; }) : [];
+      ne.tasks = src ? copyTasks(src) : [];
       ne.posts = makePosts(ne, chs, 'review');
       ne.log = [[nowStamp(), `${ME} created the event`], [nowStamp(), `Drafts written for ${chs.length} channels`]];
       EVENTS.push(ne); S.sel = ne.id; S.when = ne.date >= TODAY ? 'up' : 'past';
@@ -2073,7 +2072,7 @@ $('#new-ev').addEventListener('click', () => {
 });
 
 function renderMaterials() {
-  const sel = $('#m-ev'), cur = sel.value || S.sel || 'w7';
+  const sel = $('#m-ev'), cur = sel.value || S.sel || nextEvent()?.id;
   const up = EVENTS.slice().sort((a, b) => a.date.localeCompare(b.date));
   sel.innerHTML = up.map(e => `<option value="${e.id}" ${e.id === cur ? 'selected' : ''}>${esc(shortDate(e.date))} · ${esc(e.title)}</option>`).join('');
   const ev = EVENTS.find(e => e.id === sel.value) || up[0];
@@ -2104,7 +2103,6 @@ function nextSecondMonday(from) {
 }
 const GARDENS = [
   { name: 'Oakland Peace Center garden', addr: '111 Fairmount Ave, Oakland, CA', what: 'Monthly meetings and garden work days', lat: 37.8136, lng: -122.2589 },
-  { name: 'Sausal Creek at Dimond Park', addr: 'Dimond Park, 3860 Hanly Rd, Oakland, CA', what: 'Creek restoration and rain garden days', lat: 37.8022, lng: -122.2170 },
 ];
 function renderMap() {
   const Z = 1 << 14, X0 = 2627, Y0 = 6330, NX = 4, NY = 2;
@@ -2118,14 +2116,10 @@ function renderMap() {
   $$('[data-gl]').forEach(a => { const pin = $(`.mpin[data-g="${a.dataset.gl}"]`); a.addEventListener('mouseenter', () => pin.classList.add('on')); a.addEventListener('mouseleave', () => pin.classList.remove('on')); });
 }
 const HELP = [['setup', 'Meeting setup'], ['workdays', 'Garden work days'], ['projects', 'Partner projects'], ['outreach', 'Outreach & photos'], ['teach', 'Teaching a skill']];
-const VOLS = [
-  { name: 'Alex R.', contact: 'alex@example.org', help: ['workdays', 'teach'], note: 'Can lead a composting demo', date: '2026-10-18' },
-  { name: 'Maya C.', contact: '(510) 555-0140', help: ['setup', 'workdays'], note: '', date: '2026-10-21' },
-  { name: 'Devon B.', contact: 'devon@example.org', help: ['outreach'], note: 'Has a good camera', date: '2026-10-23' },
-];
+const VOLS = []; // filled by sign-ups on the home page
 function renderVols() {
   const H = Object.fromEntries(HELP);
-  $('#vol-tbl').innerHTML = `<thead><tr><th>Name</th><th>Contact</th><th>Wants to help with</th><th>Note</th><th>Signed up</th></tr></thead><tbody>${VOLS.slice().sort((a, b) => b.date.localeCompare(a.date)).map(v => `<tr><td><span class="nm">${avatar(v.name)}<b>${esc(v.name)}</b></span></td><td>${esc(v.contact)}</td><td>${v.help.map(h => `<span class="tag">${esc(H[h] || h)}</span>`).join(' ')}</td><td>${esc(v.note) || '<span class="hint">—</span>'}</td><td>${esc(mdy(v.date))}</td></tr>`).join('')}</tbody>`;
+  $('#vol-tbl').innerHTML = `<thead><tr><th>Name</th><th>Contact</th><th>Wants to help with</th><th>Note</th><th>Signed up</th></tr></thead><tbody>${VOLS.length ? '' : '<tr><td colspan="5" class="hint vol-empty">No sign-ups yet. People who join on the home page show up here.</td></tr>'}${VOLS.slice().sort((a, b) => b.date.localeCompare(a.date)).map(v => `<tr><td><span class="nm">${avatar(v.name)}<b>${esc(v.name)}</b></span></td><td>${esc(v.contact)}</td><td>${v.help.map(h => `<span class="tag">${esc(H[h] || h)}</span>`).join(' ')}</td><td>${esc(v.note) || '<span class="hint">—</span>'}</td><td>${esc(mdy(v.date))}</td></tr>`).join('')}</tbody>`;
 }
 const mdy = s => D(s).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 function bindJoin() {

@@ -162,7 +162,8 @@ test('the right code signs in, fills the empty Sheet and shows the events', asyn
   assert.ok(p.api.calls.includes('signIn') && p.api.calls.includes('seed'), 'signIn then seed');
   assert.ok(p.g.tab('Events').length > 1, 'events were written to the Events tab');
   assert.ok(p.g.tab('Team').length > 1, 'the team was written to the Team tab');
-  assert.ok(p.g.tab('Volunteers').length > 1, 'volunteers were written to the Volunteers tab');
+  assert.equal(p.g.tab('Volunteers').length, 1, 'no made-up volunteers: the Volunteers tab has only its header');
+  assert.equal((p.g.tab('Settings').find(r => r[0] === 'SEEDED') || [])[1], 'TRUE', 'the Sheet is marked as filled');
   const ids = p.g.tab('Events').slice(1).map(r => r[0]);
   const tiles = p.$$('#tiles [data-open]');
   assert.ok(tiles.length >= 1, 'event tiles are shown');
@@ -217,6 +218,57 @@ test('the volunteer form adds a row to the Volunteers tab', async t => {
   assert.ok(row[3].length > 0, 'what they want to help with');
   assert.equal(row[4], 'Weekends work best');
   assert.ok(p.g.mail.some(m => /Welcome to the East Bay Permaculture Guild/.test(m.subject)), 'welcome email sent');
+  await waitFor(p.idle, 2000, 'calls to finish');
+  p.noErrors();
+});
+
+test('the starter data is honest: drafts, open tasks, blank contacts, no sign-ups', async t => {
+  const p = await openPage(t);
+  await signIn(p);
+  // nothing invented in the Sheet
+  const all = JSON.stringify([...p.g.sheets.keys()].map(k => p.g.tab(k)));
+  for (const bad of ['example.org', '555-01', 'Alex R.', 'Sausal', 'approved Partiful', 'posted automatically']) assert.ok(!all.includes(bad), bad + ' is not in the Sheet');
+  assert.equal(p.g.tab('Gardens').length, 2, 'only the Oakland Peace Center garden');
+  const posts = p.g.tab('Posts').slice(1);
+  assert.ok(posts.length > 0 && posts.every(r => r[2] === 'review' && !r[3]), 'every Posts row is an unreviewed draft');
+  assert.deepEqual([...new Set(posts.map(r => r[0]))].sort(), ['m2', 'w7'], 'past events have no Posts rows');
+
+  // Workday #7: drafts only, one Activity line, open tasks with last-time hints
+  p.$('#tiles [data-open="w7"]').click();
+  await waitFor(() => p.$('#detail #dp-plan'), 2000, 'Workday #7 to open');
+  const rows = p.$$('#detail .who-tbl tbody tr');
+  assert.ok(rows.length >= 4, 'the copied tasks plus the parking sign');
+  assert.ok(rows.every(r => /Needs someone/.test(r.textContent)), 'every task needs someone');
+  const hints = p.$$('#detail .who-tbl .last').map(x => x.textContent);
+  assert.ok(hints.includes('Last time: Phil') && hints.includes('Last time: Karen'), hints.join(', '));
+  p.$('#detail [data-dtab="outreach"]').click();
+  await waitFor(() => p.shown('#dp-out'), 2000, 'the Outreach tab');
+  const chans = p.$$('#dp-out .orow');
+  assert.ok(chans.length >= 1, 'channels to post to');
+  assert.ok(chans.every(r => r.classList.contains('review')), 'every channel is a draft');
+  assert.ok(!p.$('#dp-out').textContent.includes('Posted ✓'), "nothing says it's posted");
+  const log = p.$$('#log-body li');
+  assert.equal(log.length, 1, 'one Activity line');
+  assert.match(log[0].textContent, /drafted Workday #7 from Workday #6/);
+  p.$('#m-x').click();
+
+  // a past event: no outreach on record, one import line, no 'Also post to'
+  p.$('[data-when="past"]').click();
+  p.$('#tiles [data-open="w6"]').click();
+  await waitFor(() => p.shown('#dp-out'), 2000, 'Workday #6 on the Outreach tab');
+  assert.match(p.$('#dp-out .osum').textContent, /No outreach recorded for this event\./);
+  assert.ok(!p.$('#add-ch'), "no 'Also post to' on a past event");
+  assert.deepEqual(p.$$('#log-body li').map(li => [...li.children].map(x => x.textContent).join(' | ')), ['Sep 27 | Imported from the Guild planning notes']);
+  assert.ok(!p.$('#detail').textContent.includes('date assumed'));
+  p.$('#m-x').click();
+
+  // Team: blank contacts are flagged; the volunteer list is empty
+  const chips = p.$$('#team-tbl .warnchip');
+  assert.equal(chips.length, p.$$('#team-tbl tbody tr').length, 'every person has a No contact yet chip');
+  assert.ok(chips.every(c => c.textContent === 'No contact yet'));
+  assert.match(p.$('#vol-tbl').textContent, /No sign-ups yet\. People who join on the home page show up here\./);
+  assert.equal(p.$('#ap-name').placeholder, 'Name');
+  assert.equal(p.$('#ap-contact').placeholder, 'Phone or email');
   await waitFor(p.idle, 2000, 'calls to finish');
   p.noErrors();
 });

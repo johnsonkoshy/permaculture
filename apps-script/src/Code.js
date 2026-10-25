@@ -4,7 +4,7 @@
 
 const TABS = {
   Events: ['id', 'label', 'title', 'date', 'start', 'end', 'place', 'address', 'host', 'co-hosts', 'description', 'bring', 'tags', 'notes', 'timeline', "data (don't edit)"],
-  Bringing: ['event id', 'what', 'who', 'status', 'task id'],
+  Bringing: ['event id', 'what', 'who', 'status', 'task id', 'last time'],
   Posts: ['event id', 'channel', 'status', 'posted by', 'text', 'edited'],
   Team: ['name', 'role', 'email or phone', 'reminders by', 'create events', 'edit events', 'post', 'assign tasks', 'manage team'],
   Volunteers: ['signed up', 'name', 'contact', 'wants to help with', 'note'],
@@ -21,6 +21,7 @@ const DEFAULTS = [
   ['REMINDERS', 'TRUE', 'Email people bringing things the evening before and the morning of.'],
   ['WELCOME_EMAILS', 'TRUE', 'Email new volunteers a thank-you and tell the lead organizer.'],
   ['SITE_URL', '', 'Where the Event Hub page lives, e.g. https://ebpg-event-hub.netlify.app. When set, this Google link sends people there.'],
+  ['SEEDED', '', 'Set to TRUE by the app after the first sign-in fills the Sheet. Leave it.'],
 ];
 const ROLES = { lead: 'Lead organizer', co: 'Co-organizer', vol: 'Volunteer' };
 const PERM_KEYS = ['create', 'edit', 'approve', 'tasks', 'team'];
@@ -71,6 +72,23 @@ function setup() {
   return 'Ready. Web app: ' + ScriptApp.getService().getUrl();
 }
 
+/* Run from the editor (not callable from the page): empties the data tabs, keeping their headers and
+   the Settings, so the next organizer sign-in fills the Sheet with the starter events again. */
+function resetStarterData() {
+  // google.script.run can reach any public function, so refuse unless the person running it is the one it runs as (the editor)
+  const me = Session.getActiveUser().getEmail();
+  if (!me || me !== owner_()) throw new Error('Run resetStarterData from the script editor.');
+  ensure_();
+  return locked_(() => {
+    ['Events', 'Bringing', 'Posts', 'Activity', 'Volunteers', 'Reminders', 'Team', 'Gardens'].forEach(name => {
+      const sh = sheet_(name), n = sh.getLastRow() - 1;
+      if (n > 0) sh.getRange(2, 1, n, TABS[name].length).clearDataValidations().clearContent(); // Team has checkboxes
+    });
+    setSetting_('SEEDED', '');
+    return 'Cleared. The next organizer sign-in fills the Sheet with the starter events.';
+  });
+}
+
 /* ---------- calls from the page ---------- */
 function getPublic() {
   ensure_();
@@ -90,19 +108,22 @@ function getPublic() {
 function signIn(code) {
   check_(code);
   const st = readAll_();
-  st.empty = !st.events.length;
+  st.empty = !on_('SEEDED') && !st.events.length;
   return st;
 }
 
-/* First organizer sign-in on an empty Sheet fills it with the starter events. */
+/* First organizer sign-in on an empty Sheet fills it with the starter events, once.
+   After that SEEDED is TRUE, so an Events tab emptied by hand stays empty. */
 function seed(code, st) {
   check_(code);
   return locked_(() => {
-    if (rows_('Events').length) return readAll_();
+    if (on_('SEEDED') || rows_('Events').length) return readAll_();
+    st = st || {};
     (st.events || []).forEach(saveEvent_);
-    if (!rows_('Team').length) writeTeam_(st.team || []);
+    if (!readTeam_().length) writeTeam_(st.team || []);
     if (!rows_('Volunteers').length) write_('Volunteers', (st.vols || []).map(volRow_));
     if (!rows_('Gardens').length) write_('Gardens', (st.gardens || []).map(g => [g.name, g.addr, g.what, g.lat, g.lng]));
+    setSetting_('SEEDED', 'TRUE');
     return readAll_();
   });
 }
@@ -225,9 +246,21 @@ function ensure_() {
   });
   const blank = ss.getSheetByName('Sheet1');
   if (blank && ss.getSheets().length > 1 && blank.getLastRow() === 0) ss.deleteSheet(blank);
-  const have = rows_('Settings').map(r => r[0]);
+  const settings = rows_('Settings'), have = settings.map(r => r[0]);
   const missing = DEFAULTS.filter(d => have.indexOf(d[0]) < 0);
-  if (missing.length) append_('Settings', missing);
+  if (missing.length) {
+    append_('Settings', missing);
+    Object.keys(TABS).forEach(labelColumns_); // new settings mean an update, which may have added columns too
+  }
+  // a Sheet filled before SEEDED existed: mark it, so it is never filled again
+  const seeded = settings.find(r => r[0] === 'SEEDED');
+  if (!(seeded && String(seeded[1]).trim()) && rows_('Events').length) setSetting_('SEEDED', 'TRUE');
+}
+/* Give columns added to TABS since the tab was made their header. Never moves anything. */
+function labelColumns_(name) {
+  const sh = sheet_(name), head = TABS[name], have = sh.getRange(1, 1, 1, head.length).getDisplayValues()[0];
+  if (have.every(String)) return;
+  sh.getRange(1, 1, 1, head.length).setValues([head.map((h, i) => have[i] || h)]).setFontWeight('bold').setBackground('#E8F0DF');
 }
 
 function sheet_(name) { return book_().getSheetByName(name); }
@@ -263,6 +296,11 @@ function check_(code) {
   if (String(code || '').trim() !== setting_('ORGANIZER_CODE')) throw new Error("That organizer code isn't right.");
 }
 function setting_(k) { const r = rows_('Settings').find(x => x[0] === k); return r ? String(r[1]).trim() : ''; }
+function setSetting_(k, v) {
+  const i = rows_('Settings', true).findIndex(r => r[0] === k);
+  if (i >= 0) sheet_('Settings').getRange(i + 2, 2, 1, 1).setValues([[cell_(v)]]);
+  else append_('Settings', [[k, v, '']]);
+}
 function on_(k) { return /^(true|yes|on|1)$/i.test(setting_(k)); }
 function owner_() { return Session.getEffectiveUser().getEmail(); }
 function today_() { return Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd'); }
@@ -326,7 +364,7 @@ function saveEvent_(p) {
   const all = rows_('Events', true), i = all.findIndex(r => r[0] === id);
   if (i >= 0) sheet_('Events').getRange(i + 2, 1, 1, row.length).setValues([row.map(cell_)]);
   else append_('Events', [row]);
-  replaceFor_('Bringing', id, (p.tasks || []).map(t => [id, t.what, t.who || '', t.status || '', t.id || '']));
+  replaceFor_('Bringing', id, (p.tasks || []).map(t => [id, t.what, t.who || '', t.status || '', t.id || '', t.last || '']));
   replaceFor_('Posts', id, (p.posts || []).map(x => [id, x.channel, x.status, x.by || '', x.text || '', x.edited ? 'yes' : '']));
   replaceFor_('Activity', id, (p.log || []).map(l => [id, l[0], l[1]]));
 }
@@ -341,7 +379,7 @@ function readTeam_() {
     const role = Object.keys(ROLES).find(k => ROLES[k].toLowerCase() === String(r[1]).trim().toLowerCase() || k === String(r[1]).trim().toLowerCase()) || 'vol';
     const perms = {};
     PERM_KEYS.forEach((k, i) => { perms[k] = role === 'lead' || (role !== 'vol' && yes(r[4 + i])); });
-    return { name: String(r[0]).trim(), role: role, contact: r[2], via: r[3] || (/@/.test(r[2]) ? 'Email' : 'Text'), perms: perms };
+    return { name: String(r[0]).trim(), role: role, contact: r[2], via: r[3] || (!r[2] ? '' : /@/.test(r[2]) ? 'Email' : 'Text'), perms: perms };
   }).filter(t => t.name);
 }
 function writeTeam_(team) {
@@ -357,7 +395,7 @@ function readAll_() {
     rows_(name).forEach(r => { (m[r[0]] = m[r[0]] || []).push(f(r)); });
     return m;
   };
-  const tasks = byEv('Bringing', r => ({ what: r[1], who: r[2], status: r[3], id: r[4] }));
+  const tasks = byEv('Bringing', r => ({ what: r[1], who: r[2], status: r[3], id: r[4], last: r[5] }));
   const posts = byEv('Posts', r => ({ channel: r[1], status: r[2], by: r[3], text: r[4], edited: !!r[5] }));
   const log = byEv('Activity', r => [r[1], r[2]]);
   return {

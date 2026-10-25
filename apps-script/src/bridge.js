@@ -23,7 +23,7 @@ if (window.EBPG_GAS) {
       id: ev.id, data,
       cols: { label: ev.label || '', title: ev.title, date: ev.date, start: ev.start, end: ev.end, place: ev.place, address: ev.address || '', host: hostOf(pl), cohosts: cohostsOf(pl).join(', '),
         about: ev.about || '', bring: ev.bring || '', tags: ev.tags.join(', '), notes: (pl.notes || []).join('\n'), timeline: PT.timeline(pl) },
-      tasks: (tasks || []).map(t => ({ id: t.id, what: t.text, who: t.who || '', status: t.status || '' })),
+      tasks: (tasks || []).map(t => ({ id: t.id, what: t.text, who: t.who || '', status: t.status || '', last: t.last || '' })),
       posts: CHANNELS.filter(c => posts[c.id] && posts[c.id].status !== 'off').map(c => ({ channel: c.id, status: posts[c.id].status, by: posts[c.id].by || '', text: posts[c.id].text, edited: !!posts[c.id].edited })),
       log: log || [],
     };
@@ -40,7 +40,7 @@ if (window.EBPG_GAS) {
     if (c.notes !== (pl.notes || []).join('\n')) pl.notes = lns(c.notes);
     if (c.timeline !== PT.timeline(pl)) pl.timeline = parseTimeline(c.timeline);
     ev.host = hostOf(pl) || ev.host || '';
-    ev.tasks = r.tasks.map(t => Object.assign(mkTask('other', t.what, t.who, t.status || (t.who ? 'asked' : 'open')), t.id ? { id: t.id } : {}));
+    ev.tasks = r.tasks.map(t => Object.assign(mkTask('other', t.what, t.who, t.status || (t.who ? 'asked' : 'open')), t.id ? { id: t.id } : {}, t.last ? { last: t.last } : {}));
     ev.posts = {};
     CHANNELS.forEach(ch => {
       const p = r.posts[ch.id];
@@ -60,9 +60,10 @@ if (window.EBPG_GAS) {
     taskSeq = Math.max(taskSeq, ...EVENTS.flatMap(e => e.tasks.map(t => +String(t.id).replace(/\D/g, '') || 0)));
     EVENTS.forEach(e => { saved[e.id] = snapEv(e); });
     savedTeam = snapTeam();
-    if (!EVENTS.find(e => e.id === S.sel)) S.sel = (EVENTS.find(e => e.date >= TODAY) || EVENTS[0] || {}).id;
+    if (!EVENTS.find(e => e.id === S.sel)) S.sel = nextEvent()?.id;
   }
-  const SEED = { events: EVENTS.map(payload), team: JSON.parse(JSON.stringify(TEAM)), vols: VOLS.map(v => ({ ...v, help: v.help.map(k => Object.fromEntries(HELP)[k] || k) })), gardens: GARDENS.slice() };
+  // the first sign-in fills an empty Sheet with this: the Guild's real plans, the team with contacts still blank, and no volunteers
+  const SEED = { events: EVENTS.map(payload), team: JSON.parse(JSON.stringify(TEAM)), vols: [], gardens: GARDENS.slice() };
 
   // save whatever changed, a moment after it changed
   sync = () => { if (!live) return; clearTimeout(timer); timer = setTimeout(flush, 800); };

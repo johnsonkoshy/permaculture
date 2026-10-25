@@ -35,7 +35,8 @@ test('first load makes every tab and the settings', () => {
   assert.ok(!out.content.includes('w7</script>'), 'deep link is escaped');
   assert.equal(g.ctx.getPublic().events.length, 0);
   g.ctx.doGet({ parameter: {} });
-  assert.equal(g.tab('Settings').length, 8, 'settings not duplicated on reload');
+  assert.equal(g.tab('Settings').length, 9, 'settings not duplicated on reload');
+  assert.equal(g.tab('Settings').find(r => r[0] === 'SEEDED')[1], '', 'an empty Sheet is not marked as filled');
 });
 
 test('organizer code is checked', () => {
@@ -169,4 +170,96 @@ test('SITE_URL sends the old Google link to Netlify, keeping event links', () =>
   assert.ok(!/<script>[^<]*\/\//.test(out), 'no // inside the redirect script');
   s.set(row, 2, 'javascript:alert(1)');
   assert.match(g.ctx.doGet({ parameter: {} }).content, /EBPG_GAS/, 'bad SITE_URL is ignored');
+});
+
+/* ---------- starter data: filled once, and a reset for the editor ---------- */
+const clearRows = (g, name) => { const sh = g.sheets.get(name); for (let r = 2; r <= sh.cells.length; r++) (sh.cells[r - 1] || []).fill(''); };
+const setting = (g, k) => (g.tab('Settings').find(r => r[0] === k) || [])[1];
+
+test('the first sign-in fills the Sheet once; an Events tab emptied later is not refilled', () => {
+  const g = seeded();
+  assert.equal(setting(g, 'SEEDED'), 'TRUE', 'seed marks the Sheet as filled');
+  clearRows(g, 'Events');
+  assert.equal(g.ctx.signIn(CODE).events.length, 0);
+  assert.equal(g.ctx.signIn(CODE).empty, false, 'no re-seed');
+  g.ctx.seed(CODE, { events: [ev()], team, vols: [], gardens: [] });
+  assert.equal(g.tab('Events').length, 1, 'seed refuses to run again');
+});
+
+test('seed with no volunteers leaves the Volunteers tab empty', () => {
+  const g = makeGas();
+  g.ctx.doGet({});
+  g.ctx.seed(CODE, { events: [ev()], team, vols: [], gardens: [] });
+  assert.equal(g.tab('Volunteers').length, 1, 'only the header row');
+  assert.equal(g.ctx.signIn(CODE).vols.length, 0);
+});
+
+test('resetStarterData empties the data tabs, keeps headers and settings, and the next sign-in refills', () => {
+  const g = seeded();
+  g.ctx.addVolunteer({ name: 'Sam Lee', contact: 'sam@example.org', help: [], note: '' });
+  g.ctx.saveEvent(CODE, ev({ log: [['Oct 24', 'Jessie edited the event']] }));
+  assert.match(g.ctx.resetStarterData(), /^Cleared\. The next organizer sign-in fills the Sheet/);
+  for (const t of ['Events', 'Bringing', 'Posts', 'Activity', 'Volunteers', 'Reminders', 'Team', 'Gardens']) {
+    assert.equal(g.tab(t).length, 1, t + ' has only its header row');
+    assert.ok(g.tab(t)[0][0], t + ' header kept');
+  }
+  assert.equal(g.tab('Events')[0][0], 'id');
+  assert.equal(setting(g, 'SEEDED'), '');
+  assert.equal(setting(g, 'ORGANIZER_CODE'), CODE, 'settings are kept');
+  const st = g.ctx.signIn(CODE);
+  assert.equal(st.empty, true);
+  g.ctx.seed(CODE, { events: [ev()], team, vols: [], gardens: [] });
+  assert.equal(g.tab('Events').length, 2, 'refilled');
+  assert.equal(g.tab('Team').length, team.length + 1, 'team refilled');
+  assert.equal(g.ctx.signIn(CODE).empty, false);
+});
+
+test('resetStarterData runs only from the editor, never from the page', () => {
+  const g = seeded({ activeUser: '' }); // an anonymous visitor of the web app
+  assert.throws(() => g.ctx.resetStarterData(), /script editor/);
+  assert.equal(g.tab('Events').length, 2, 'nothing cleared');
+  const call = fn => JSON.parse(g.ctx.doPost({ postData: { contents: JSON.stringify({ fn, args: [] }) } }).content);
+  assert.match(call('resetStarterData').error, /Unknown call/);
+});
+
+test('a Sheet filled before SEEDED existed is marked filled on the next load', () => {
+  const g = seeded();
+  const s = g.sheets.get('Settings'), row = g.tab('Settings').findIndex(r => r[0] === 'SEEDED') + 1;
+  s.cells[row - 1] = ['', '', '']; // an older Sheet: no SEEDED row yet
+  g.ctx.doGet({});
+  assert.equal(setting(g, 'SEEDED'), 'TRUE');
+  clearRows(g, 'Events');
+  assert.equal(g.ctx.signIn(CODE).empty, false);
+});
+
+test('an update that adds a column labels it in an older Sheet', () => {
+  const g = seeded();
+  g.sheets.get('Bringing').set(1, 6, ''); // a Bringing tab made before 'last time' existed
+  const s = g.sheets.get('Settings'), row = g.tab('Settings').findIndex(r => r[0] === 'SEEDED') + 1;
+  s.cells[row - 1] = ['', '', ''];
+  g.ctx.doGet({});
+  assert.deepEqual(g.tab('Bringing')[0], ['event id', 'what', 'who', 'status', 'task id', 'last time']);
+  assert.equal(g.tab('Bringing')[1][1], 'Plates and cups', 'data not moved');
+});
+
+test("copied tasks keep who did them last time; blank contacts aren't given a reminder method", () => {
+  const g = makeGas();
+  g.ctx.doGet({});
+  g.ctx.seed(CODE, {
+    events: [ev({ tasks: [{ id: 't1', what: 'Plates and cups', who: '', status: 'open', last: 'Phil' }] })],
+    team: [{ name: 'Jessie', role: 'lead', contact: '', via: '', perms: {} }, { name: 'Phil', role: 'co', contact: '', via: '', perms: { approve: true } }],
+    vols: [], gardens: [],
+  });
+  const st = g.ctx.signIn(CODE);
+  assert.deepEqual(JSON.parse(JSON.stringify(st.events[0].tasks[0])), { what: 'Plates and cups', who: '', status: 'open', id: 't1', last: 'Phil' });
+  assert.equal(g.tab('Bringing')[1][5], 'Phil', "in the Sheet's 'last time' column");
+  assert.ok(st.team.every(t => t.contact === '' && t.via === ''));
+});
+
+test('reminders: nothing goes out for an open, unassigned task', () => {
+  const g = makeGas({ now: '2026-10-24T19:00:00-07:00' }); // Sat 7 PM, the event is Sun
+  g.ctx.doGet({});
+  g.ctx.seed(CODE, { events: [ev({ tasks: [{ id: 't1', what: 'Make a parking sign', who: '', status: 'open', last: '' }, { id: 't2', what: 'Plates and cups', who: '', status: 'open', last: 'Phil' }] })], team, vols: [], gardens: [] });
+  assert.equal(g.ctx.hourly(), 0);
+  assert.equal(g.mail.length, 0);
 });
