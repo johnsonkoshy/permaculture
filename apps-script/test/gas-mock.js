@@ -26,23 +26,41 @@ class Range {
   clearDataValidations() { return this; }
   setFontWeight() { return this; }
   setBackground() { return this; }
-  setNumberFormat() { return this; }
+  setNumberFormat(f) { this.sh.formats.push({ r: this.r, c: this.c, nr: this.nr, nc: this.nc, f }); return this; }
   insertCheckboxes() { return this; }
 }
 
+/* Like a new Google Sheet: 1000 rows by 26 columns. A range past the edge throws, as it does in Sheets,
+   until insertRowsAfter / insertColumnsAfter make room. Inserting columns shifts the ones after it right. */
+const filled = v => v !== '' && v != null;
 class Sheet {
-  constructor(name) { this.name = name; this.cells = []; }
+  constructor(name) { Object.assign(this, { name, cells: [], maxRows: 1000, maxCols: 26, formats: [], hidden: new Set() }); }
   set(r, c, v) { (this.cells[r - 1] = this.cells[r - 1] || [])[c - 1] = v; }
   get(r, c) { return (this.cells[r - 1] || [])[c - 1]; }
-  getRange(r, c, nr = 1, nc = 1) { if (r < 1 || c < 1 || nr < 1 || nc < 1) throw new Error(`bad range ${r},${c},${nr},${nc}`); return new Range(this, r, c, nr, nc); }
+  getRange(r, c, nr = 1, nc = 1) {
+    if (r < 1 || c < 1 || nr < 1 || nc < 1) throw new Error(`bad range ${r},${c},${nr},${nc}`);
+    if (r + nr - 1 > this.maxRows || c + nc - 1 > this.maxCols) throw new Error(`The coordinates of the range are outside the dimensions of the sheet (${r},${c},${nr},${nc} on ${this.maxRows}x${this.maxCols}).`);
+    return new Range(this, r, c, nr, nc);
+  }
   getLastRow() {
-    for (let i = this.cells.length; i > 0; i--) if ((this.cells[i - 1] || []).some(v => v !== '' && v != null)) return i;
+    for (let i = this.cells.length; i > 0; i--) if ((this.cells[i - 1] || []).some(filled)) return i;
     return 0;
   }
+  getLastColumn() {
+    let w = 0;
+    this.cells.forEach(row => { for (let j = (row || []).length; j > w; j--) if (filled(row[j - 1])) { w = j; break; } });
+    return w;
+  }
+  getMaxRows() { return this.maxRows; }
+  getMaxColumns() { return this.maxCols; }
+  insertRowsAfter(after, n) { this.cells.splice(after, 0, ...Array.from({ length: n }, () => [])); this.maxRows += n; }
+  insertColumnsAfter(after, n) { this.cells.forEach(row => row && row.length > after && row.splice(after, 0, ...Array(n).fill(''))); this.maxCols += n; }
+  /* the number format last set on a cell */
+  formatAt(r, c) { const f = this.formats.filter(x => r >= x.r && r < x.r + x.nr && c >= x.c && c < x.c + x.nc).pop(); return f ? f.f : ''; }
   setFrozenRows() {}
-  hideColumns() {}
+  hideColumns(c) { this.hidden.add(c); }
   getName() { return this.name; }
-  table() { return Array.from({ length: this.getLastRow() }, (_, i) => (this.cells[i] || []).map(display)); }
+  table() { return Array.from({ length: this.getLastRow() }, (_, i) => Array.from(this.cells[i] || [], display)); }
 }
 
 /* activeUser: who is running the code. The owner when run from the script editor; '' for an anonymous web-app visitor. */

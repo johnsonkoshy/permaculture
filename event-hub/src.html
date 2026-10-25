@@ -131,6 +131,12 @@ main { padding-block: 24px 64px; }
 .attn.ok > .ic { color: var(--fern); }
 .attn.ok { background: var(--fern-soft); }
 .attn.ok b { color: var(--fern); }
+/* a row in the Sheet the app couldn't read */
+.probnote { display: flex; align-items: flex-start; gap: 10px; padding: 8px 6px 8px 14px; border-radius: 12px; background: var(--flag-soft); color: var(--ink); margin-bottom: 10px; }
+.probnote > .ic { color: var(--flag); width: 18px; height: 18px; flex: none; margin-top: 3px; }
+.probnote .grow { flex: 1; min-width: 0; padding-top: 1px; overflow-wrap: anywhere; }
+.probnote .x { flex: none; }
+.probnote .x:hover { color: var(--ink); }
 .layout { display: grid; grid-template-columns: minmax(0, 360px) minmax(0, 1fr); gap: 18px; align-items: start; }
 @media (max-width: 960px) { .layout { grid-template-columns: 1fr; } }
 .listhead { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
@@ -1054,6 +1060,7 @@ td code, .code code { font: 400 13px/1.5 var(--mono); }
 <!--/PROTO-->
 <button class="btn primary" type="button" id="new-ev"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-plus"/></svg>New event</button></div>
     </div>
+    <div id="probs"></div>
     <div id="attn"></div>
     <div class="tilebar"><div class="seg" role="group" aria-label="Show"><button type="button" data-when="up" aria-pressed="true">Upcoming</button><button type="button" data-when="past" aria-pressed="false">Past</button></div><span class="hint">Click an event to open it.</span></div>
     <div class="tiles" id="tiles"></div>
@@ -1499,7 +1506,7 @@ await supabase.from('volunteers').insert({
 const iso = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
 const TODAY = window.EBPG_GAS ? iso(new Date()) : '2026-10-24';
 let ME = 'Jessie';
-let remote = null, sync = () => {}, sheetUrl = ''; // set by the live (Apps Script) build
+let remote = null, sync = () => {}, sheetUrl = '', problems = []; // set by the live (Apps Script) build; problems: Sheet rows it couldn't read
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -1627,13 +1634,15 @@ function makePosts(ev, chosen, status = 'review') {
 /* materials */
 const photo = ph => `<div class="photo ph-${ph || 'none'}">${!ph || ph === 'none' ? '<svg><use href="#mark"/></svg>' : ''}</div>`;
 const kindOf = ev => ev.series === 'meeting' ? 'Community meeting' : ev.series === 'workday' ? 'Work party' : /potluck/i.test(ev.title) ? 'Potluck' : /swap|share/i.test(ev.title) ? 'Skill share' : /dig|restor/i.test(ev.title) ? 'Dig day' : 'Work day';
-const tagLabels = ev => ev.tags.filter(t => t !== 'outdoor').map(t => ({ beginner: 'No experience needed', tools: 'Tools provided', kids: 'Kids welcome', potluck: 'Potluck' })[t]);
+// a tag typed into the Sheet that isn't one of TAGS shows as typed
+const tagName = t => (TAGS.find(x => x[0] === t) || [t, String(t)])[1];
+const tagLabels = ev => ev.tags.filter(t => t !== 'outdoor').map(t => ([['beginner', 'No experience needed'], ['tools', 'Tools provided'], ['kids', 'Kids welcome'], ['potluck', 'Potluck']].find(x => x[0] === t) || [t, tagName(t)])[1]);
 function flyerArt(ev) {
   const d = D(ev.date);
   return `<div class="art flyer"><div class="ph">${photo(ev.photo)}<div class="date"><span>${d.toLocaleDateString('en-US', { month: 'short' })}</span><b>${d.getDate()}</b><span>${d.toLocaleDateString('en-US', { weekday: 'short' })}</span></div></div>
   <div class="bd"><span class="kick">EBPG · ${kindOf(ev)}</span><h4 class="serif">${esc(ev.title)}</h4>
   <div class="when">${t12(ev.start)}–${t12(ev.end)}<br>${esc(ev.place)}</div>
-  <div class="tags">${tagLabels(ev).slice(0, 3).map(t => `<span>${t}</span>`).join('')}</div></div>
+  <div class="tags">${tagLabels(ev).slice(0, 3).map(t => `<span>${esc(t)}</span>`).join('')}</div></div>
   <div class="ft"><div class="cta">RSVP on Partiful<small>link on our Linktree</small></div><div class="qr">QR<br>code</div></div></div>`;
 }
 function igArt(ev) {
@@ -1808,7 +1817,7 @@ function showTab(t) {
 $$('.tabs a').forEach(a => a.addEventListener('click', e => { e.preventDefault(); showTab(a.dataset.tab); history.replaceState(null, '', '#' + a.dataset.tab); window.scrollTo({ top: 0 }); }));
 
 /* render */
-function render() { renderAttn(); renderTiles(); if ($('#detail')) renderDetail(); else applyPerms(); sync(); }
+function render() { renderProblems(); renderAttn(); renderTiles(); if ($('#detail')) renderDetail(); else applyPerms(); sync(); }
 function gate(sel, k, root = document) { $$(sel, root).forEach(el => { if (!can(k)) { el.disabled = true; el.title = NOPE[k]; el.setAttribute('aria-disabled', 'true'); if (el.tagName === 'A') { el.removeAttribute('href'); el.style.opacity = .4; } } }); }
 function applyPerms() {
   const d = $('#detail');
@@ -1876,6 +1885,21 @@ $('#addp').addEventListener('submit', e => {
   TEAM.push({ name, contact, via: $('#ap-via').value, role, perms: role === 'co' ? { create: true, edit: true, approve: false, tasks: true, team: false } : allPerms(false) });
   $('#ap-name').value = ''; $('#ap-contact').value = '';
   toast(`${name} added as ${ROLE[role].toLowerCase()}`, 'check'); renderAs(); renderTeam(); render();
+});
+/* Sheet rows the app couldn't read, each with a Dismiss button. Rebuilt only when the list changes, so focus stays put. */
+const goneProbs = new Set(), probKey = p => [p.tab, p.row, p.what].join('|');
+let probHTML = '';
+function renderProblems() {
+  const html = problems.filter(p => !goneProbs.has(probKey(p))).map(p => `<div class="probnote">${ic('alert-triangle')}<span class="grow">Fix in the Sheet: ${esc(p.tab)} row ${esc(p.row)}, ${esc(String(p.what).replace(/'(.*)'/, '"$1"'))}.</span><button class="x" type="button" data-pgone="${esc(probKey(p))}" aria-label="Dismiss the note about ${esc(p.tab)} row ${esc(p.row)}">${ic('x')}</button></div>`).join('');
+  if (html !== probHTML) $('#probs').innerHTML = probHTML = html;
+}
+$('#probs').addEventListener('click', e => {
+  const b = e.target.closest('[data-pgone]');
+  if (!b) return;
+  const keys = $$('#probs [data-pgone]').map(x => x.dataset.pgone), i = keys.indexOf(b.dataset.pgone);
+  goneProbs.add(b.dataset.pgone); renderProblems();
+  const next = $$('#probs [data-pgone]')[Math.min(i, keys.length - 2)], h1 = $('#p-events h1');
+  if (next) next.focus(); else if (!$('#new-ev').disabled) $('#new-ev').focus(); else { h1.tabIndex = -1; h1.focus(); }
 });
 function renderAttn() {
   const up = EVENTS.filter(e => e.date >= TODAY);
@@ -2017,7 +2041,7 @@ function docHTML(ev) {
   return `<article class="doc" aria-label="Event plan">
     <div class="doc-title">Event: ${esc(ev.title)} (${d.toLocaleDateString('en-US', { month: 'long' })} ${ord(d.getDate())}${ev.label ? ', ' + esc(ev.label) : ''})</div>
     <dl class="doc-kv">
-      ${ev.about || ev.tags.length ? `<div><dt>Details</dt><dd><p class="about" style="margin:0 0 6px">${esc(ev.about)}</p><div class="tags">${ev.tags.map(t => `<span class="tag">${esc(Object.fromEntries(TAGS)[t])}</span>`).join('')}</div></dd></div>` : ''}
+      ${ev.about || ev.tags.length ? `<div><dt>Details</dt><dd><p class="about" style="margin:0 0 6px">${esc(ev.about)}</p><div class="tags">${ev.tags.map(t => `<span class="tag">${esc(tagName(t))}</span>`).join('')}</div></dd></div>` : ''}
       <div><dt>Venue</dt><dd>${esc(ev.place)}${ev.map ? ` · <a href="${esc(ev.map)}" target="_blank" rel="noopener">Map${ic('out', 'out')}</a>` : ''}</dd></div>
       <div><dt>Time</dt><dd>${range(ev.start, ev.end)}${pl.leadStart ? ` <span class="pend">· leads ${range(pl.leadStart, pl.leadEnd)}</span>` : ''}</dd></div>
       ${pl.notes.length ? `<div><dt>Notes</dt><dd><ul class="bul">${pl.notes.map(x => `<li>${esc(x)}</li>`).join('')}</ul></dd></div>` : ''}
@@ -2078,7 +2102,7 @@ function bindEdit(ev) {
     if (!v('ed-title')) return fail('Give the event a name.');
     if (!v('ed-date')) return fail('Pick a date.');
     if (v('ed-end') <= v('ed-start')) return fail('The end time needs to be after the start time.');
-    Object.assign(ev, { title: v('ed-title'), date: v('ed-date'), start: v('ed-start'), end: v('ed-end'), place: v('ed-place'), address: v('ed-address'), about: v('ed-about'), bring: v('ed-bring'), tags: $$('input[name=ed-tag]:checked').map(i => i.value) });
+    Object.assign(ev, { title: v('ed-title'), date: v('ed-date'), start: v('ed-start'), end: v('ed-end'), place: v('ed-place'), address: v('ed-address'), about: v('ed-about'), bring: v('ed-bring'), tags: $$('input[name=ed-tag]:checked').map(i => i.value).concat(ev.tags.filter(t => !TAGS.some(x => x[0] === t))) });
     const pl = ev.plan;
     pl.leadStart = v('ed-ls'); pl.leadEnd = v('ed-le');
     const host = $('#ed-host').value; pl.roles = [['Host', [host]], ['Co-hosts', $('#ed-cos').value.split(',').map(x => x.trim()).filter(x => x && x !== host)]]; 

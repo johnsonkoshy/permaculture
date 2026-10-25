@@ -57,6 +57,7 @@ if (window.EBPG_GAS) {
     if (st.team?.length) TEAM.splice(0, TEAM.length, ...st.team);
     if (st.vols) VOLS.splice(0, VOLS.length, ...st.vols.map(v => ({ ...v, help: v.help.map(l => (HELP.find(h => h[1].toLowerCase() === l.toLowerCase()) || [l])[0]) })));
     if (st.gardens?.length) GARDENS.splice(0, GARDENS.length, ...st.gardens);
+    problems = st.problems || []; // only signIn and seed send these, so the public page never has any
     taskSeq = Math.max(taskSeq, ...EVENTS.flatMap(e => e.tasks.map(t => +String(t.id).replace(/\D/g, '') || 0)));
     EVENTS.forEach(e => { saved[e.id] = snapEv(e); });
     savedTeam = snapTeam();
@@ -105,7 +106,7 @@ if (window.EBPG_GAS) {
     post: (ev, ch) => { clearTimeout(timer); flush(); return run('postTo', code, ev.id, ch, ev.posts[ch].text); },
     join: v => run('addVolunteer', { ...v, help: v.help.map(k => Object.fromEntries(HELP)[k] || k) }).catch(er => toast("Couldn't send your sign-up: " + er.message)),
   };
-  $('#signout').addEventListener('click', () => { if (live) flush(); live = false; code = ''; sheetUrl = ''; store.set('ebpg-code', ''); }, true);
+  $('#signout').addEventListener('click', () => { if (live) flush(); live = false; code = ''; sheetUrl = ''; problems = []; store.set('ebpg-code', ''); }, true);
 
   // live-only page tweaks
   const rs = history.replaceState.bind(history);

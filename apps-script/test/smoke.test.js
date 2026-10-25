@@ -525,3 +525,51 @@ test('the prototype artifact still runs with its own sign-in, Viewing as, archit
   assert.deepEqual(p.api.calls, [], 'the artifact calls no server');
   p.noErrors();
 });
+
+/* ---------- hand edits the app can't read, and tags typed into the Sheet ---------- */
+test("a date the app can't read shows a dismissible note; a tag typed into the Sheet shows as typed and survives an edit", async t => {
+  const p = await openPage(t);
+  await signIn(p, 'Jessie');
+  assert.equal(p.$$('#probs .probnote').length, 0, 'no notes while the Sheet is fine');
+
+  // two hand edits in the Sheet: a date that isn't one, and a tag of the organizer's own
+  const head = p.g.tab('Events')[0], rowOf = id => p.g.tab('Events').findIndex(r => r[0] === id) + 1, sh = p.g.sheets.get('Events');
+  const m2 = rowOf('m2');
+  sh.set(m2, head.indexOf('date') + 1, 'the Thursday after');
+  sh.set(rowOf('w7'), head.indexOf('tags') + 1, 'beginner, Bring a hat');
+  sh.set(rowOf('w7'), head.indexOf('date') + 1, 'Oct 31, 2026');
+  p.$('#signout').click();
+  await signIn(p, 'Jessie');
+
+  const notes = p.$$('#probs .probnote');
+  assert.equal(notes.length, 1);
+  assert.equal(notes[0].textContent, `Fix in the Sheet: Events row ${m2}, date "the Thursday after" not understood.`);
+  assert.ok(!p.$('#tiles [data-open="m2"]'), 'the event with the unreadable date is left out');
+  checkIcons(p, 'the problem note');
+  const x = notes[0].querySelector('button');
+  assert.equal(x.getAttribute('aria-label'), `Dismiss the note about Events row ${m2}`);
+  x.click();
+  assert.equal(p.$$('#probs .probnote').length, 0, 'dismissed');
+  assert.equal(p.d.activeElement, p.$('#new-ev'), 'focus moves on to the next thing');
+
+  // the tag shows as typed on the flyer, the story and the plan, never "undefined"
+  const tile = p.$('#tiles [data-open="w7"]');
+  assert.equal(tile.querySelector('.cal').textContent, 'OCT31', "the date typed as 'Oct 31, 2026' shows as Oct 31");
+  assert.deepEqual(p.$$('#tiles [data-open="w7"] .flyer .tags span').map(s => s.textContent), ['No experience needed', 'Bring a hat']);
+  assert.match(tile.querySelector('.story .ft p').textContent, /^No experience needed\. Bring a hat\.$/);
+  tile.click();
+  await waitFor(() => p.$('#detail #dp-plan'), 2000, 'Workday #7 to open');
+  assert.deepEqual(p.$$('#detail span.tag').map(s => s.textContent), ['Beginner friendly', 'Bring a hat']);
+  assert.ok(!/undefined/.test(p.$('#detail').textContent + p.$('#tiles').textContent));
+
+  // editing the event keeps the typed tag in the Sheet
+  p.$('#edit-ev').click();
+  await waitFor(() => p.$('#editf #ed-title'), 2000, 'the edit form');
+  p.set('#ed-title', 'Fall Planting Work Party');
+  p.$('#editf button[type=submit]').click();
+  await waitFor(() => (p.g.tab('Events').find(r => r[0] === 'w7') || [])[2] === 'Fall Planting Work Party', 3000, 'the save');
+  assert.equal(p.g.tab('Events').find(r => r[0] === 'w7')[head.indexOf('tags')], 'beginner, Bring a hat');
+  assert.equal(p.g.tab('Events')[m2 - 1][head.indexOf('date')], 'the Thursday after', 'the row to fix is left as typed');
+  await waitFor(p.idle, 2000, 'saves to finish');
+  p.noErrors();
+});

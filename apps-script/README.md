@@ -44,7 +44,8 @@ The Event Hub prototype, now saving to a real Google Sheet. The page is hosted o
   - **Calendar:** adds the event.
   - **Partiful, Luma, Meetup, Facebook, Instagram and chats:** stay copy and paste. Luma's API needs a paid plan, and Partiful has none.
 - **Reminders:** every hour the script checks for events. The evening before and the morning of, it emails each person bringing something. People with only a phone number go on a "text these people" email to the host.
-- **Hand edits:** an organizer can fix the title, date, times, place, host, co-hosts, description, notes or timeline straight in the Sheet. The app shows the change on the next load.
+- **Hand edits:** an organizer can fix the title, date, times, place, host, co-hosts, description, notes or timeline straight in the Sheet. The app shows the change on the next load. Dates can be typed as `2026-10-31`, `10/31/2026`, `10/31`, `Oct 31, 2026` or `October 31, 2026`, and times as `10:30 AM`, `10am` or `noon`. If a date still can't be read, that event is left off the Events page and a note there says which row to fix.
+- **Columns:** the app finds each column by its header in row 1, so you can move columns or add your own between them. Don't rename or delete the headers the app made. When an update needs a new column, the app adds it at the right end of the tab. Bringing, Posts and Activity are rewritten by the app on every save, so personal notes belong on a separate tab, not in new columns there. Activity keeps the newest 100 lines per event.
 
 ## Safe testing
 
@@ -63,6 +64,7 @@ Sign in to the Guild account and open the Sheet. Use **File → Make a copy**, w
 
 - The organizer code is one shared password. Permissions inside the app, such as who can post, are honor-system; the server checks only the code.
 - If two people save the same event in the same second, the last save wins. Different events are fine.
+- An event's whole plan has to fit in one cell (45,000 characters). A save over that says "This event's plan is too long to save. Shorten the notes." and the Sheet keeps the last saved version.
 - Gmail allows about 100 emails a day from a free account.
 - Texts aren't sent automatically. The host gets a list of people to text instead.
 - There's also an empty test project called "ebpg-api-check" in Drive. Claude made it to check access, and you can delete it.

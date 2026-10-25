@@ -285,3 +285,175 @@ test('the Google-hosted page shows a friendly error bar, with no "//" in its scr
   assert.ok(/console\.error\(/.test(js), 'details go to the console');
   new vm.Script(js);
 });
+
+/* ---------- columns by header, safer writes, and dates typed by hand ---------- */
+const vm = require('vm');
+const plain = x => JSON.parse(JSON.stringify(x)); // objects from the mock's realm, for deepEqual
+
+test('a column inserted by hand between notes and timeline: the plan, the timeline and saves still line up', () => {
+  const g = seeded();
+  const sh = g.sheets.get('Events');
+  assert.ok(sh.hidden.has(16), "the data (don't edit) column starts hidden");
+  sh.insertColumnsAfter(14, 1); // notes is column 14
+  sh.set(1, 15, 'Who to thank'); sh.set(2, 15, 'The OPC staff');
+  sh.set(1, 3, '  TITLE '); // a header retyped by hand: case and spaces don't matter
+  const e = g.ctx.signIn(CODE).events[0];
+  assert.equal(e.cols.title, 'OPC Garden Work Party');
+  assert.equal(e.cols.notes, 'Bring gloves');
+  assert.equal(e.cols.timeline, '10:00 AM Garden work');
+  assert.equal(e.data.series, 'workday', 'the plan JSON is found by its header');
+  assert.equal(e.data.plan.timeline[0][1], 'Garden work');
+
+  g.ctx.saveEvent(CODE, ev({ cols: { ...ev().cols, notes: 'Bring gloves and hats', timeline: '10:00 AM Mulching' }, data: { ...ev().data, photo: 'moat' } }));
+  const [head, row] = g.tab('Events');
+  assert.deepEqual(head.slice(13), ['notes', 'Who to thank', 'timeline', "data (don't edit)"]);
+  assert.equal(row[13], 'Bring gloves and hats');
+  assert.equal(row[14], 'The OPC staff', 'the hand-added column is left alone');
+  assert.equal(row[15], '10:00 AM Mulching');
+  assert.equal(JSON.parse(row[16]).photo, 'moat');
+  assert.equal(g.tab('Events').length, 2, 'saved in place, not added again');
+  assert.equal(g.ctx.signIn(CODE).events[0].data.photo, 'moat');
+});
+
+test('a column added by hand to Settings or Gardens: settings and map points still go in the right cells', () => {
+  const g = seeded();
+  const s = g.sheets.get('Settings');
+  s.insertColumnsAfter(1, 1); s.set(1, 2, 'who set it');
+  assert.equal(g.ctx.signIn(CODE).empty, false, 'the organizer code is read from its value column');
+  const row = g.tab('Settings').findIndex(r => r[0] === 'SEEDED') + 1;
+  s.set(row, 3, ''); s.set(row, 2, 'Jessie');
+  g.ctx.doGet({}); // marks a filled Sheet as SEEDED again
+  assert.deepEqual(g.tab('Settings')[row - 1].slice(0, 3), ['SEEDED', 'Jessie', 'TRUE']);
+
+  const gs = g.sheets.get('Gardens');
+  gs.insertColumnsAfter(3, 1); gs.set(1, 4, 'contact');
+  gs.set(3, 1, 'Dimond Park'); gs.set(3, 2, '3860 Hanly Rd, Oakland'); gs.set(3, 4, 'Sky');
+  g.ctx.getPublic();
+  assert.deepEqual(g.tab('Gardens')[2], ['Dimond Park', '3860 Hanly Rd, Oakland', '', 'Sky', '37.81', '-122.25']);
+});
+
+test('ensure_ adds a new TABS column after the last used one, without moving any data', () => {
+  const g = seeded();
+  const sh = g.sheets.get('Bringing');
+  sh.set(1, 7, 'my notes'); sh.set(2, 7, 'call Phil first');
+  const before = g.tab('Bringing').map(r => r.slice(0, 7));
+  vm.runInContext("TABS.Bringing.push('helpers')", g.ctx); // what a later update does
+  g.ctx.doGet({});
+  const t = g.tab('Bringing');
+  assert.deepEqual(t[0], ['event id', 'what', 'who', 'status', 'task id', 'last time', 'my notes', 'helpers']);
+  assert.deepEqual(t.map(r => r.slice(0, 7)), before, 'nothing moved');
+  assert.equal(sh.formatAt(2, 8), '@', 'the new column is plain text');
+  assert.equal(sh.formatAt(1000, 8), '@');
+  g.ctx.doGet({});
+  assert.equal(g.tab('Bringing')[0].length, 8, 'added once');
+  assert.equal(g.ctx.signIn(CODE).events[0].tasks.length, 3, 'still read');
+  g.ctx.saveEvent(CODE, ev());
+  assert.equal(g.tab('Bringing')[1][6], 'call Phil first', 'a save leaves the hand-added column alone');
+});
+
+test('saving one event rewrites only its rows, writes before it clears, and clears only what is left over', () => {
+  const g = seeded();
+  g.ctx.saveEvent(CODE, ev({ id: 'm2', cols: { ...ev().cols, title: 'Meeting', date: '2026-11-12' }, tasks: [{ id: 't9', what: 'Notetaker', who: '', status: 'open' }], posts: [], log: [['Nov 1', 'Phil planned it']] }));
+  const sh = g.sheets.get('Bringing'), real = sh.getRange.bind(sh), steps = [];
+  sh.getRange = (r, c, nr, nc) => {
+    const rg = real(r, c, nr, nc), set = rg.setValues.bind(rg), clear = rg.clearContent.bind(rg);
+    rg.setValues = v => { steps.push(['write', r, nr]); return set(v); };
+    rg.clearContent = () => { steps.push(['clear', r, nr]); return clear(); };
+    return rg;
+  };
+  g.ctx.saveEvent(CODE, ev({ tasks: [{ id: 't1', what: 'Plates and cups', who: 'Phil', status: 'done' }] }));
+  assert.deepEqual(steps, [['write', 2, 2], ['clear', 4, 2]], 'the new table first, then only the 2 rows below it');
+  assert.deepEqual(g.tab('Bringing').slice(1).map(r => r.slice(0, 4)), [['m2', 'Notetaker', '', 'open'], ['w7', 'Plates and cups', 'Phil', 'done']]);
+  assert.equal(sh.getLastRow(), 3);
+  assert.deepEqual(g.tab('Activity').filter(r => r[0] === 'm2').map(r => r[2]), ['Phil planned it'], "the other event's activity is kept");
+});
+
+test('writing past the bottom of a tab adds rows first, and new cells are plain text', () => {
+  const g = seeded();
+  const sh = g.sheets.get('Volunteers');
+  sh.maxRows = 3; // header and one sign-up, plus one spare row
+  g.ctx.addVolunteer({ name: 'Sam Lee', contact: 'sam@example.org', help: [], note: '' });
+  g.ctx.addVolunteer({ name: 'Ana Ruiz', contact: '510 555 0101', help: [], note: '' });
+  assert.ok(sh.maxRows >= 4, 'insertRowsAfter made room');
+  assert.deepEqual(g.tab('Volunteers').map(r => r[1]), ['name', 'Alex R.', 'Sam Lee', 'Ana Ruiz']);
+  assert.equal(sh.formatAt(4, 3), '@');
+  assert.equal(g.sheets.get('Team').formatAt(2, 5), '', 'Team keeps its checkboxes, so it is not made text');
+});
+
+test('Activity keeps the newest 100 lines per event', () => {
+  const g = seeded();
+  g.ctx.saveEvent(CODE, ev({ id: 'm2', cols: { ...ev().cols, date: '2026-11-12' }, tasks: [], posts: [], log: [['Nov 1', 'Phil planned it']] }));
+  g.ctx.saveEvent(CODE, ev({ log: Array.from({ length: 150 }, (_, i) => ['Oct ' + i, 'step ' + i]) }));
+  const mine = g.tab('Activity').filter(r => r[0] === 'w7');
+  assert.equal(mine.length, 100);
+  assert.equal(mine[0][2], 'step 50');
+  assert.equal(mine[99][2], 'step 149');
+  assert.equal(g.tab('Activity').filter(r => r[0] === 'm2').length, 1);
+});
+
+test("a plan over 45,000 characters is refused, and the event's rows are left as they were", () => {
+  const g = seeded();
+  const before = ['Events', 'Bringing', 'Posts', 'Activity'].map(g.tab);
+  const notes = 'Bring gloves. '.repeat(3300); // about 46,000 characters
+  const big = ev({ cols: { ...ev().cols, title: 'Changed', notes }, data: { ...ev().data, plan: { ...ev().data.plan, notes: [notes] } }, tasks: [] });
+  assert.throws(() => g.ctx.saveEvent(CODE, big), /^Error: This event's plan is too long to save\. Shorten the notes\.$/);
+  assert.deepEqual(['Events', 'Bringing', 'Posts', 'Activity'].map(g.tab), before);
+  const call = JSON.parse(g.ctx.doPost({ postData: { contents: JSON.stringify({ fn: 'saveEvent', args: [CODE, big] }) } }).content);
+  assert.equal(call.error, "This event's plan is too long to save. Shorten the notes.");
+  // other long cells are still capped, not refused
+  g.ctx.saveEvent(CODE, ev({ cols: { ...ev().cols, notes } }));
+  assert.equal(g.tab('Events')[1][13].length, 45000);
+});
+
+test('dates and times typed by hand', () => {
+  const g = makeGas({ now: '2026-03-02T10:00:00-08:00' });
+  for (const s of ['2026-10-31', '2026/10/31', '10/31/2026', '10/31/26', 'Oct 31, 2026', 'October 31, 2026', 'Oct. 31 2026', 'oct 31,2026', 'Sat, Oct 31, 2026', 'Saturday, October 31st, 2026', '31 Oct 2026', '10/31', 'Oct 31', '2026-10-31 10:00:00'])
+    assert.equal(g.ctx.normDate_(s), '2026-10-31', s);
+  assert.equal(g.ctx.normDate_('Sept 3'), '2026-09-03');
+  for (const s of ['xyz', 'Feb 30, 2026', '13/45/2026', 'Smarch 3', 'the Saturday after', '2026-10-310', ''])
+    assert.equal(g.ctx.isDate_(g.ctx.normDate_(s)), false, s);
+  assert.equal(g.ctx.normDate_('  xyz '), 'xyz', 'comes back as typed');
+  const times = { noon: '12:00', '12 noon': '12:00', Noon: '12:00', midnight: '00:00', '10am': '10:00', '10 AM': '10:00', '10:30 a.m.': '10:30', '10:30 A.M.': '10:30', '9:30 PM': '21:30', '2:00:00 PM': '14:00', '12am': '00:00', '12pm': '12:00', '14:15': '14:15', '7': '07:00' };
+  for (const [s, want] of Object.entries(times)) assert.equal(g.ctx.normTime_(s), want, s);
+  for (const s of ['later', '25:00', '13 PM', '10:75']) assert.equal(g.ctx.normTime_(s), s, s);
+});
+
+test("hand-typed dates like 'Oct 31, 2026' and times like 'noon' show up as the event's date and time", () => {
+  const g = seeded();
+  const sh = g.sheets.get('Events');
+  sh.set(2, 4, 'Oct 31, 2026'); sh.set(2, 5, 'noon'); sh.set(2, 6, '3pm');
+  const e = g.ctx.signIn(CODE).events[0];
+  assert.deepEqual([e.cols.date, e.cols.start, e.cols.end], ['2026-10-31', '12:00', '15:00']);
+  sh.set(2, 4, '10/31/2026');
+  assert.equal(g.ctx.signIn(CODE).events[0].cols.date, '2026-10-31');
+});
+
+test("an event row with a date the app can't read is listed in signIn().problems, not dropped silently", () => {
+  const g = seeded();
+  g.ctx.saveEvent(CODE, ev({ id: 'm2', cols: { ...ev().cols, title: 'Meeting', date: '2026-11-12' } }));
+  const sh = g.sheets.get('Events');
+  sh.set(3, 4, 'the Saturday after');
+  sh.set(4, 2, 'a note with no id'); // not an event row, so not a problem
+  let st = g.ctx.signIn(CODE);
+  assert.deepEqual(plain(st.problems), [{ tab: 'Events', row: 3, what: "date 'the Saturday after' not understood" }]);
+  assert.deepEqual(plain(st.events.map(e => e.cols.id)), ['w7']);
+  assert.equal(g.ctx.getPublic().problems, undefined, 'the public never sees them');
+  assert.equal(g.ctx.getPublic().events.length, 1);
+  sh.set(3, 4, '');
+  assert.deepEqual(plain(g.ctx.signIn(CODE).problems), [{ tab: 'Events', row: 3, what: 'date is blank' }]);
+  g.ctx.saveEvent(CODE, ev()); // saving another event leaves that row for the organizer to fix
+  assert.equal(g.tab('Events')[2][0], 'm2');
+  sh.set(3, 4, 'Nov 12, 2026');
+  st = g.ctx.signIn(CODE);
+  assert.deepEqual(plain(st.problems), []);
+  assert.deepEqual(plain(st.events.map(e => e.cols.id)), ['w7', 'm2']);
+});
+
+test('resetStarterData empties only the app\'s own columns', () => {
+  const g = seeded();
+  const sh = g.sheets.get('Volunteers');
+  sh.insertColumnsAfter(2, 1); sh.set(1, 3, 'met at'); sh.set(2, 3, 'the plant sale');
+  g.ctx.resetStarterData();
+  assert.deepEqual(g.tab('Volunteers')[1], ['', '', 'the plant sale', '', '', ''], 'the hand-added column is kept');
+  assert.equal(g.tab('Events').length, 1);
+});
