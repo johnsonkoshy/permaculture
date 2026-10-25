@@ -12,6 +12,7 @@ const TABS = {
   Volunteers: ['signed up', 'name', 'contact', 'wants to help with', 'note', 'id', 'email', 'phone', 'best way', 'free', 'heard from', 'email list', 'event'],
   Activity: ['event id', 'when', 'what'],
   Gardens: ['name', 'address', 'what happens there', 'lat', 'lng'],
+  Plants: ['id', 'nickname', 'plant', 'latin name', 'where', 'planted', 'status', 'steward', 'steward contact', 'backup', 'care every (days)', 'last care', 'care notes', 'requested by', 'requested contact', 'requested at', 'token'],
   Reminders: ['sent', 'key', 'to', 'subject'],
   Channels: ['channel', 'name', 'used', 'link', 'on for new events', 'how it posts'],
   Settings: ['setting', 'value', 'what it does'],
@@ -75,13 +76,22 @@ const VOL_EMAIL = /^[^\s@<>"'(),;:]+@[^\s@<>"'(),;:]+\.[^\s@<>"'(),;:.]{2,}$/;
 const JOIN_LIMIT = 60; // sign-ups every 10 minutes, everyone together
 const VCOL = {}; // each Volunteers column's place in a row from rows_('Volunteers'), e.g. VCOL['best way']
 TABS.Volunteers.forEach((h, i) => { VCOL[h] = i; });
+/* Adopt a plant: a plant's status on the Plants tab. A blank one is 'needs a steward' (see plantStatus_). */
+const PLANT_STATUS = ['needs a steward', 'requested', 'adopted'];
+const PLCOL = {}; // each Plants column's place in a row from rows_('Plants'), e.g. PLCOL['care notes']
+TABS.Plants.forEach((h, i) => { PLCOL[h] = i; });
+// what savePlant may change as words, in the page's names: [column, the most it may hold, how an error names it]
+const PLANT_TEXT = { plant: ['plant', 80, 'plant'], nickname: ['nickname', 40, 'nickname'], latin: ['latin name', 80, 'latin name'],
+  where: ['where', 120, 'where it is'], careNotes: ['care notes', 1000, 'care notes'] };
+const PLANT_ASK = ['requested by', 'requested contact', 'requested at']; // an adoption request waiting for an organizer
 
 /* ---------- page ---------- */
 function doGet(e) {
   ensure_();
   const ev = String((e && e.parameter && e.parameter.ev) || '').slice(0, 40);
+  const plant = String((e && e.parameter && e.parameter.plant) || '').slice(0, 40); // a plant tag's QR code
   const site = setting_('SITE_URL');
-  if (/^https:\/\/[^\s"'<>]+$/.test(site)) return moved_(site.replace(/\/$/, '') + '/' + (ev ? '?ev=' + encodeURIComponent(ev) : ''));
+  if (/^https:\/\/[^\s"'<>]+$/.test(site)) return moved_(site.replace(/\/$/, '') + '/' + (ev ? '?ev=' + encodeURIComponent(ev) : plant ? '?plant=' + encodeURIComponent(plant) : ''));
   const boot = { url: ScriptApp.getService().getUrl(), ev: ev };
   const page = HtmlService.createHtmlOutputFromFile('index').getContent();
   return HtmlService.createHtmlOutput('<script>' + ON_ERROR + 'window.EBPG_GAS=' + JSON.stringify(boot).replace(/</g, '\\u003c').replace(/\//g, '\\/') + '</script>' + page)
@@ -120,7 +130,7 @@ function moved_(to) {
 /* JSON API for the Netlify page: POST {"fn": "saveEvent", "args": [...]} as text/plain.
    Only these functions can be called; each one checks the organizer code itself. */
 const API = { getPublic: getPublic, signIn: signIn, seed: seed, saveEvent: saveEvent, saveTeam: saveTeam, addVolunteer: addVolunteer, postTo: postTo,
-  cancelEvent: cancelEvent, deleteEvent: deleteEvent };
+  cancelEvent: cancelEvent, deleteEvent: deleteEvent, savePlant: savePlant, deletePlant: deletePlant, approveAdoption: approveAdoption, declineAdoption: declineAdoption };
 function doPost(e) {
   let out;
   try {
@@ -153,7 +163,7 @@ function setup() {
   return out;
 }
 
-/* Run from the editor (not callable from the page): empties the data tabs, keeping their headers and
+/* Run from the editor (not callable from the page): empties the data tabs (the plants too), keeping their headers and
    the Settings, so the next organizer sign-in fills the Sheet with the starter events again. */
 function resetStarterData() {
   // google.script.run can reach any public function, so refuse unless the person running it is the one it runs as (the editor)
@@ -161,10 +171,11 @@ function resetStarterData() {
   if (!me || me !== owner_()) throw new Error('Run resetStarterData from the script editor.');
   ensure_();
   return writing_(() => {
-    ['Events', 'Bringing', 'Posts', 'Activity', 'Volunteers', 'Reminders', 'Team', 'Gardens'].forEach(name => {
+    ['Events', 'Bringing', 'Posts', 'Activity', 'Volunteers', 'Reminders', 'Team', 'Gardens', 'Plants'].forEach(name => {
       blank_(name, 2, sheet_(name).getLastRow() - 1, true); // Team has checkboxes; columns added by hand are kept
     });
     setSetting_('SEEDED', '');
+    usedPlantNo_(0); // the plants start again at no. 001
     return 'Cleared. The next organizer sign-in fills the Sheet with the starter events.';
   });
 }
@@ -258,6 +269,7 @@ function writing_(fn) {
 
 function signIn(code) {
   check_(code);
+  plantIds_(); // plants typed into the Plants tab by hand get their ids
   const st = readAll_();
   st.empty = !on_('SEEDED') && !st.events.length;
   st.sheetUrl = book_().getUrl(); // for the Help page's "Open the Guild Sheet" link
@@ -400,6 +412,222 @@ function deleteEvent(code, id) {
 function saveTeam(code, team) {
   check_(code);
   return writing_(() => { writeTeam_(team); return true; });
+}
+
+/* ---------- Adopt a plant ----------
+   The Plants tab lists the plants the Guild would like a neighbor to look after: what it is, where it grows, how often
+   it needs care, and who looks after it (the steward, and a backup). Organizers add plants on the Plants page or type
+   them into the tab; a row typed in by hand gets its id (the next number: 001, 002, ...) and its token on the next load.
+   The token is the plant's own secret for links in the steward's emails, so it never goes to the page.
+   Each change below runs under the lock, after checking the organizer code, and answers with every plant as signIn
+   reads them, so the page shows what the Sheet now has. */
+
+/* Add a plant (no id) or change one (its id). p holds only what changes, in the page's names: plant, nickname, latin,
+   where, planted and lastCare (yyyy-mm-dd, or blank), careEvery (1 to 60 days, or blank), careNotes, steward and
+   backup (someone on the Team or Volunteers tab, or blank; stewardVol and backupVol are their Volunteers id when the
+   page knows it), and status. The status follows the steward: adopted with one, requested while someone's request
+   waits, needs a steward otherwise; one sent from the page is only checked. The steward contact is copied from their
+   Team or Volunteers row. A name already in the row stays allowed (typed by hand for someone on neither tab), with the
+   contact typed beside it. While a request waits, nobody else can be made the steward: approve or decline it first.
+   A new plant needs plant. cid: the page's own id for an Add, so an Add sent again (after no answer) changes the plant
+   it added instead of adding a second one. Returns { plant, plants }. */
+function savePlant(code, p) {
+  check_(code);
+  p = p && typeof p === 'object' && !Array.isArray(p) ? p : {};
+  const s = x => String(x == null ? '' : x).trim(), has = k => Object.prototype.hasOwnProperty.call(p, k), C = PLCOL;
+  let id = s(p.id);
+  if (id && !ID_RE.test(id)) throw new Error('This plant was removed from the Sheet.');
+  const set = {}; // column -> its new value
+  Object.keys(PLANT_TEXT).forEach(k => {
+    if (!has(k)) return;
+    const [col, most, what] = PLANT_TEXT[k];
+    const v = k === 'careNotes' ? String(p[k] == null ? '' : p[k]).replace(/\r\n?/g, '\n').trim() : s(p[k]).replace(/\s+/g, ' ');
+    if (v.length > most) throw new Error('Please keep the ' + what + ' to ' + most + ' characters or fewer.');
+    set[col] = v;
+  });
+  if ((!id || has('plant')) && !set.plant) throw new Error('Add what kind of plant it is.');
+  [['planted', 'planted', 'The planted date'], ['lastCare', 'last care', 'The last cared for date']].forEach(([k, col, what]) => {
+    if (!has(k)) return;
+    const v = s(p[k]);
+    if (v && !isDate_(v)) throw new Error(what + " doesn't look right. Pick a day, or leave it blank.");
+    set[col] = v;
+  });
+  if (has('careEvery')) {
+    const v = s(p.careEvery);
+    if (v && !(/^\d{1,2}$/.test(v) && Number(v) >= 1 && Number(v) <= 60)) throw new Error('Care every can be 1 to 60 days.');
+    set['care every (days)'] = v ? String(Number(v)) : '';
+  }
+  if (has('status') && s(p.status) && PLANT_STATUS.indexOf(key_(p.status)) < 0) throw new Error("That status isn't one the Plants tab uses.");
+  const cid = /^[A-Za-z0-9-]{8,64}$/.test(s(p.cid)) ? s(p.cid) : '';
+  return writing_(() => {
+    plantsTab_();
+    const cache = CacheService.getScriptCache();
+    if (!id && cid) id = cache.get('plant-cid:' + cid) || ''; // this Add got through before: change the plant it added
+    const all = rows_('Plants', true), i = id ? all.findIndex(r => s(r[C.id]) === id) : -1;
+    if (id && i < 0) throw new Error('This plant was removed from the Sheet.');
+    const row = i >= 0 ? all[i].slice() : TABS.Plants.map(() => '');
+    const asked = s(row[C['requested by']]), waiting = !!asked && plantStatus_(row[C.status], row[C.steward]) === 'requested';
+    if (has('steward') && s(p.steward) && waiting) throw new Error(asked + ' asked to adopt this plant. Approve or decline that first.');
+    const person = (k, nameCol, contactCol) => {
+      if (!has(k)) return;
+      const name = s(p[k]).replace(/\s+/g, ' '), was = s(row[nameCol]), same = !!name && key_(name) === key_(was);
+      if (!name) { row[nameCol] = ''; if (contactCol >= 0) row[contactCol] = ''; return; }
+      const who = plantPerson_(name, s(p[k + 'Vol']));
+      if (!who && !same) throw new Error(short_(name, 60) + " isn't on the Team or Volunteers tab. Pick someone from the list.");
+      row[nameCol] = who ? who.name : was;
+      if (contactCol >= 0) row[contactCol] = (who && who.contact) || (same ? s(row[contactCol]) : '');
+    };
+    person('steward', C.steward, C['steward contact']);
+    person('backup', C.backup, -1);
+    Object.keys(set).forEach(col => { row[C[col]] = set[col]; });
+    if (i < 0 || has('steward') || has('status')) row[C.status] = s(row[C.steward]) ? 'adopted' : waiting ? 'requested' : 'needs a steward';
+    if (!s(row[C.token])) row[C.token] = newToken_();
+    if (i >= 0) put_('Plants', i + 2, [row]);
+    else {
+      const n = nextPlantNo_(all);
+      id = row[C.id] = plantNo_(n);
+      append_('Plants', [row]);
+      usedPlantNo_(n);
+      if (cid) cache.put('plant-cid:' + cid, id, 600);
+    }
+    const plants = readPlants_();
+    return { plant: plants.find(x => x.id === id) || null, plants: plants };
+  });
+}
+/* Take a plant off the list: its row goes from the Plants tab, with anything typed beside it. An id the tab doesn't
+   have (never saved, or taken off already) is fine. Returns { plants }. */
+function deletePlant(code, id) {
+  check_(code);
+  id = String(id == null ? '' : id).trim();
+  return writing_(() => {
+    if (!plantsTab_()) return { plants: [] };
+    const i = ID_RE.test(id) ? rows_('Plants', true).findIndex(r => String(r[PLCOL.id]).trim() === id) : -1;
+    if (i >= 0) {
+      try { sheet_('Plants').deleteRow(i + 2); } catch (e) { blank_('Plants', i + 2, 1); } // a tab with no other row to keep: empty it instead
+    }
+    return { plants: readPlants_() };
+  });
+}
+/* Yes to an adoption request: the person who asked becomes the steward (their name and contact move into the steward
+   columns), the plant is adopted, and the request columns are emptied. Returns { message, plants }. */
+function approveAdoption(code, id) {
+  check_(code);
+  return writing_(() => {
+    const at = plantAt_(id), row = at.row, C = PLCOL, s = x => String(x == null ? '' : x).trim(), who = s(row[C['requested by']]);
+    if (!who || plantStatus_(row[C.status], row[C.steward]) !== 'requested') throw new Error(noRequest_(row));
+    row[C.steward] = who; row[C['steward contact']] = s(row[C['requested contact']]); row[C.status] = 'adopted';
+    PLANT_ASK.forEach(h => { row[C[h]] = ''; });
+    put_('Plants', at.i + 2, [row]);
+    return { message: who.split(' ')[0] + ' is looking after ' + (s(row[C.nickname]) || s(row[C.plant])) + ' now.', plants: readPlants_() };
+  });
+}
+/* No to an adoption request: the request columns are emptied and the plant needs a steward again. Returns { message, plants }. */
+function declineAdoption(code, id) {
+  check_(code);
+  return writing_(() => {
+    const at = plantAt_(id), row = at.row, C = PLCOL, s = x => String(x == null ? '' : x).trim();
+    if (!s(row[C['requested by']]) || plantStatus_(row[C.status], row[C.steward]) !== 'requested') throw new Error(noRequest_(row));
+    PLANT_ASK.forEach(h => { row[C[h]] = ''; });
+    row[C.status] = s(row[C.steward]) ? 'adopted' : 'needs a steward';
+    put_('Plants', at.i + 2, [row]);
+    return { message: (s(row[C.nickname]) || s(row[C.plant])) + ' needs a steward again.', plants: readPlants_() };
+  });
+}
+/* the Plants row with this id, and its place: i is Sheet row i + 2 */
+function plantAt_(id) {
+  id = String(id == null ? '' : id).trim();
+  const all = ID_RE.test(id) && plantsTab_() ? rows_('Plants', true) : [], i = all.findIndex(r => String(r[PLCOL.id]).trim() === id);
+  if (i < 0) throw new Error('This plant was removed from the Sheet.');
+  return { i: i, row: all[i].slice() };
+}
+// approve or decline pressed again, or from a page that missed what another organizer did
+function noRequest_(row) {
+  const st = String(row[PLCOL.steward] || '').trim();
+  return st ? st + ' is looking after this plant already.' : 'Nobody is waiting to adopt this plant now.';
+}
+/* Someone picked as a steward or backup: on the Team tab, or signed up on the Volunteers tab (vol: their Volunteers id,
+   which picks the right row when two sign-ups share a name; without it, the newest sign-up with that name). Returns
+   their name as that tab has it and how to reach them, an email first (the steward emails need one), or null for
+   someone on neither tab. Picked as a volunteer, their sign-up's email or phone comes first; as a team member, the
+   Team tab's. */
+function plantPerson_(name, vol) {
+  const k = key_(name), s = x => String(x == null ? '' : x).trim();
+  if (!k) return null;
+  const vols = rows_('Volunteers').filter(r => key_(r[VCOL.name]) === k);
+  const v = (vol && vols.find(r => s(r[VCOL.id]) === vol)) || vols[vols.length - 1];
+  const t = readTeam_().find(x => key_(x.name) === k);
+  if (!t && !v) return null;
+  const c = v ? volContact_(v) : { email: '', phone: '' }, theirs = c.email || c.phone, team = s(t && t.contact);
+  return { name: t ? t.name : s(v[VCOL.name]), contact: (vol && v ? theirs || team : team || theirs) };
+}
+/* A plant's status as the app reads it: one of PLANT_STATUS, whatever the case or spacing. A blank cell, or a word the
+   app doesn't know, is 'needs a steward', or 'adopted' when the row names a steward. */
+function plantStatus_(v, steward) {
+  const k = key_(v);
+  if (PLANT_STATUS.indexOf(k) >= 0) return k;
+  return String(steward == null ? '' : steward).trim() ? 'adopted' : 'needs a steward';
+}
+/* The Plants tab, made now if this Sheet is from before it. Says whether it's there. */
+function plantsTab_() {
+  if (!sheet_('Plants')) { try { ensure_(); } catch (e) { /* made at the same moment by another call */ } }
+  return !!sheet_('Plants');
+}
+/* The Plants tab as the organizers' page uses it, in the Sheet's order, without the tokens. Dates typed by hand are read
+   like the Events tab's. A row with no id yet waits for backfillPlants_; one whose id can't be used, or repeats an
+   earlier row's, is listed in problems (when given), so an organizer can fix it. */
+function readPlants_(problems) {
+  if (!plantsTab_()) return [];
+  const C = PLCOL, s = x => String(x == null ? '' : x).trim(), seen = {}, out = [];
+  rows_('Plants', true).forEach((r, i) => {
+    const id = s(r[C.id]);
+    if (!id || !r.some(String)) return;
+    const say = what => { if (problems) problems.push({ tab: 'Plants', row: i + 2, what: what }); };
+    if (!ID_RE.test(id)) return say('the id can only use letters, numbers, - and _ (40 at most)');
+    if (seen[id]) return say("the id '" + id.slice(0, 40) + "' is on row " + seen[id] + ' too');
+    seen[id] = i + 2;
+    const every = s(r[C['care every (days)']]).match(/^(\d{1,3})\b/);
+    out.push({
+      id: id, nickname: s(r[C.nickname]), plant: s(r[C.plant]), latin: s(r[C['latin name']]), where: s(r[C.where]),
+      planted: normDate_(r[C.planted]), status: plantStatus_(r[C.status], r[C.steward]),
+      steward: s(r[C.steward]), stewardContact: s(r[C['steward contact']]), backup: s(r[C.backup]),
+      careEvery: every ? Number(every[1]) : null, lastCare: normDate_(r[C['last care']]), careNotes: s(r[C['care notes']]),
+      requestedBy: s(r[C['requested by']]), requestedContact: s(r[C['requested contact']]), requestedAt: s(r[C['requested at']]),
+    });
+  });
+  return out;
+}
+const plantNeeds_ = r => r.some(String) && (!String(r[PLCOL.id]).trim() || !String(r[PLCOL.token]).trim());
+const newToken_ = () => Utilities.getUuid().replace(/-/g, '');
+/* The next plant number: after every numbered id in these rows, and after every number given before (kept in the
+   script's properties as PLANT_NO), so a plant taken off the list never passes its number on: a printed tag's QR code
+   keeps meaning its own plant. usedPlantNo_ notes one as given. plantNo_ writes it with three digits (7: '007'). */
+function nextPlantNo_(all) {
+  const kept = Number(PropertiesService.getScriptProperties().getProperty('PLANT_NO')) || 0;
+  return all.reduce((m, r) => { const id = String(r[PLCOL.id]).trim(); return /^\d{1,6}$/.test(id) ? Math.max(m, Number(id)) : m; }, kept) + 1;
+}
+function usedPlantNo_(n) { PropertiesService.getScriptProperties().setProperty('PLANT_NO', String(n)); }
+function plantNo_(n) { return n < 1000 ? ('00' + n).slice(-3) : String(n); }
+/* Plants typed into the tab by hand get an id and a token, in one write. all: rows_('Plants', true), if just read.
+   Says whether anything was written. */
+function backfillPlants_(all) {
+  all = all || rows_('Plants', true);
+  if (!all.some(plantNeeds_)) return false;
+  const C = PLCOL;
+  const first = nextPlantNo_(all);
+  let next = first;
+  put_('Plants', 2, all.map(r => {
+    const out = [], live = r.some(String);
+    out[C.id] = String(r[C.id]).trim() || (live ? plantNo_(next++) : '');
+    out[C.token] = String(r[C.token]).trim() || (live ? newToken_() : '');
+    return out;
+  }), [C.id, C.token]);
+  if (next > first) usedPlantNo_(next - 1);
+  return true;
+}
+/* signIn: the hand-typed rows get their ids under the lock, and only when one needs them (signIn runs every 2 minutes). */
+function plantIds_() {
+  if (!plantsTab_() || !rows_('Plants', true).some(plantNeeds_)) return;
+  writing_(() => backfillPlants_());
 }
 
 /* The volunteer form, for anyone (no organizer code). v: { name, email, phone, best, help, free, heard, note, list,
@@ -704,7 +932,7 @@ function book_() {
   return ss;
 }
 
-/* pub: for getPublic, which reads only the Events, Team, Gardens and Settings tabs (so the volunteer ids wait). */
+/* pub: for getPublic, which reads only the Events, Team, Gardens and Settings tabs (so the volunteer and plant ids wait). */
 function ensure_(pub) {
   const ss = book_();
   Object.keys(TABS).forEach(name => {
@@ -717,7 +945,7 @@ function ensure_(pub) {
     // only a tab made just now gets the Guild's channels: rows deleted or changed by hand later stay that way
     if (name === 'Channels') sh.getRange(2, 1, CHANNEL_ROWS.length, head.length).setValues(CHANNEL_ROWS);
   });
-  if (!pub) backfillVolIds_();
+  if (!pub) { backfillVolIds_(); backfillPlants_(); } // rows typed in by hand get their ids
   const blank = ss.getSheetByName('Sheet1');
   if (blank && ss.getSheets().length > 1 && blank.getLastRow() === 0) ss.deleteSheet(blank);
   const settings = rows_('Settings'), have = settings.map(r => r[0]);
@@ -1137,6 +1365,7 @@ function readAll_() {
     vols: rows_('Volunteers').map(volOf_),
     gardens: readGardens_(),
     channels: readChannels_(),
+    plants: readPlants_(problems),
     problems: problems,
   };
 }

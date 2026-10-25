@@ -38,7 +38,8 @@ const BEFORE = '2026-10-24T10:00:00-07:00';
 test('first load makes every tab and the settings', () => {
   const g = gas();
   const out = g.ctx.doGet({ parameter: { ev: 'w7</script>' } });
-  for (const t of ['Events', 'Bringing', 'Posts', 'Team', 'Volunteers', 'Activity', 'Gardens', 'Reminders', 'Channels', 'Settings']) assert.ok(g.sheets.get(t), t);
+  for (const t of ['Events', 'Bringing', 'Posts', 'Team', 'Volunteers', 'Activity', 'Gardens', 'Plants', 'Reminders', 'Channels', 'Settings']) assert.ok(g.sheets.get(t), t);
+  assert.equal(g.tab('Plants').length, 1, 'the Plants tab starts with only its header: no plants are made up');
   assert.ok(!g.sheets.has('Sheet1'), 'blank default tab removed');
   assert.equal(g.tab('Settings').find(r => r[0] === 'TEST_MODE')[1], 'TRUE');
   assert.match(out.content, /window\.EBPG_GAS=/);
@@ -365,6 +366,9 @@ test('SITE_URL sends the old Google link to Netlify, keeping event links', () =>
   const out = g.ctx.doGet({ parameter: { ev: 'w7' } }).content;
   assert.match(out, /href="https:\/\/ebpg\.netlify\.app\/\?ev=w7"/);
   assert.ok(!/<script>[^<]*\/\//.test(out), 'no // inside the redirect script');
+  // a plant tag's QR code, made on the Google-hosted page, goes on to the plant's page there too
+  assert.match(g.ctx.doGet({ parameter: { plant: '007' } }).content, /href="https:\/\/ebpg\.netlify\.app\/\?plant=007"/);
+  assert.match(g.ctx.doGet({ parameter: { plant: '<b>' } }).content, /href="https:\/\/ebpg\.netlify\.app\/\?plant=%3Cb%3E"/);
   s.set(row, 2, 'javascript:alert(1)');
   assert.match(g.ctx.doGet({ parameter: {} }).content, /EBPG_GAS/, 'bad SITE_URL is ignored');
 });
@@ -395,8 +399,9 @@ test('resetStarterData empties the data tabs, keeps headers and settings, and th
   const g = seeded();
   g.ctx.addVolunteer({ name: 'Sam Lee', contact: 'sam@example.org', help: [], note: '' });
   g.ctx.saveEvent(CODE, ev({ log: [['Oct 24', 'Jessie edited the event']] }));
+  g.ctx.savePlant(CODE, { plant: 'Meyer lemon' });
   assert.match(g.ctx.resetStarterData(), /^Cleared\. The next organizer sign-in fills the Sheet/);
-  for (const t of ['Events', 'Bringing', 'Posts', 'Activity', 'Volunteers', 'Reminders', 'Team', 'Gardens']) {
+  for (const t of ['Events', 'Bringing', 'Posts', 'Activity', 'Volunteers', 'Reminders', 'Team', 'Gardens', 'Plants']) {
     assert.equal(g.tab(t).length, 1, t + ' has only its header row');
     assert.ok(g.tab(t)[0][0], t + ' header kept');
   }
@@ -1779,4 +1784,228 @@ test('a save for an event whose row was taken out by hand is refused and adds no
   s.ctx.doGet({});
   s.ctx.seed(CODE, { events: [ev()], team });
   assert.equal(rowsFor(s, 'Events', 'w7').length, 1);
+});
+
+/* ---------- Adopt a plant: the Plants tab ---------- */
+const PLANT_HEAD = ['id', 'nickname', 'plant', 'latin name', 'where', 'planted', 'status', 'steward', 'steward contact', 'backup', 'care every (days)', 'last care', 'care notes', 'requested by', 'requested contact', 'requested at', 'token'];
+const FIG = { plant: 'Black Mission fig', nickname: 'Big' + ' Mama', latin: 'Ficus carica', where: 'Front garden', planted: '2025-03-09', careEvery: 7, careNotes: 'Water deeply once a week.\nPick figs when soft.' };
+// a Plants row as { header: value }, found by its id
+const plantRow = (g, id) => { const [head, ...rows] = g.tab('Plants'), r = rows.find(x => x[0] === id); return r && Object.fromEntries(head.map((h, i) => [h, r[i] == null ? '' : r[i]])); };
+// a row typed into the Plants tab by hand: values by header, in the tab's own column order
+const handPlant = (g, vals) => {
+  const sh = g.sheets.get('Plants'), head = g.tab('Plants')[0], r = sh.getLastRow() + 1;
+  Object.entries(vals).forEach(([h, v]) => sh.set(r, head.indexOf(h) + 1, v));
+  return r;
+};
+const VOL_MAYA = { name: 'Maya Ortiz', email: 'maya@example.org', phone: '(510) 555-0101', best: 'Text', help: ['Adopt a plant'], id: 'plantvol-maya-1', elapsed: 9000 };
+
+test('savePlant needs the organizer code, checks every field, and the plant round-trips through signIn', () => {
+  const g = seeded({ now: BEFORE });
+  assert.throws(() => g.ctx.savePlant('nope', FIG), /organizer code/);
+  assert.throws(() => g.ctx.savePlant('', FIG), /organizer code/);
+  assert.equal(g.tab('Plants').length, 1, 'nothing written without the code');
+  assert.deepEqual(g.tab('Plants')[0], PLANT_HEAD, 'the Plants columns, readable in the Sheet');
+  const bad = [
+    [{ ...FIG, plant: '' }, /Add what kind of plant it is/], [{ ...FIG, plant: '   ' }, /Add what kind of plant it is/], [{ nickname: 'No plant' }, /Add what kind of plant it is/],
+    [{ ...FIG, plant: 'x'.repeat(81) }, /plant to 80 characters/], [{ ...FIG, nickname: 'x'.repeat(41) }, /nickname to 40 characters/],
+    [{ ...FIG, where: 'x'.repeat(121) }, /where it is to 120 characters/], [{ ...FIG, careNotes: 'x'.repeat(1001) }, /care notes to 1000 characters/],
+    [{ ...FIG, latin: 'x'.repeat(81) }, /latin name to 80 characters/],
+    [{ ...FIG, planted: '2026-13-01' }, /planted date doesn't look right/], [{ ...FIG, planted: 'last spring' }, /planted date/], [{ ...FIG, lastCare: '10/24/2026' }, /last cared for date/],
+    [{ ...FIG, careEvery: 0 }, /1 to 60 days/], [{ ...FIG, careEvery: 61 }, /1 to 60 days/], [{ ...FIG, careEvery: 'weekly' }, /1 to 60 days/], [{ ...FIG, careEvery: 2.5 }, /1 to 60 days/],
+    [{ ...FIG, status: 'taken' }, /status isn't one the Plants tab uses/],
+    [{ ...FIG, steward: 'Nobody Here' }, /Nobody Here isn't on the Team or Volunteers tab/], [{ ...FIG, backup: 'Someone Else' }, /Someone Else isn't on the Team or Volunteers tab/],
+    [{ ...FIG, id: 'no such plant' }, /removed from the Sheet/], [{ ...FIG, id: '999' }, /removed from the Sheet/],
+  ];
+  for (const [p, re] of bad) assert.throws(() => g.ctx.savePlant(CODE, p), re, JSON.stringify(p).slice(0, 80));
+  assert.equal(g.tab('Plants').length, 1, 'nothing written by a save that was turned down');
+
+  const out = plain(g.ctx.savePlant(CODE, { ...FIG, cid: 'plant-add-0001' }));
+  assert.equal(out.plant.id, '001', 'the first plant is no. 001');
+  assert.deepEqual(out.plants, [out.plant]);
+  const want = { id: '001', nickname: FIG.nickname, plant: 'Black Mission fig', latin: 'Ficus carica', where: 'Front garden', planted: '2025-03-09', status: 'needs a steward',
+    steward: '', stewardContact: '', backup: '', careEvery: 7, lastCare: '', careNotes: 'Water deeply once a week.\nPick figs when soft.', requestedBy: '', requestedContact: '', requestedAt: '' };
+  assert.deepEqual(out.plant, want);
+  const row = plantRow(g, '001');
+  assert.deepEqual({ ...row, token: '' }, { id: '001', nickname: FIG.nickname, plant: 'Black Mission fig', 'latin name': 'Ficus carica', where: 'Front garden', planted: '2025-03-09', status: 'needs a steward',
+    steward: '', 'steward contact': '', backup: '', 'care every (days)': '7', 'last care': '', 'care notes': 'Water deeply once a week.\nPick figs when soft.', 'requested by': '', 'requested contact': '', 'requested at': '', token: '' });
+  assert.match(row.token, /^[0-9a-f]{32}$/, 'a token of its own');
+  const st = plain(g.ctx.signIn(CODE));
+  assert.deepEqual(st.plants, [want], 'signIn returns the plants');
+  assert.ok(!JSON.stringify(st).includes(row.token) && !('token' in st.plants[0]), 'the token never goes to the page');
+
+  // the same Add sent again (no answer the first time) changes the plant it added
+  const again = plain(g.ctx.savePlant(CODE, { ...FIG, careEvery: 10, cid: 'plant-add-0001' }));
+  assert.equal(again.plant.id, '001');
+  assert.equal(g.tab('Plants').length, 2, 'one row');
+  assert.equal(plantRow(g, '001')['care every (days)'], '10');
+  // a change sends only what changed: the rest stays as the Sheet has it
+  const sh = g.sheets.get('Plants');
+  sh.set(2, PLANT_HEAD.indexOf('care notes') + 1, 'Fixed by hand in the Sheet');
+  const edit = plain(g.ctx.savePlant(CODE, { id: '001', where: '  By the   back gate ', careEvery: '', lastCare: '2026-10-20', nickname: '' }));
+  assert.deepEqual([edit.plant.where, edit.plant.careEvery, edit.plant.lastCare, edit.plant.nickname, edit.plant.careNotes, edit.plant.plant], ['By the back gate', null, '2026-10-20', '', 'Fixed by hand in the Sheet', 'Black Mission fig']);
+  // values that look like formulas stay text; a second plant is no. 002
+  const two = plain(g.ctx.savePlant(CODE, { plant: '=IMPORTXML("x")', where: '+1 bed' }));
+  assert.equal(two.plant.id, '002');
+  assert.equal(sh.get(3, PLANT_HEAD.indexOf('plant') + 1), "'=IMPORTXML(\"x\")");
+  assert.equal(two.plant.plant, '=IMPORTXML("x")');
+  assert.deepEqual(plain(g.ctx.signIn(CODE)).plants.map(p => p.id), ['001', '002']);
+  // the public cache is dropped by every plant change (the public page will list plants)
+  g.ctx.getPublic();
+  assert.ok(g.cache['public:v1'], 'cached');
+  g.ctx.savePlant(CODE, { id: '002', careNotes: 'Mulch in fall' });
+  assert.ok(!g.cache['public:v1'], 'dropped');
+  // through the JSON API too
+  const call = (fn, args) => JSON.parse(g.ctx.doPost({ postData: { contents: JSON.stringify({ fn, args }) } }).content);
+  assert.equal(call('savePlant', [CODE, { plant: 'Lemon balm' }]).value.plant.id, '003');
+  assert.match(call('savePlant', ['nope', { plant: 'Sage' }]).error, /organizer code/);
+});
+
+test('a steward picked from the Volunteers tab gets their contact copied there; the status follows the steward', () => {
+  const g = seeded({ now: BEFORE });
+  g.ctx.addVolunteer(VOL_MAYA);
+  // a second Maya Ortiz on the Volunteers tab, with only a phone: the page sends which one it means
+  g.ctx.addVolunteer({ name: 'Maya Ortiz', phone: '(510) 555-0199', help: ['Garden work days'], id: 'plantvol-maya-2', elapsed: 9000 });
+  const vols = g.tab('Volunteers'), at = h => vols[0].indexOf(h), mayas = vols.filter(r => r[at('name')] === 'Maya Ortiz');
+  assert.equal(mayas.length, 2, 'two people named Maya Ortiz');
+  const first = mayas.find(r => r[at('email')] === 'maya@example.org')[at('id')];
+  const id = g.ctx.savePlant(CODE, { plant: 'Black Mission fig', nickname: 'Big' + ' Mama', where: 'Front garden', careEvery: 7 }).plant.id;
+  let p = plain(g.ctx.savePlant(CODE, { id, steward: 'Maya Ortiz', stewardVol: first })).plant;
+  assert.deepEqual([p.steward, p.stewardContact, p.status], ['Maya Ortiz', 'maya@example.org', 'adopted'], "the email from her own sign-up, even though she'd rather get a text");
+  assert.deepEqual([plantRow(g, id).steward, plantRow(g, id)['steward contact'], plantRow(g, id).status], ['Maya Ortiz', 'maya@example.org', 'adopted'], 'the Plants tab row shows her contact');
+  p = plain(g.ctx.savePlant(CODE, { id, steward: 'maya ortiz', stewardVol: mayas.find(r => r[at('email')] !== 'maya@example.org')[at('id')] })).plant;
+  assert.deepEqual([p.steward, p.stewardContact], ['Maya Ortiz', '(510) 555-0199'], 'the other Maya, by her Volunteers id');
+  // someone on the Team tab: the Team's contact; a backup has no contact column, but must be someone the Sheet knows
+  p = plain(g.ctx.savePlant(CODE, { id, steward: 'Karen', backup: 'jessie' })).plant;
+  assert.deepEqual([p.steward, p.stewardContact, p.backup, p.status], ['Karen', '(510) 555-0120', 'Jessie', 'adopted']);
+  assert.throws(() => g.ctx.savePlant(CODE, { id, backup: 'Rando' }), /Rando isn't on the Team or Volunteers tab/);
+  // no steward: needs one again, and the contact goes with the name
+  p = plain(g.ctx.savePlant(CODE, { id, steward: '' })).plant;
+  assert.deepEqual([p.steward, p.stewardContact, p.backup, p.status], ['', '', 'Jessie', 'needs a steward']);
+  // a steward typed into the tab by hand for someone on neither tab stays allowed, with the contact typed beside it
+  const sh = g.sheets.get('Plants'), r = 2;
+  sh.set(r, PLANT_HEAD.indexOf('steward') + 1, 'Grandpa Joe'); sh.set(r, PLANT_HEAD.indexOf('steward contact') + 1, 'joe@example.org');
+  p = plain(g.ctx.savePlant(CODE, { id, steward: 'Grandpa Joe', careNotes: 'Prune in winter' })).plant;
+  assert.deepEqual([p.steward, p.stewardContact, p.status, p.careNotes], ['Grandpa Joe', 'joe@example.org', 'adopted', 'Prune in winter']);
+  // a new plant can start with its steward
+  p = plain(g.ctx.savePlant(CODE, { plant: 'Pineapple guava', steward: 'Alex R.' })).plant;
+  assert.deepEqual([p.id, p.steward, p.stewardContact, p.status], ['002', 'Alex R.', 'alex@example.org', 'adopted']);
+});
+
+test('approveAdoption moves the request into the steward fields; declineAdoption clears it; both check the code', () => {
+  const g = seeded({ now: BEFORE });
+  const id = g.ctx.savePlant(CODE, { plant: 'Black Mission fig', nickname: 'Big' + ' Mama' }).plant.id;
+  const other = g.ctx.savePlant(CODE, { plant: 'Lemon verbena', backup: 'Phil' }).plant.id;
+  // a request as the public page's Adopt button will leave it
+  const ask = (pid, who, contact) => {
+    const sh = g.sheets.get('Plants'), r = g.tab('Plants').findIndex(x => x[0] === pid) + 1;
+    [['status', 'requested'], ['requested by', who], ['requested contact', contact], ['requested at', '2026-10-24T17:30:00.000Z']].forEach(([h, v]) => sh.set(r, PLANT_HEAD.indexOf(h) + 1, v));
+  };
+  ask(id, 'Ana Ruiz', 'ana@example.org');
+  ask(other, 'Ben Okafor', '(510) 555-0142');
+  let st = plain(g.ctx.signIn(CODE));
+  assert.deepEqual(st.plants.map(p => [p.status, p.requestedBy, p.requestedContact, p.requestedAt]), [['requested', 'Ana Ruiz', 'ana@example.org', '2026-10-24T17:30:00.000Z'], ['requested', 'Ben Okafor', '(510) 555-0142', '2026-10-24T17:30:00.000Z']]);
+  // nobody else can be made the steward while a request waits; other changes are fine and keep it waiting
+  assert.throws(() => g.ctx.savePlant(CODE, { id, steward: 'Jessie' }), /Ana Ruiz asked to adopt this plant\. Approve or decline that first/);
+  assert.equal(plain(g.ctx.savePlant(CODE, { id, careNotes: 'Water weekly', status: 'needs a steward' })).plant.status, 'requested', 'a page that missed the request keeps it waiting');
+  for (const fn of ['approveAdoption', 'declineAdoption']) assert.throws(() => g.ctx[fn]('nope', id), /organizer code/, fn);
+  assert.equal(plantRow(g, id).status, 'requested', 'nothing changed without the code');
+
+  const out = plain(g.ctx.approveAdoption(CODE, id));
+  assert.equal(out.message, 'Ana is looking after Big Mama now.');
+  const p = out.plants.find(x => x.id === id);
+  assert.deepEqual([p.status, p.steward, p.stewardContact, p.requestedBy, p.requestedContact, p.requestedAt, p.careNotes], ['adopted', 'Ana Ruiz', 'ana@example.org', '', '', '', 'Water weekly']);
+  const row = plantRow(g, id);
+  assert.deepEqual([row.status, row.steward, row['steward contact'], row['requested by'], row['requested contact'], row['requested at']], ['adopted', 'Ana Ruiz', 'ana@example.org', '', '', '']);
+  assert.throws(() => g.ctx.approveAdoption(CODE, id), /Ana Ruiz is looking after this plant already/, 'pressed again');
+  assert.throws(() => g.ctx.declineAdoption(CODE, id), /Ana Ruiz is looking after this plant already/);
+
+  const no = plain(g.ctx.declineAdoption(CODE, other));
+  assert.equal(no.message, 'Lemon verbena needs a steward again.');
+  const q = no.plants.find(x => x.id === other);
+  assert.deepEqual([q.status, q.steward, q.backup, q.requestedBy, q.requestedContact, q.requestedAt], ['needs a steward', '', 'Phil', '', '', '']);
+  assert.throws(() => g.ctx.declineAdoption(CODE, other), /Nobody is waiting to adopt this plant now/);
+  assert.throws(() => g.ctx.approveAdoption(CODE, 'gone'), /removed from the Sheet/);
+  const call = (fn, args) => JSON.parse(g.ctx.doPost({ postData: { contents: JSON.stringify({ fn, args }) } }).content);
+  assert.match(call('approveAdoption', [CODE, other]).error, /Nobody is waiting/);
+});
+
+test('plants typed into the tab by hand get an id and a token on the next load, and read the way the page shows them', () => {
+  const g = seeded({ now: BEFORE });
+  g.ctx.savePlant(CODE, { plant: 'Black Mission fig' }); // 001
+  handPlant(g, { id: '004', plant: 'Pomegranate', status: 'Adopted', steward: 'Phil' });
+  const r1 = handPlant(g, { plant: 'Lemon balm', planted: 'March 9, 2025', 'care every (days)': '7 days', status: '' });
+  const r2 = handPlant(g, { nickname: 'Old Oak', plant: 'Coast live oak', steward: 'Jessie' });
+  handPlant(g, { id: 'fig #2', plant: 'Another fig' });
+  handPlant(g, { id: '004', plant: 'Pomegranate copy' });
+  const st = plain(g.ctx.signIn(CODE));
+  const tab = g.tab('Plants'), tok = PLANT_HEAD.indexOf('token');
+  assert.deepEqual([tab[r1 - 1][0], tab[r2 - 1][0]], ['005', '006'], 'the next numbers after the highest one');
+  assert.ok(tab.slice(1).every(r => /^[0-9a-f]{32}$/.test(r[tok])), 'every row has a token now');
+  assert.equal(new Set(tab.slice(1).map(r => r[tok])).size, tab.length - 1, 'each its own');
+  assert.equal(tab[1][0], '001');
+  const by = Object.fromEntries(st.plants.map(p => [p.id, p]));
+  assert.deepEqual(Object.keys(by), ['001', '004', '005', '006'], 'an id that cannot be used, and a repeated one, are left out');
+  assert.deepEqual([by['004'].status, by['005'].status, by['006'].status], ['adopted', 'needs a steward', 'adopted'], 'any case; a blank status needs a steward, unless a steward is named');
+  assert.deepEqual([by['005'].planted, by['005'].careEvery], ['2025-03-09', 7], 'a date and a number typed by hand');
+  assert.deepEqual(st.problems.filter(x => x.tab === 'Plants').map(x => [x.row, x.what]), [[r2 + 1, 'the id can only use letters, numbers, - and _ (40 at most)'], [r2 + 2, "the id '004' is on row 3 too"]]);
+  // nothing more to write on the next sign-in; and the Google-hosted page's load does it too
+  const before = JSON.stringify(g.tab('Plants'));
+  g.ctx.signIn(CODE);
+  assert.equal(JSON.stringify(g.tab('Plants')), before, 'ids and tokens are given once');
+  const r3 = handPlant(g, { plant: 'Yarrow' });
+  g.ctx.doGet({ parameter: {} });
+  assert.equal(g.tab('Plants')[r3 - 1][0], '007');
+  // the public page's read leaves them for the organizers' next load
+  const r4 = handPlant(g, { plant: 'Comfrey' });
+  g.ctx.getPublic();
+  assert.equal(g.tab('Plants')[r4 - 1][0], '');
+});
+
+test('the Plants tab is added to an existing Sheet on the next load or sign-in, and nothing else changes', () => {
+  const g = seeded({ now: BEFORE });
+  g.sheets.delete('Plants'); // a Sheet from before the tab
+  const events = JSON.stringify(g.tab('Events'));
+  const st = plain(g.ctx.signIn(CODE));
+  assert.deepEqual(st.plants, []);
+  assert.deepEqual(g.tab('Plants'), [PLANT_HEAD], 'made with its headers');
+  assert.equal(JSON.stringify(g.tab('Events')), events);
+  g.sheets.delete('Plants');
+  assert.equal(g.ctx.savePlant(CODE, { plant: 'Meyer lemon' }).plant.id, '001', 'a save made on a page signed in before the tab existed');
+  g.sheets.delete('Plants');
+  g.ctx.getPublic();
+  assert.ok(g.sheets.get('Plants'), 'the public page makes it too');
+  // an older Plants tab missing a column gets it at the right end
+  const old = g.sheets.get('Plants');
+  old.cells = [PLANT_HEAD.filter(h => h !== 'token')];
+  old.set(2, 1, '001'); old.set(2, 3, 'Meyer lemon');
+  g.ctx.signIn(CODE);
+  assert.equal(g.tab('Plants')[0].at(-1), 'token');
+  assert.match(g.tab('Plants')[1].at(-1), /^[0-9a-f]{32}$/);
+});
+
+test('deletePlant takes its row out of the Plants tab with what was typed beside it; an unknown id is fine', () => {
+  const g = seeded({ now: BEFORE });
+  ['Black Mission fig', 'Meyer lemon', 'Lemon balm'].forEach(plant => g.ctx.savePlant(CODE, { plant }));
+  const sh = g.sheets.get('Plants');
+  sh.set(1, PLANT_HEAD.length + 1, 'our note'); // a column added by hand
+  sh.set(2, PLANT_HEAD.length + 1, 'fig note'); sh.set(3, PLANT_HEAD.length + 1, 'lemon note'); sh.set(4, PLANT_HEAD.length + 1, 'balm note');
+  assert.throws(() => g.ctx.deletePlant('nope', '002'), /organizer code/);
+  const out = plain(g.ctx.deletePlant(CODE, '002'));
+  assert.deepEqual(out.plants.map(p => p.id), ['001', '003']);
+  assert.deepEqual(g.tab('Plants').map(r => [r[0], r[2], r.at(-1)]), [['id', 'plant', 'our note'], ['001', 'Black Mission fig', 'fig note'], ['003', 'Lemon balm', 'balm note']], 'the hand-added column stays with its own plant');
+  assert.deepEqual(plain(g.ctx.deletePlant(CODE, '002')).plants.map(p => p.id), ['001', '003'], 'deleted already');
+  assert.deepEqual(plain(g.ctx.deletePlant(CODE, '<script>')).plants.map(p => p.id), ['001', '003']);
+  assert.throws(() => g.ctx.savePlant(CODE, { id: '002', careNotes: 'from a tab left open' }), /removed from the Sheet/, 'a tab left open never brings it back');
+  assert.equal(g.ctx.savePlant(CODE, { plant: 'Sage' }).plant.id, '004');
+  // the highest number taken off is never given again, so a printed tag's QR code keeps meaning its own plant
+  g.ctx.deletePlant(CODE, '004');
+  assert.equal(g.ctx.savePlant(CODE, { plant: 'Thyme' }).plant.id, '005', 'not 004 again');
+  g.ctx.deletePlant(CODE, '005');
+  handPlant(g, { plant: 'Typed by hand' });
+  g.ctx.signIn(CODE);
+  assert.equal(g.tab('Plants').at(-1)[0], '006', 'a row typed by hand neither');
+  assert.equal(g.ctx.savePlant(CODE, { plant: 'Oregano' }).plant.id, '007');
+  // after resetStarterData, the plants start again at no. 001
+  g.ctx.resetStarterData();
+  assert.equal(g.ctx.savePlant(CODE, { plant: 'Meyer lemon' }).plant.id, '001');
 });

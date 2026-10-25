@@ -54,6 +54,12 @@ class Sheet {
   getMaxRows() { return this.maxRows; }
   getMaxColumns() { return this.maxCols; }
   insertRowsAfter(after, n) { this.cells.splice(after, 0, ...Array.from({ length: n }, () => [])); this.maxRows += n; }
+  // the rows below move up one; like Sheets, the last row besides the header can't go
+  deleteRow(r) {
+    if (r < 1 || r > this.maxRows) throw new Error(`deleteRow: row ${r} is outside the sheet`);
+    if (this.maxRows <= 2) throw new Error('Sorry, it is not possible to delete all non-frozen rows.');
+    this.cells.splice(r - 1, 1); this.maxRows--;
+  }
   insertColumnsAfter(after, n) { this.cells.forEach(row => row && row.length > after && row.splice(after, 0, ...Array(n).fill(''))); this.maxCols += n; }
   /* the number format last set on a cell */
   formatAt(r, c) { const f = this.formats.filter(x => r >= x.r && r < x.r + x.nr && c >= x.c && c < x.c + x.nc).pop(); return f ? f.f : ''; }

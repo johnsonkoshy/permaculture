@@ -61,13 +61,14 @@ a { color: var(--fern); }
 
 /* top bar */
 .top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; background: var(--surface); border-bottom: 1px solid var(--line); }
-.top .wrap { display: flex; align-items: center; gap: 16px; min-height: 58px; flex-wrap: wrap; padding-block: 8px; }
+.top .wrap { display: flex; align-items: center; gap: 12px; min-height: 58px; flex-wrap: wrap; padding-block: 8px; }
 .lock { display: flex; align-items: center; gap: 10px; }
 .lock svg { width: 32px; height: 32px; flex: none; }
 .lock b { font: 400 19px/1.1 var(--display); }
 .lock span { font: 600 11px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); border: 1px solid var(--line-2); padding: 4px 6px; border-radius: 4px; }
-.tabs { display: flex; gap: 4px; margin-left: auto; }
-.tabs a { text-decoration: none; color: var(--ink-2); font-weight: 700; font-size: 14px; padding: 7px 12px; border-radius: 999px; }
+/* five tabs, the name and the account fit one row of the 1240px page (narrower screens get two rows, below) */
+.tabs { display: flex; gap: 2px; margin-left: auto; }
+.tabs a { text-decoration: none; color: var(--ink-2); font-weight: 700; font-size: 14px; padding: 7px 10px; border-radius: 999px; }
 .tabs a:hover { background: var(--fern-soft); color: var(--ink); }
 .tabs a[aria-current="page"] { background: var(--fern); color: var(--fern-ink); }
 .who { font-size: 13px; color: var(--ink-2); display: flex; align-items: center; gap: 6px; min-width: 0; max-width: 100%; padding: 3px 10px 3px 3px; border-radius: 999px; border: 1px solid var(--line); background: var(--raised); white-space: nowrap; }
@@ -75,10 +76,13 @@ a { color: var(--fern); }
 .who > span:last-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .who b { color: var(--ink); }
 .vh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-.tabs a { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.tabs a { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
 .tabs a .ic { width: 15px; height: 15px; }
+/* how many adoption requests wait on the Plants page */
+.tabs a .tabn { font: 600 11px/1 var(--mono); background: var(--lemon); color: #2A2208; border-radius: 99px; padding: 3px 6px; }
+.tabs a .tabn:empty { display: none; }
 /* narrower screens: the name and account on one row, the section tabs on a second row that scrolls sideways if it must */
-@media (max-width: 1180px) {
+@media (max-width: 1279px) {
   .top .wrap { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 10px; }
   .lock { min-width: 0; }
   .lock b { min-width: 0; }
@@ -368,13 +372,19 @@ legend { font-size: 13px; font-weight: 700; color: var(--ink-2); margin-bottom: 
 .mail .stamp span { font: 600 1.4cqw/1.4 var(--mono); letter-spacing: .1em; text-transform: uppercase; }
 .mail .stamp i { position: absolute; width: 5cqw; aspect-ratio: 1; background: var(--b-lemon); border-radius: 50% 50% 50% 10%; right: 0; top: 1cqw; transform: rotate(-25deg); }
 
-.ptag { aspect-ratio: 2 / 1.25; background: var(--b-cream); color: var(--b-canopy); border-radius: 3cqw 3cqw 3cqw 3cqw; display: grid; grid-template-columns: 10cqw 1fr; }
+/* the plant tag (Plants page): the punched end, the plant, and its QR code to the plant's own page with the short link.
+   Its own columns and corners are in % (cqw on the .art itself would be measured against the page, not the tag). */
+.ptag { aspect-ratio: 2 / 1.25; background: var(--b-cream); color: var(--b-canopy); border-radius: 3% / 4.8%; display: grid; grid-template-columns: 10% minmax(0, 1fr) auto; }
 .ptag .hole { background: var(--b-fern); display: grid; place-items: start center; padding-top: 6cqw; }
 .ptag .hole i { width: 4cqw; aspect-ratio: 1; border-radius: 50%; background: var(--b-cream); }
-.ptag .bd { padding: 6cqw 7cqw 5cqw 6cqw; display: grid; gap: 1.6cqw; align-content: start; }
+.ptag .bd { padding: 6cqw 4cqw 5cqw 6cqw; display: grid; gap: 1.6cqw; align-content: start; min-width: 0; }
 .ptag .k { font: 600 2.4cqw/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--b-fern); }
-.ptag h4 { font-size: 9cqw; }
-.ptag .lat { font: italic 400 3.4cqw/1.2 var(--body); color: var(--b-soil); }
+.ptag h4 { font-size: 9cqw; overflow-wrap: anywhere; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+.ptag h4.long { font-size: 6.2cqw; }
+.ptag .lat { font: italic 400 3.4cqw/1.2 var(--body); color: var(--b-soil); overflow-wrap: anywhere; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+.ptag .qrs { width: 31cqw; padding: 6cqw 6cqw 5cqw 0; display: grid; gap: 1.6cqw; align-content: start; justify-items: center; }
+.ptag .qr { width: 25cqw; }
+.ptag .qrs .url { font: 600 1.9cqw/1.3 var(--mono); color: var(--b-fern); overflow-wrap: anywhere; text-align: center; max-width: 100%; }
 .ptag .rowx { display: flex; justify-content: space-between; gap: 3cqw; margin-top: 2cqw; border-top: .3cqw solid var(--b-sage); padding-top: 2.4cqw; font: 400 2.9cqw/1.35 var(--body); }
 .ptag .rowx b { display: block; font: 600 2.2cqw/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--b-sage-deep); margin-bottom: .8cqw; }
 .ptag .txt { margin-top: 1.4cqw; font: 600 2.7cqw/1.3 var(--mono); background: var(--b-lemon); padding: 1.6cqw 2.4cqw; border-radius: 1.4cqw; justify-self: start; }
@@ -446,6 +456,8 @@ legend { font-size: 13px; font-weight: 700; color: var(--ink-2); margin-bottom: 
   #print-sheet.ps-cards .ps-cell { width: max-content; margin: 0 auto; border: 1px dashed #767676; break-inside: avoid; }
   #print-sheet.ps-cards .ps-cell + .ps-cell { border-top: 0; }
   #print-sheet.ps-cards .art { width: 7in; }
+  #print-sheet.ps-tag .ps-cell { width: max-content; margin: 0 auto; border: 1px dashed #767676; break-inside: avoid; }
+  #print-sheet.ps-tag .art { width: 5in; }
 }
 .mats-h { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
 .mats-h h3 { font: 700 16px/1.3 var(--body); }
@@ -519,6 +531,63 @@ legend { font-size: 13px; font-weight: 700; color: var(--ink-2); margin-bottom: 
 .h2i { display: flex; align-items: center; gap: 10px; }
 .h2i .ic { width: .8em; height: .8em; color: var(--fern); }
 .roles span { font-size: 13px; color: var(--ink-2); }
+
+/* Plants: the Add a plant form, the cards (requests first), and the tag under Show tag */
+.plf { display: grid; gap: 14px; padding: 18px; margin-bottom: 24px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
+.plf h2 { font-size: 24px; overflow-wrap: anywhere; }
+.plf-g { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.plf-g .wide, .plf-r3 { grid-column: 1 / -1; }
+.plf-r3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 640px) { .plf-g, .plf-r3 { grid-template-columns: minmax(0, 1fr); } }
+.plf .fl .hint { font-weight: 400; }
+.plf, .plf input, .plf textarea { scroll-margin-top: 130px; } /* clear of the sticky top bar */
+.plf .every { display: flex; align-items: center; gap: 8px; }
+.plf .every input { width: 6.5em; flex: none; }
+.plf .every span { font-weight: 400; font-size: 14px; color: var(--ink-2); }
+.plf .omark-b .btn[aria-busy="true"] { cursor: progress; }
+.plf .omark-b .btn[aria-busy="true"] .ic { animation: spin 1s linear infinite; }
+.plf [aria-invalid="true"] { border-color: var(--flag); }
+.plsec { display: grid; gap: 12px; margin-bottom: 30px; }
+.plsec > h2 { font-size: clamp(22px, 3vw, 26px); display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.plsec > h2 .ic { width: .8em; height: .8em; color: var(--fern); }
+.plsec > h2 .cnt { font: 400 14px/1 var(--body); color: var(--ink-3); }
+.plcards { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr)); gap: 16px; align-items: start; }
+.plcard { border: 1px solid var(--line); border-radius: 16px; background: var(--raised); padding: 16px; display: grid; gap: 12px; min-width: 0; }
+.plcard.req { border-color: var(--water); box-shadow: 0 0 0 1px var(--water); }
+.plc-h { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+.plc-h > div { min-width: 0; }
+.plc-h h3 { font-size: 21px; overflow-wrap: anywhere; }
+.plc-h .lat { font-size: 14px; color: var(--ink-2); margin-top: 3px; overflow-wrap: anywhere; }
+.plc-h .pill { flex: none; }
+.pill.pl-need { background: var(--lemon-soft); color: var(--lemon-ink); }
+.pill.pl-req { background: var(--water-soft); color: var(--water); }
+.pill.pl-adopted { background: var(--fern-soft); color: var(--fern); }
+.plc-facts { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: 14px; color: var(--ink-2); }
+.plc-facts li { display: flex; gap: 8px; align-items: flex-start; min-width: 0; overflow-wrap: anywhere; }
+.plc-facts .ic { width: 15px; height: 15px; margin-top: 2px; color: var(--ink-3); }
+.plc-notes { font-size: 14px; color: var(--ink-2); white-space: pre-line; overflow-wrap: anywhere; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; }
+.plc-ppl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+@media (max-width: 400px) { .plc-ppl { grid-template-columns: minmax(0, 1fr); } }
+.plc-p { display: grid; gap: 6px; align-content: start; min-width: 0; }
+.plc-ppl .fld select { padding: 7px 9px; font-size: 14px; }
+.plc-ppl .fld .ic { width: 14px; height: 14px; color: var(--ink-3); }
+.plc-who { display: grid; gap: 2px; font-size: 14px; min-width: 0; overflow-wrap: anywhere; }
+.plc-who .l { font-size: 13px; font-weight: 700; color: var(--ink-3); }
+.plc-reach { display: flex; gap: 6px; align-items: flex-start; flex-wrap: wrap; font-size: 13px; color: var(--ink-3); overflow-wrap: anywhere; min-width: 0; }
+.plc-reach .ic { width: 14px; height: 14px; margin-top: 1px; }
+.plc-reach .warnchip { margin-top: 0; white-space: normal; }
+.plc-ask { display: grid; gap: 10px; padding: 12px; border-radius: 12px; background: var(--water-soft); color: var(--ink); }
+.plc-ask p { display: flex; gap: 8px; align-items: flex-start; min-width: 0; overflow-wrap: anywhere; }
+.plc-ask p > .ic { flex: none; margin-top: 3px; color: var(--water); }
+.plc-ask p .hint { color: var(--ink-2); }
+.plc-acts { display: flex; flex-wrap: wrap; gap: 6px 8px; align-items: center; padding-top: 12px; border-top: 1px solid var(--line); }
+.plc-acts .rm { margin-left: auto; }
+.plc-acts .prm { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-weight: 700; font-size: 14px; }
+.plc-busy { display: flex; gap: 6px; align-items: center; font-size: 13px; font-weight: 700; color: var(--ink-3); }
+.plc-busy .ic { animation: spin 1s linear infinite; }
+@media (prefers-reduced-motion: reduce) { .plc-busy .ic, .plf .omark-b .ic { animation: none !important; } }
+.plcard .err { font-size: 13px; }
+.plc-tag .art { width: 100%; }
 
 /* event plan */
 .series { font: 600 11px/1 var(--mono); letter-spacing: .06em; text-transform: uppercase; background: var(--fern-soft); color: var(--fern); padding: 4px 7px; border-radius: 4px; }
@@ -1197,7 +1266,7 @@ td code, .code code { font: 400 13px/1.5 var(--mono); }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 /* phones: small buttons and inline action links are at least 44px tall, so they're easy to tap */
 @media (max-width: 600px) {
-  .btn.sm, .tog, .x, .obody a.hint, a.hint.nolink, .ostat a, .dh .meta a, .doc-kv a, .savest button, .chk, .pe-dir, .who-tbl .ask, .who-tbl .twhat, .who-tbl select, .who-tbl input, .team .pcon { min-height: 44px; }
+  .btn.sm, .tog, .x, .obody a.hint, a.hint.nolink, .ostat a, .dh .meta a, .doc-kv a, .savest button, .chk, .pe-dir, .who-tbl .ask, .who-tbl .twhat, .who-tbl select, .who-tbl input, .team .pcon, .plc-ppl select { min-height: 44px; }
   .who-tbl .tsub .tog { display: inline-flex; }
   .dh .meta a, .doc-kv a { display: inline-flex; align-items: center; }
   .x { min-width: 44px; }
@@ -1272,13 +1341,14 @@ td code, .code code { font: 400 13px/1.5 var(--mono); }
   <symbol id="i-wand" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.64 3.64-1.28-1.28a1.21 1.21 0 0 0-1.72 0L2.36 18.64a1.21 1.21 0 0 0 0 1.72l1.28 1.28a1.2 1.2 0 0 0 1.72 0L21.64 5.36a1.2 1.2 0 0 0 0-1.72"/><path d="m14 7 3 3"/><path d="M5 6v4"/><path d="M19 14v4"/><path d="M10 2v2"/><path d="M7 8H3"/><path d="M21 16h-4"/><path d="M11 3H9"/></g></symbol>
   <symbol id="i-puzzle" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15.39 4.39a1 1 0 0 0 1.68-.474 2.5 2.5 0 1 1 3.014 3.015 1 1 0 0 0-.474 1.68l1.683 1.682a2.414 2.414 0 0 1 0 3.414L19.61 15.39a1 1 0 0 1-1.68-.474 2.5 2.5 0 1 0-3.014 3.015 1 1 0 0 1 .474 1.68l-1.683 1.682a2.414 2.414 0 0 1-3.414 0L8.61 19.61a1 1 0 0 0-1.68.474 2.5 2.5 0 1 1-3.014-3.015 1 1 0 0 0 .474-1.68l-1.683-1.682a2.414 2.414 0 0 1 0-3.414L4.39 8.61a1 1 0 0 1 1.68.474 2.5 2.5 0 1 0 3.014-3.015 1 1 0 0 1-.474-1.68l1.683-1.682a2.414 2.414 0 0 1 3.414 0z"/></g></symbol>
   <symbol id="i-calendar-x" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="m14 14-4 4"/><path d="m10 14 4 4"/></g></symbol>
+  <symbol id="i-droplet" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z"/></g></symbol>
   <symbol id="i-trash" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><path d="M10 11v6"/><path d="M14 11v6"/></g></symbol>
 </defs></svg>
 
 <header class="top">
   <div class="wrap">
     <div class="lock"><svg><use href="#mark"/></svg><b>East Bay Permaculture Guild</b><span>Event Hub</span></div>
-    <nav class="tabs" aria-label="Sections"><a href="#events" data-tab="events"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-calendar"/></svg>Events</a><a href="#team" data-tab="team"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-users"/></svg>Team</a><a href="#materials" data-tab="materials"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-image"/></svg>Flyers &amp; posts</a><a class="live" href="#help" data-tab="help"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-help-circle"/></svg>Help</a>
+    <nav class="tabs" aria-label="Sections"><a href="#events" data-tab="events"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-calendar"/></svg>Events</a><a href="#team" data-tab="team"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-users"/></svg>Team</a><a href="#plants" data-tab="plants"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-sprout"/></svg>Plants<span class="tabn" id="pl-tabn"></span></a><a href="#materials" data-tab="materials"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-image"/></svg>Flyers &amp; posts</a><a class="live" href="#help" data-tab="help"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-help-circle"/></svg>Help</a>
 <!--PROTO-->
 <a href="#architecture" data-tab="architecture">How we'd build it</a>
 <!--/PROTO-->
@@ -1465,6 +1535,32 @@ td code, .code code { font: 400 13px/1.5 var(--mono); }
       <button class="btn primary" type="submit"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-user-plus"/></svg>Add person</button>
       <p class="err" id="ap-err" role="alert" hidden style="grid-column:1/-1"></p>
     </form>
+  </div>
+
+  <!-- ============ PLANTS (Adopt a plant) ============ -->
+  <div id="p-plants" data-page="plants" hidden>
+    <div class="pagehead"><div><h1>Plants</h1><p>A newcomer adopts one plant, gets a reminder before each work day, and comes back to care for it.</p></div>
+      <button class="btn primary" type="button" id="pl-add"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-plus"/></svg>Add a plant</button></div>
+    <div id="pl-note"></div>
+    <form class="plf" id="plf" novalidate hidden aria-labelledby="plf-t">
+      <h2 id="plf-t">Add a plant</h2>
+      <div class="plf-g">
+        <label class="fld">Plant<input id="pl-plant" name="plant" maxlength="80" autocomplete="off" required aria-required="true" placeholder="e.g. Black Mission fig"></label>
+        <label class="fld"><span class="fl">Nickname <span class="hint">optional</span></span><input id="pl-nick" name="nickname" maxlength="40" autocomplete="off"></label>
+        <label class="fld"><span class="fl">Latin name <span class="hint">optional</span></span><input id="pl-latin" name="latin" maxlength="80" autocomplete="off" spellcheck="false" placeholder="e.g. Ficus carica"></label>
+        <label class="fld"><span class="fl">Where in the garden <span class="hint">optional</span></span><input id="pl-where" name="where" maxlength="120" autocomplete="off" placeholder="e.g. Front garden, by the gate"></label>
+        <div class="plf-r3">
+          <label class="fld"><span class="fl">Planted <span class="hint">optional</span></span><input id="pl-planted" name="planted" type="date"></label>
+          <label class="fld">Care every<span class="every"><input id="pl-every" name="every" type="number" inputmode="numeric" min="1" max="60" step="1"><span>days</span></span></label>
+          <label class="fld"><span class="fl">Last cared for <span class="hint">optional</span></span><input id="pl-last" name="last" type="date"></label>
+        </div>
+        <label class="fld wide"><span class="fl">How to look after it <span class="hint">optional</span></span><textarea id="pl-notes" name="notes" rows="3" maxlength="1000" placeholder="Watering, pruning, what to look out for"></textarea></label>
+      </div>
+      <p class="hint" id="pl-was" hidden></p>
+      <p class="err" id="pl-err" role="alert" hidden></p>
+      <div class="omark-b"><button class="btn primary" type="submit" id="pl-save"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-check"/></svg><span>Add plant</span></button><button class="btn ghost" type="button" id="pl-cancel"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-x"/></svg>Cancel</button></div>
+    </form>
+    <div id="pl-list"></div>
   </div>
 
   <!-- ============ MATERIALS ============ -->
@@ -1827,7 +1923,7 @@ await supabase.from('volunteers').insert({
     <div class="helpg">
       <section aria-labelledby="hp-data">
         <h2 id="hp-data">Where everything is saved</h2>
-        <p>Everything you do here is saved to the Guild's Google Sheet a moment after you change it. A note under the top bar (or the event pop-up's bar, while one is open) says <b>Saving…</b>, then <b>All changes saved</b>. If the Sheet doesn't answer, it says <b>Not saved</b>, keeps trying on its own, and has a Retry button; your browser also asks before you close the tab. Each tab holds one kind of thing: Events, Bringing, Posts, Team, Volunteers, Activity and Gardens. Settings holds the organizer code and switches like <code>TEST_MODE</code> and <code>REMINDERS</code>.</p>
+        <p>Everything you do here is saved to the Guild's Google Sheet a moment after you change it. A note under the top bar (or the event pop-up's bar, while one is open) says <b>Saving…</b>, then <b>All changes saved</b>. If the Sheet doesn't answer, it says <b>Not saved</b>, keeps trying on its own, and has a Retry button; your browser also asks before you close the tab. Each tab holds one kind of thing: Events, Bringing, Posts, Team, Volunteers, Activity, Gardens and Plants. Settings holds the organizer code and switches like <code>TEST_MODE</code> and <code>REMINDERS</code>.</p>
         <div id="help-sheet"></div>
       </section>
       <section aria-labelledby="hp-code">
@@ -1855,6 +1951,11 @@ await supabase.from('volunteers').insert({
         <h2 id="hp-vols">Volunteer sign-ups</h2>
         <p>The form on the home page asks for a name, an email or phone (and which is best), how they'd like to help, when they're usually free, how they heard about the Guild and whether to add them to the Guild email list. Each sign-up is a row on the <b>Volunteers</b> tab, with an <code>event</code> column when they signed up from an event's page. The <b>Volunteer list</b> on the Team page shows them all.</p>
         <p>The volunteer gets a welcome email about the next event (replies go to <code>REPLY_TO</code>), and the lead organizer gets one with every answer. Someone who signs up again with the same email or phone and the same first name gets their row updated, with <i>Signed up again</i> and the date in the note, and no second welcome. Someone else on a shared email or phone (a household, a group's address) gets a row of their own. People who ask for the email list aren't added to the Google Group automatically: add them there by hand.</p>
+      </section>
+      <section aria-labelledby="hp-plants">
+        <h2 id="hp-plants">Adopt a plant</h2>
+        <p>A newcomer adopts one plant, gets a reminder before each work day, and comes back to care for it. The <b>Plants</b> page lists the plants the Guild would like a neighbor to look after: add one with <b>Add a plant</b>, or type it into the <b>Plants</b> tab of the Sheet, where a row typed in by hand gets its number on the next sign-in. Pick a <b>Steward</b> and a <b>Backup</b> from the team or the people who signed up; the steward's email or phone is copied to the Plants tab. Adoption requests show first, with <b>Approve</b> and <b>Decline</b>.</p>
+        <p><b>Print tag</b> prints the plant's garden tag, 5 inches wide, with a QR code to the plant's own page. A plant's number is never given to another plant, so a printed tag always means its own plant. You need <b>Edit events</b> to change the plants; anyone signed in can print a tag.</p>
       </section>
       <section aria-labelledby="hp-edit">
         <h2 id="hp-edit">Fixing things in the Sheet</h2>
@@ -2545,6 +2646,7 @@ function renderTeam() {
   $('#team-tbl .prm')?.addEventListener('keydown', e => { if (e.key === 'Escape') { e.preventDefault(); keep(); } });
   $$('[data-rmyes]').forEach(b => b.addEventListener('click', () => removePerson(TEAM[b.dataset.rmyes].name)));
   $$('#addp input, #addp select, #addp button').forEach(el => el.disabled = !edit);
+  renderPlants(); // its Steward and Backup pickers list the team, and the permissions say who can change them
   sync();
 }
 /* Remove: the person goes from the team (and the Sheet) at once, with 10 seconds to Undo, which puts them back where they were. */
@@ -3775,6 +3877,11 @@ let unprint = null;
 function printArt(b) {
   const k = b.dataset.print, o = OUTS[k], art = b.closest('.mat, .hfig')?.querySelector('.art');
   if (!o || !o.print || !art) return;
+  printPiece(art, o, outName(k, b.dataset.ev));
+}
+// print one piece: art (a copy goes into #print-sheet), o.print (how it prints: letter, landscape, cards or tag), and
+// name, the file name Save as PDF suggests
+function printPiece(art, o, name) {
   if (unprint) unprint();
   const sheet = $('#print-sheet'), page = document.createElement('style'), title = document.title;
   sheet.className = 'ps-' + o.print;
@@ -3786,7 +3893,7 @@ function printArt(b) {
   page.id = 'print-page';
   page.textContent = `@page { size: letter ${o.print === 'landscape' ? 'landscape' : 'portrait'}; margin: 0.4in; }`;
   document.head.appendChild(page);
-  document.title = outName(k, b.dataset.ev);
+  document.title = name;
   document.body.classList.add('printing');
   const done = () => {
     if (unprint !== done) return;
@@ -3804,6 +3911,288 @@ document.addEventListener('click', e => {
   if (!b) return;
   if (b.dataset.dl) downloadArt(b); else printArt(b);
 });
+
+/* ---------- Adopt a plant: the Plants page ----------
+   The plants the Guild would like a neighbor to look after, from the Plants tab of the Sheet. A newcomer adopts one (its
+   steward), someone backs them up, and they get a reminder before each work day. People with "Edit events" add plants,
+   change them, pick the steward and backup, and answer adoption requests; anyone signed in can print a plant's tag.
+   Each change goes to the Sheet at once through plantCall (the live build's bridge sends it to Code.js; the artifact
+   keeps the plants in this tab), and the page then shows the plants as the Sheet answers with them. */
+const PLANTS = [];
+const PLANT_ST = { 'needs a steward': ['Needs a steward', 'pl-need'], requested: ['Asked to adopt', 'pl-req'], adopted: ['Adopted', 'pl-adopted'] };
+const plantStatus = p => PLANT_ST[p.status] ? p.status : p.steward ? 'adopted' : 'needs a steward';
+const plantName = p => p.nickname || p.plant || 'Plant no. ' + p.id;
+// the plant's own page, where its tag's QR code goes: ?plant=ID on the live site; '' in the artifact, which has no Sheet
+let plantLink = id => '';
+let plantCall = () => Promise.reject(new Error("The plants can't be changed here."));
+// a plant as the Sheet sends it (signIn, savePlant ...), with every field there
+function plantOf(r) {
+  r = r || {};
+  const s = v => String(v ?? '').trim(), n = Number(r.careEvery);
+  return { id: s(r.id), nickname: s(r.nickname), plant: s(r.plant), latin: s(r.latin), where: s(r.where), planted: s(r.planted), status: s(r.status),
+    steward: s(r.steward), stewardContact: s(r.stewardContact), backup: s(r.backup), careEvery: r.careEvery != null && r.careEvery !== '' && n > 0 ? n : null,
+    lastCare: s(r.lastCare), careNotes: s(r.careNotes), requestedBy: s(r.requestedBy), requestedContact: s(r.requestedContact), requestedAt: s(r.requestedAt) };
+}
+function takePlants(list) { if (Array.isArray(list)) PLANTS.splice(0, PLANTS.length, ...list.map(plantOf).filter(p => p.id)); }
+const isoDay = s => /^\d{4}-\d{2}-\d{2}$/.test(s) && iso(D(s)) === s;
+// "Mar 9, 2025" ("Oct 20" this year; long: "March 9, 2025"). A date typed into the Sheet some other way shows as typed.
+const dayText = (s, long) => !isoDay(s) ? s : D(s).toLocaleDateString('en-US', { month: long ? 'long' : 'short', day: 'numeric', ...(long || s.slice(0, 4) !== TODAY.slice(0, 4) ? { year: 'numeric' } : {}) });
+const lc = v => String(v ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
+
+/* The Steward and Backup pickers: nobody, the team, then the people who signed up on the home page and aren't on the
+   team (by their sign-up's id, so two people with one name stay two, each shown with how to reach them). Someone on
+   neither list stays picked. Values: t:<name> (the team), v:<sign-up id>, n:<name> (a sign-up with no id, or the name
+   the Sheet has). contact: the steward contact the Sheet has, to tell two sign-ups with one name apart. */
+function plantWhoOptions(cur, contact) {
+  const o = (v, l, on) => `<option value="${esc(v)}"${on ? ' selected' : ''}>${esc(l)}</option>`, k = lc(cur);
+  const team = new Set(TEAM.map(t => lc(t.name))), vols = VOLS.filter(v => lc(v.name) && !team.has(lc(v.name)));
+  const onTeam = !!k && team.has(k), same = !onTeam && k ? vols.filter(v => lc(v.name) === k) : [];
+  const pick = same.find(v => [v.email, v.phone, v.contact].some(c => String(c ?? '').trim() && String(c).trim() === contact)) || same[0];
+  const twice = new Set(vols.map(v => lc(v.name)).filter((n, i, a) => a.indexOf(n) !== i));
+  const val = v => v.id ? 'v:' + v.id : 'n:' + String(v.name).trim();
+  return o('', 'Nobody yet', !k) + (k && !onTeam && !pick ? o('n:' + cur, cur, true) : '')
+    + (TEAM.length ? `<optgroup label="Team">${TEAM.map(t => o('t:' + t.name, t.name, onTeam && lc(t.name) === k)).join('')}</optgroup>` : '')
+    + (vols.length ? `<optgroup label="Signed up on the home page">${vols.map(v => o(val(v), String(v.name).trim() + (twice.has(lc(v.name)) && volContact(v) ? ' · ' + volContact(v) : ''), v === pick)).join('')}</optgroup>` : '');
+}
+// a picker's value as savePlant takes it: { name, vol (the sign-up's id) }, or null for a sign-up that isn't here anymore
+function plantPick(value) {
+  const v = String(value || ''), kind = v.slice(0, 2), rest = v.slice(2);
+  if (kind === 'v:') { const vol = VOLS.find(x => x.id === rest); return vol ? { name: String(vol.name).trim(), vol: rest } : null; }
+  return { name: kind === 't:' || kind === 'n:' ? rest : '', vol: '' };
+}
+
+/* ---- the cards ---- */
+const PL_BUSY = new Set(); // plants with a change on its way to the Sheet ('form': the Add a plant form's)
+const PL_ERR = new Map(); // plant id -> what the Sheet said, shown on its card until the next change
+S.plRm = null; S.plTag = new Set(); S.plForm = null; // the plant whose Remove is being asked about; open tags; the open form
+function plantCard(p, edit) {
+  const id = esc(p.id), st = plantStatus(p), [stName, stCls] = PLANT_ST[st], name = esc(plantName(p)), busy = PL_BUSY.has(p.id);
+  const off = busy ? ' aria-disabled="true"' : '', open = S.plTag.has(p.id);
+  const sub = [p.nickname && p.plant ? esc(p.plant) : '', p.latin ? `<i>${esc(p.latin)}</i>` : ''].filter(Boolean).join(' · ');
+  const facts = [p.where && ['map-pin', esc(p.where)], p.planted && ['sprout', 'Planted ' + esc(dayText(p.planted))],
+    p.careEvery && ['droplet', 'Care every ' + (p.careEvery === 1 ? 'day' : p.careEvery + ' days')],
+    ['history', p.lastCare ? 'Last cared for ' + esc(dayText(p.lastCare)) : 'Last cared for: not logged yet']].filter(Boolean);
+  const ask = st !== 'requested' ? '' : `<div class="plc-ask"><p>${ic('heart')}<span><b>${esc(p.requestedBy || 'Someone')}</b> asked to adopt ${name}`
+    + `${onDay(p.requestedAt) ? `<span class="hint"> · ${esc(onDay(p.requestedAt))}</span>` : ''}${p.requestedContact ? `<br><span class="hint">${esc(p.requestedContact)}</span>` : ''}</span></p>`
+    + (edit ? `<div class="omark-b"><button class="btn primary sm" type="button" data-plact="approve"${off}>${ic('check')}Approve<span class="vh"> ${esc(p.requestedBy)} for ${name}</span></button>`
+      + `<button class="btn ghost sm" type="button" data-plact="decline"${off}>${ic('x')}Decline<span class="vh"> ${esc(p.requestedBy)}'s request</span></button></div>` : '') + '</div>';
+  const first = esc(firstName(p.steward));
+  const reach = !p.steward ? '' : p.stewardContact
+    ? `<p class="plc-reach">${ic(p.stewardContact.includes('@') ? 'mail' : 'phone')}<span><span class="vh">How to reach ${esc(p.steward)}: </span>${esc(p.stewardContact)}</span></p>`
+    : `<p class="plc-reach"><span class="warnchip">No email or phone for ${first} yet</span><span>Add one on the Team page, then pick ${first} again here.</span></p>`;
+  // the steward's email or phone goes under their name
+  const who = (k, label, icon, cur, contact, more = '') => `<div class="plc-p">` + (edit
+    ? `<label class="fld"><span class="fl">${ic(icon)}${label}</span><select data-plsel="${k}" aria-label="${label} for ${name}"${off}>${plantWhoOptions(cur, contact)}</select></label>`
+    : `<span class="plc-who"><span class="l">${label}</span>${cur ? `<b>${esc(cur)}</b>` : '<span class="hint">Nobody yet</span>'}</span>`) + more + '</div>';
+  const people = st === 'requested' ? '' : `<div class="plc-ppl">${who('steward', 'Steward', 'user-check', p.steward, p.stewardContact, reach)}${who('backup', 'Backup', 'users', p.backup, '')}</div>`;
+  const acts = S.plRm === p.id && edit
+    ? `<span class="prm" role="group" aria-labelledby="plrm-${id}"><span id="plrm-${id}">Take ${name} off the list?</span><button class="btn warn sm" type="button" data-plact="rm-yes"${off}>${ic('trash')}Remove</button><button class="btn ghost sm" type="button" data-plact="rm-no">${ic('x')}Keep it</button></span>`
+    : (edit ? `<button class="btn ghost sm" type="button" data-plact="edit"${off}>${ic('pencil')}Edit<span class="vh"> ${name}</span></button>` : '')
+      + `<button class="btn ghost sm" type="button" data-plact="print">${ic('printer')}Print tag<span class="vh"> for ${name}</span></button>`
+      + `<button class="tog" type="button" data-plact="tag" aria-expanded="${open}" aria-controls="pltag-${id}">${ic('eye')}${open ? 'Hide tag' : 'Show tag'}<span class="vh"> for ${name}</span></button>`
+      + (edit ? `<button class="tog rm" type="button" data-plact="remove"${off}>${ic('trash')}Remove<span class="vh"> ${name}</span></button>` : '');
+  return `<li class="plcard${st === 'requested' ? ' req' : ''}" data-pl="${id}"><div class="plc-h"><div><h3>${name}</h3>${sub ? `<p class="lat">${sub}</p>` : ''}</div><span class="pill ${stCls}">${stName}</span></div>`
+    + `<ul class="plc-facts">${facts.map(([i, t]) => `<li>${ic(i)}<span>${t}</span></li>`).join('')}</ul>${p.careNotes ? `<p class="plc-notes">${esc(p.careNotes)}</p>` : ''}`
+    + ask + people + (PL_ERR.has(p.id) ? `<p class="err" role="alert">${esc(PL_ERR.get(p.id))}</p>` : '') + (busy ? `<p class="plc-busy" role="status">${ic('loader')}Saving…</p>` : '')
+    + `<div class="plc-acts">${acts}</div><div class="plc-tag" id="pltag-${id}"${open ? '' : ' hidden'}>${open ? plantTagArt(p) : ''}</div></li>`;
+}
+/* The Plants page: requests waiting for an answer first, then the rest in the Sheet's order. Redrawn only when it
+   changes, and the control that had focus keeps it (or its card's first button, when that control is gone). */
+let plHTML = '', plNote = '';
+function renderPlants() {
+  const edit = can('edit'), add = $('#pl-add'), l = lead();
+  add.disabled = !edit; add.title = edit ? '' : NOPE.edit;
+  if (!edit && S.plForm) closePlantForm(true);
+  const note = edit ? '' : `<div class="perm-note" style="margin-bottom:14px">${ic('lock')}<span>You need "Edit events" to add plants or change them.${l && l.name !== ME ? ` Ask ${esc(firstName(l.name))} if you need to.` : ''}</span></div>`;
+  if (note !== plNote) $('#pl-note').innerHTML = plNote = note;
+  const req = PLANTS.filter(p => plantStatus(p) === 'requested'), rest = PLANTS.filter(p => plantStatus(p) !== 'requested');
+  const tabn = $('#pl-tabn'), n = req.length ? String(req.length) : '';
+  if (tabn.textContent !== n) tabn.textContent = n;
+  tabn.closest('a').setAttribute('aria-label', req.length ? `Plants, ${req.length} adoption ${req.length === 1 ? 'request' : 'requests'} to answer` : 'Plants');
+  const html = !PLANTS.length
+    ? `<div class="nxnote"><i class="ic-chip">${ic('sprout')}</i><span><b>No plants yet.</b> Add the first plant the Guild would like a neighbor to look after.</span>${edit ? `<button class="btn primary" type="button" data-plact="add">${ic('plus')}Add a plant</button>` : ''}</div>`
+    : (req.length ? `<section class="plsec" aria-labelledby="pl-req-h"><h2 id="pl-req-h">${ic('heart')}Asked to adopt<span class="cnt">${req.length === 1 ? '1 request' : req.length + ' requests'} to answer</span></h2><ul class="plcards">${req.map(p => plantCard(p, edit)).join('')}</ul></section>` : '')
+      + `<section class="plsec" aria-labelledby="pl-all-h"><h2 id="pl-all-h">${ic('sprout')}In the garden<span class="cnt">${rest.length === 1 ? '1 plant' : rest.length + ' plants'}</span></h2>`
+      + (rest.length ? `<ul class="plcards">${rest.map(p => plantCard(p, edit)).join('')}</ul>` : '<p class="hint">Every plant has a request waiting above.</p>') + '</section>';
+  if (html === plHTML) return;
+  const box = $('#pl-list'), f = document.activeElement, had = !!f && box.contains(f);
+  const pid = had ? f.closest('[data-pl]')?.dataset.pl : '', what = had ? f.dataset.plact || f.dataset.plsel || '' : '';
+  box.innerHTML = plHTML = html;
+  if (!had) return;
+  const card = pid ? $$('#pl-list [data-pl]').find(c => c.dataset.pl === pid) : null;
+  const to = card && ($$('[data-plact], [data-plsel]', card).find(el => (el.dataset.plact || el.dataset.plsel) === what) || card.querySelector('[data-plact]'));
+  (to || (edit ? add : $('#p-plants h1'))).focus();
+}
+
+/* ---- Add a plant, and Edit ---- */
+const PL_FORM = [['plant', 'pl-plant'], ['nickname', 'pl-nick'], ['latin', 'pl-latin'], ['where', 'pl-where'], ['planted', 'pl-planted'], ['careEvery', 'pl-every'], ['lastCare', 'pl-last'], ['careNotes', 'pl-notes']];
+const PL_MAX = { plant: [80, 'plant'], nickname: [40, 'nickname'], latin: [80, 'latin name'], where: [120, 'where it is'], careNotes: [1000, 'care notes'] };
+// what the form says now, in the page's names
+function plantForm() {
+  const f = {};
+  PL_FORM.forEach(([k, id]) => { const v = $('#' + id).value; f[k] = k === 'careNotes' ? v.replace(/\r\n?/g, '\n').trim() : v.trim().replace(/\s+/g, ' '); });
+  return f;
+}
+// [the field's id, what's wrong], or null: the checks savePlant makes in Code.js
+function plantProblem(f) {
+  if (!f.plant) return ['pl-plant', 'Add what kind of plant it is.'];
+  const long = Object.keys(PL_MAX).find(k => f[k].length > PL_MAX[k][0]);
+  if (long) return [PL_FORM.find(x => x[0] === long)[1], `Please keep the ${PL_MAX[long][1]} to ${PL_MAX[long][0]} characters or fewer.`];
+  if (f.planted && !isoDay(f.planted)) return ['pl-planted', "The planted date doesn't look right. Pick a day, or leave it blank."];
+  if (f.careEvery && !(/^\d{1,2}$/.test(f.careEvery) && +f.careEvery >= 1 && +f.careEvery <= 60)) return ['pl-every', 'Care every can be 1 to 60 days.'];
+  if (f.lastCare && !isoDay(f.lastCare)) return ['pl-last', "The last cared for date doesn't look right. Pick a day, or leave it blank."];
+  return null;
+}
+/* Open the form above the list: empty for Add a plant (care every 7 days to start), or filled in to Edit a plant.
+   Saving sends only what changed. from: the button that opened it, where focus goes back. */
+function openPlantForm(p, from) {
+  if (!can('edit')) return;
+  S.plForm = { id: p ? p.id : '', cid: p ? '' : newId(), from: from || null };
+  $('#plf-t').textContent = p ? 'Edit ' + plantName(p) : 'Add a plant';
+  $('#pl-save span').textContent = p ? 'Save' : 'Add plant';
+  const day = v => isoDay(v) ? v : '';
+  const val = p ? { ...p, planted: day(p.planted), lastCare: day(p.lastCare), careEvery: p.careEvery ?? '' } : { careEvery: '7' };
+  PL_FORM.forEach(([k, id]) => { const el = $('#' + id); el.value = String(val[k] ?? ''); el.removeAttribute('aria-invalid'); });
+  S.plForm.was = plantForm();
+  // a date typed into the Sheet some other way can't go in a date box: say what it is, and that it stays unless changed
+  const odd = p ? [['planted', 'planted date'], ['lastCare', 'last cared for date']].filter(([k]) => p[k] && !isoDay(p[k])) : [];
+  $('#pl-was').textContent = odd.map(([k, w]) => `The Sheet has the ${w} as "${p[k]}". It stays as it is unless you pick a day.`).join(' ');
+  $('#pl-was').hidden = !odd.length;
+  $('#pl-err').hidden = true;
+  $('#plf').hidden = false;
+  $('#plf').scrollIntoView({ block: 'start' });
+  $('#pl-plant').focus({ preventScroll: true });
+}
+function closePlantForm(quiet) {
+  const st = S.plForm;
+  S.plForm = null;
+  $('#plf').hidden = true; $('#plf').reset(); $('#pl-err').hidden = true; $('#pl-was').hidden = true;
+  PL_FORM.forEach(([, id]) => $('#' + id).removeAttribute('aria-invalid'));
+  if (quiet) return;
+  const edit = st && st.id && $$('#pl-list [data-pl]').find(c => c.dataset.pl === st.id)?.querySelector('[data-plact="edit"]');
+  const back = st && st.from && document.body.contains(st.from) && !st.from.disabled ? st.from : edit || $('#pl-add');
+  if (back && !back.disabled) back.focus(); else $('#p-plants h1').focus();
+}
+async function savePlantForm() {
+  const st = S.plForm;
+  if (!st || PL_BUSY.has('form')) return;
+  const f = plantForm(), bad = plantProblem(f), err = $('#pl-err');
+  PL_FORM.forEach(([, id]) => $('#' + id).removeAttribute('aria-invalid'));
+  if (bad) { err.textContent = bad[1]; err.hidden = false; $('#' + bad[0]).setAttribute('aria-invalid', 'true'); $('#' + bad[0]).focus(); return; }
+  const send = st.id ? Object.fromEntries(Object.entries(f).filter(([k, v]) => v !== st.was[k])) : { ...f };
+  if (st.id && !Object.keys(send).length) return closePlantForm();
+  if (st.id) send.id = st.id; else send.cid = st.cid; // the same cid until it's added, so sending it again never adds two
+  const btn = $('#pl-save'), label = btn.innerHTML;
+  PL_BUSY.add('form'); err.hidden = true;
+  btn.setAttribute('aria-busy', 'true'); btn.setAttribute('aria-disabled', 'true'); btn.innerHTML = ic('loader') + '<span>Saving…</span>';
+  let out = null;
+  try { out = await plantCall('savePlant', send); }
+  catch (er) { err.textContent = String((er && er.message) || "That didn't save. Try again."); err.hidden = false; }
+  finally { PL_BUSY.delete('form'); btn.removeAttribute('aria-busy'); btn.removeAttribute('aria-disabled'); btn.innerHTML = label; }
+  if (!out) { btn.focus(); return; }
+  takePlants(out.plants);
+  const p = plantOf(out.plant || {});
+  closePlantForm(true);
+  renderPlants();
+  toast(st.id ? `Saved ${plantName(p.id ? p : { ...f, id: st.id })}.` : `Added ${plantName(p.id ? p : f)}. Pick a steward when someone adopts it.`, 'check');
+  const card = p.id && $$('#pl-list [data-pl]').find(c => c.dataset.pl === p.id), to = card && card.querySelector(st.id ? '[data-plact="edit"]' : '[data-plsel="steward"], [data-plact]');
+  if (to) to.focus(); else if (!$('#pl-add').disabled) $('#pl-add').focus();
+}
+/* A change from a card (the Steward or Backup picker, Approve, Decline, Remove): one at a time per plant. said: the
+   toast once the Sheet has it. What the Sheet says no to stays on the card. */
+async function plantDo(id, fn, arg, said) {
+  if (!can('edit') || PL_BUSY.has(id)) return;
+  PL_BUSY.add(id); PL_ERR.delete(id); renderPlants();
+  let out = null;
+  try { out = await plantCall(fn, arg); }
+  catch (er) { PL_ERR.set(id, String((er && er.message) || "That didn't save. Try again.")); }
+  PL_BUSY.delete(id);
+  if (out) { takePlants(out.plants); if (fn === 'deletePlant') { S.plRm = null; S.plTag.delete(id); } }
+  const i = $$('#pl-list [data-pl]').findIndex(c => c.dataset.pl === id);
+  renderPlants();
+  if (!out) return;
+  toast(said(out, PLANTS.find(p => p.id === id)), fn === 'deletePlant' ? 'trash' : 'check');
+  if (fn === 'deletePlant') { // its card is gone: the next one's first button, or Add a plant
+    const cards = $$('#pl-list [data-pl]'), next = cards[Math.min(i, cards.length - 1)];
+    const to = next ? next.querySelector('[data-plact]') : !$('#pl-add').disabled ? $('#pl-add') : null;
+    if (to) to.focus(); else $('#p-plants h1').focus();
+  }
+}
+$('#pl-add').addEventListener('click', e => openPlantForm(null, e.currentTarget));
+$('#plf').addEventListener('submit', e => { e.preventDefault(); savePlantForm(); });
+$('#pl-cancel').addEventListener('click', () => closePlantForm());
+$('#plf').addEventListener('keydown', e => { if (e.key === 'Escape') { e.preventDefault(); closePlantForm(); } });
+$('#p-plants h1').tabIndex = -1;
+$('#pl-list').addEventListener('click', e => {
+  const b = e.target.closest('[data-plact]');
+  if (!b || b.getAttribute('aria-disabled') === 'true') return;
+  const act = b.dataset.plact, id = b.closest('[data-pl]')?.dataset.pl, p = PLANTS.find(x => x.id === id), name = p ? plantName(p) : '';
+  if (act === 'add') return openPlantForm(null, b);
+  if (!p) return;
+  const focusOn = a => $$('#pl-list [data-pl]').find(c => c.dataset.pl === id)?.querySelector(`[data-plact="${a}"]`)?.focus();
+  switch (act) {
+    case 'edit': openPlantForm(p, b); break;
+    case 'print': printPlantTag(p); break;
+    case 'tag': if (S.plTag.has(id)) S.plTag.delete(id); else S.plTag.add(id); renderPlants(); break;
+    case 'remove': S.plRm = id; PL_ERR.delete(id); renderPlants(); focusOn('rm-no'); break;
+    case 'rm-no': S.plRm = null; renderPlants(); focusOn('remove'); break;
+    case 'rm-yes': plantDo(id, 'deletePlant', id, () => `Took ${name} off the list.`); break;
+    case 'approve': plantDo(id, 'approveAdoption', id, out => out.message || `${firstName(p.requestedBy)} is looking after ${name} now.`); break;
+    case 'decline': plantDo(id, 'declineAdoption', id, out => out.message || `${name} needs a steward again.`); break;
+  }
+});
+$('#pl-list').addEventListener('keydown', e => { if (e.key === 'Escape' && e.target.closest('.prm')) { e.preventDefault(); const id = e.target.closest('[data-pl]').dataset.pl; S.plRm = null; renderPlants(); $$('#pl-list [data-pl]').find(c => c.dataset.pl === id)?.querySelector('[data-plact="remove"]')?.focus(); } });
+$('#pl-list').addEventListener('change', e => {
+  const sel = e.target.closest('[data-plsel]');
+  if (!sel) return;
+  const k = sel.dataset.plsel, id = sel.closest('[data-pl]')?.dataset.pl, who = plantPick(sel.value);
+  if (!who || sel.getAttribute('aria-disabled') === 'true' || !PLANTS.some(p => p.id === id)) { plHTML = ''; renderPlants(); return; } // back to what the Sheet has
+  plantDo(id, 'savePlant', { id, [k]: who.name, ...(who.vol ? { [k + 'Vol']: who.vol } : {}) }, (out, p) => {
+    const name = plantName(p || { id }), first = firstName(who.name);
+    return k === 'steward' ? (who.name ? `${first} is looking after ${name} now.` : `${name} needs a steward again.`) : (who.name ? `${first} is the backup for ${name}.` : `${name} has no backup now.`);
+  });
+});
+
+/* The plant tag, for the garden stake: its number, nickname (or the plant), the plant and latin name, when it was
+   planted, the steward's and backup's first names, and a QR code to the plant's own page with the short link. */
+function plantTagArt(p) {
+  const link = plantLink(p.id), code = qrSVG(link), name = plantName(p);
+  const lat = [p.nickname ? p.plant : '', p.latin].filter(Boolean).join(' · ');
+  const cols = [p.planted && ['Planted', dayText(p.planted, true)], ['Steward', p.steward ? firstName(p.steward) : 'Could be you'], p.backup && ['Backup', firstName(p.backup)]].filter(Boolean);
+  return `<div class="art ptag"><div class="hole"><i></i></div><div class="bd"><span class="k">Stewarded plant · no. ${esc(p.id)}</span>`
+    + `<h4 class="serif${name.length > 11 ? ' long' : ''}">${esc(name)}</h4>${lat ? `<span class="lat">${esc(lat)}</span>` : ''}`
+    + `<div class="rowx">${cols.map(([k, v]) => `<div><b>${k}</b>${esc(v)}</div>`).join('')}</div>`
+    + (link ? `<span class="txt">${code ? 'Scan to follow this plant' : 'Follow this plant online'}</span>` : '') + '</div>'
+    + (link ? `<div class="qrs">${code ? `<div class="qr">${code}</div>` : ''}<span class="url">${esc(shortUrl(link))}</span></div>` : '') + '</div>';
+}
+// Print tag: the tag alone, 5 inches wide with a cut line, saved as ebpg-plant-<no.>-<name>-tag.pdf
+function printPlantTag(p) {
+  const box = document.createElement('div');
+  box.innerHTML = plantTagArt(p);
+  printPiece(box.firstElementChild, { print: 'tag' }, ['ebpg-plant', p.id, slug(plantName(p)), 'tag'].filter(Boolean).join('-'));
+}
+/*PROTO*/
+// the artifact has no Sheet: its plants stay in this tab, numbered and filled in the way savePlant and the rest do it in Code.js
+let plantSeq = 0;
+plantCall = async (fn, a) => {
+  const at = id => PLANTS.findIndex(p => p.id === id), all = () => ({ plants: PLANTS.map(p => ({ ...p })) });
+  const who = (name, vol) => {
+    const k = lc(name), t = TEAM.find(x => lc(x.name) === k), v = VOLS.find(x => vol ? x.id === vol : lc(x.name) === k);
+    return { name: t ? t.name : v ? String(v.name).trim() : String(name ?? '').trim(), contact: (t && t.contact) || (v ? volContact(v) : '') };
+  };
+  if (fn === 'deletePlant') { const i = at(a); if (i >= 0) PLANTS.splice(i, 1); return all(); }
+  if (fn !== 'savePlant') return all();
+  let i = a.id ? at(a.id) : -1;
+  if (a.id && i < 0) throw new Error('This plant was taken off the list.');
+  if (i < 0) { PLANTS.push(plantOf({ id: String(++plantSeq).padStart(3, '0'), status: 'needs a steward' })); i = PLANTS.length - 1; }
+  const p = PLANTS[i];
+  ['plant', 'nickname', 'latin', 'where', 'planted', 'lastCare', 'careNotes'].forEach(k => { if (k in a) p[k] = String(a[k] ?? '').trim(); });
+  if ('careEvery' in a) p.careEvery = String(a.careEvery) === '' ? null : Number(a.careEvery);
+  if ('steward' in a) { const w = a.steward ? who(a.steward, a.stewardVol) : { name: '', contact: '' }; p.steward = w.name; p.stewardContact = w.contact; p.status = p.steward ? 'adopted' : 'needs a steward'; }
+  if ('backup' in a) p.backup = a.backup ? who(a.backup, a.backupVol).name : '';
+  return { plant: { ...p }, ...all() };
+};
+/*/PROTO*/
 
 /*PROTO*/
 /* build options */
@@ -3850,6 +4239,7 @@ function renderVols() {
   };
   const about = v => [v.event && `<span class="vline">${ic('calendar')}Coming to ${esc(evTitle(v.event))}</span>`, v.heard && `<span class="vline hint">Heard about us: ${esc(v.heard)}</span>`,
     v.note && `<span class="vnote">${esc(v.note)}</span>`].filter(Boolean).join('') || '<span class="hint">—</span>';
+  renderPlants(); // the Steward and Backup pickers list the sign-ups
   $('#vol-tbl').innerHTML = `<thead><tr><th>Name</th><th>Reach them</th><th>Wants to help with</th><th>Usually free</th><th>Note</th><th>Signed up</th></tr></thead><tbody>${VOLS.length ? '' : '<tr><td colspan="6" class="hint vol-empty">No sign-ups yet. People who join on the home page show up here.</td></tr>'}${VOLS.slice().sort((a, b) => String(b.date).localeCompare(String(a.date))).map(v => `<tr><td><span class="nm">${avatar(v.name)}<b>${esc(v.name)}</b></span></td><td class="vcell">${reach(v)}</td><td>${tags(v.help)}</td><td>${tags(v.free) || '<span class="hint">—</span>'}</td><td class="vcell">${about(v)}</td><td>${esc(mdy(v.date))}</td></tr>`).join('')}</tbody>`;
 }
 const mdy = s => D(s).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
@@ -4282,6 +4672,7 @@ function signIn(name) { if (remote) return remote.signIn(name); finishSignIn(nam
 function finishSignIn(name) {
   ME = name; AUTH.set(name); document.body.classList.remove('out');
   const plan = planAfter; planAfter = ''; // signing in from an event's page (or its ?ev= link) opens its plan
+  closePlantForm(true); S.plRm = null; PL_ERR.clear();
   renderAs(); render(); renderTeam(); showTab('events'); history.replaceState(null, '', '#events'); window.scrollTo({ top: 0 });
   toast(`Signed in as ${name}`, 'check');
   if (plan && EVENTS.find(e => e.id === plan && !e.isNew)) openEvent(plan, 'page');
@@ -4289,6 +4680,8 @@ function finishSignIn(name) {
 function signOut() {
   if (!leaveOk()) return;
   dropTeamUndo(); S.pedit = S.prm = null;
+  closePlantForm(true); S.plRm = null; S.plTag.clear(); PL_ERR.clear();
+  renderPlants(); // the live page has let go of the plants (they have contacts), so their cards go too
   if (!$('#modal').hidden) closeEvent();
   AUTH.clear(); document.body.classList.add('out'); renderLanding(); showTab('landing'); history.replaceState(null, '', homeHref()); window.scrollTo({ top: 0 });
 }
@@ -4313,7 +4706,7 @@ const h = (location.hash || '').slice(1), pub = pubFromUrl();
 if (!user) { document.body.classList.add('out'); if (pub) showPubEvent(pub); else showTab(h === 'signin' ? 'signin' : 'landing'); }
 else if (h.startsWith('ev-') && EVENTS.find(e => e.id === h.slice(3))) openEvent(h.slice(3), 'page');
 else if (pub && EVENTS.find(e => e.id === pub)) openEvent(pub, 'page');
-else showTab(['architecture', 'materials', 'team'].includes(h) ? h : 'events');
+else showTab(['architecture', 'materials', 'team', 'plants'].includes(h) ? h : 'events');
 }
 })();
 </script>

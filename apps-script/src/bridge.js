@@ -364,6 +364,7 @@ if (window.EBPG_GAS) {
     if (st.team?.length) TEAM.splice(0, TEAM.length, ...st.team);
     if (st.vols) VOLS.splice(0, VOLS.length, ...vols(st.vols));
     if (st.gardens?.length) GARDENS.splice(0, GARDENS.length, ...st.gardens);
+    takePlants(st.plants || []); basePlants = JSON.stringify(st.plants || []);
     problems = st.problems || []; // only signIn and seed send these, so the public page never has any
     taskSeq = Math.max(taskSeq, ...EVENTS.flatMap(e => e.tasks.map(t => +String(t.id).replace(/\D/g, '') || 0)));
     EVENTS.forEach(e => { saved[keyOf(e)] = snapEv(e); });
@@ -404,7 +405,7 @@ if (window.EBPG_GAS) {
     // a save that started or ended after this read began may be newer than what the read saw
     const held = k => dirty(k) || busy(k) || !!(Q[k] && Q[k].failed) || touched[k] >= t0;
     const editing = ev => ev.id === open && (S.editing || typing());
-    let news = false, evs = false, openRedo = false, team = false, vl = false;
+    let news = false, evs = false, openRedo = false, team = false, vl = false, pl = false;
     const seen = new Set();
     st.events.forEach(r => {
       const id = r.cols.id, k = 'e:' + id, raw = JSON.stringify(r);
@@ -438,6 +439,9 @@ if (window.EBPG_GAS) {
     }
     const rawVols = JSON.stringify(st.vols || []), ourVols = mine.delete('vols'); // a sign-up from this page isn't news here
     if (st.vols && rawVols !== base.vols) { base.vols = rawVols; VOLS.splice(0, VOLS.length, ...vols(st.vols)); vl = true; if (!ourVols) news = true; }
+    // the plants, unless a change from here is on its way or came back after this read began (then it's newer)
+    const rawPlants = JSON.stringify(st.plants || []);
+    if (Array.isArray(st.plants) && rawPlants !== basePlants && !PL_BUSY.size && plantsAt < t0) { basePlants = rawPlants; takePlants(st.plants); pl = news = true; }
     problems = st.problems || [];
     renderProblems();
     // the Channels tab changed: the attention bar, and the open event unless something in it is being typed
@@ -451,6 +455,7 @@ if (window.EBPG_GAS) {
     }
     if (team) { renderAs(); renderTeam(); }
     if (vl) renderVols();
+    if (pl) renderPlants();
     // the open event's Who lists, Ask links and reminder lines go by the team and the sign-ups
     if ((team || vl) && open && !openRedo && !S.editing && !typing()) renderDetail();
     status();
@@ -468,6 +473,29 @@ if (window.EBPG_GAS) {
   const gone = () => { if (!live || stale) return; leaving = true; commitDeletes(true); flush(); leaving = false; };
   window.addEventListener('pagehide', gone);
   document.addEventListener('freeze', gone);
+
+  /* ---------- plants ----------
+     Each change on the Plants page goes to the Sheet at once (savePlant, deletePlant, approveAdoption, declineAdoption),
+     and the page takes the plants as the Sheet answers with them. basePlants: the Sheet's plants as last read, so a read
+     that finds them changed (by hand in the Sheet, or from another tab) shows it; plantsAt: when the last change came back. */
+  let basePlants = '', plantsAt = 0;
+  // a plant tag's QR code: this page's own address, as for events (on Netlify, https://ebpg-event-hub.netlify.app/?plant=001)
+  plantLink = id => G.url ? G.url + '?plant=' + encodeURIComponent(id) : '';
+  plantCall = async (fn, arg) => {
+    if (stale) throw new Error(STALE);
+    if (!live) throw new Error('Sign in again to change the plants.');
+    const g = gen;
+    let out;
+    try { out = await run(fn, code, arg); }
+    catch (er) {
+      if (codeGone(er)) { staleCode(); throw new Error(STALE); }
+      if (!er.net) setTimeout(() => refresh(true), 0); // the Sheet said no (another organizer got there first, say): show what it has now
+      throw er.net ? new Error("The Guild Sheet didn't answer. Try again in a minute.") : er;
+    } finally { plantsAt = Date.now(); }
+    if (g !== gen) throw new Error('You signed out before the Guild Sheet answered.');
+    if (out && Array.isArray(out.plants)) basePlants = JSON.stringify(out.plants);
+    return out;
+  };
 
   /* ---------- test mode ----------
      While TEST_MODE is on, every page an organizer sees says where the emails go, with a link to the Sheet. */
@@ -669,6 +697,7 @@ if (window.EBPG_GAS) {
     flush();
     if (failedKeys().length && !confirm("Some changes haven't reached the Guild Sheet yet. Sign out anyway and lose them?")) return false;
     live = false; code = ''; sheetUrl = ''; problems = []; store.clear(); reset(); testBar(null); applyChannels([]);
+    PLANTS.length = 0; basePlants = ''; // the plants have contacts: they go with the code
     $('#si-rem').checked = false; // this device is forgotten, so the box starts unticked for whoever signs in next
     return true;
   };

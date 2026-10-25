@@ -354,7 +354,7 @@ test('the sign-in card asks only for the organizer code and who you are', async 
   p.noErrors();
 });
 
-test("signed in as Phil: the chip, the four tabs, plain-words permissions and the Help page", async t => {
+test("signed in as Phil: the chip, the five tabs, plain-words permissions and the Help page", async t => {
   const p = await openPage(t);
   assert.ok(!p.visible('#who') && !p.visible('.tabs'), 'no chip or tabs while signed out');
   assert.equal(p.$('#help-sheet').textContent, 'Ask the Sheet owner for the link.', 'no Sheet link before sign-in');
@@ -364,7 +364,7 @@ test("signed in as Phil: the chip, the four tabs, plain-words permissions and th
   assert.equal(p.$('#who .vh').textContent, 'Signed in as ', 'the "Signed in as" part is for screen readers');
   assert.equal(p.$('#who .av').textContent, 'P', 'with the avatar');
   assert.equal(p.$('#who .av').getAttribute('aria-hidden'), 'true');
-  assert.deepEqual(p.$$('.tabs a').filter(p.visible).map(a => a.textContent), ['Events', 'Team', 'Flyers & posts', 'Help']);
+  assert.deepEqual(p.$$('.tabs a').filter(p.visible).map(a => a.textContent), ['Events', 'Team', 'Plants', 'Flyers & posts', 'Help']);
   const note = "You can't manage the team. Ask Jessie if you need to.";
   assert.equal(p.$('#team-note').textContent, note);
   p.$('#tiles [data-open]').click();
@@ -435,7 +435,7 @@ test('the Netlify and Google-hosted pages use the same error script', () => {
 const ICONS = ['x', 'arrow-left', 'arrow-right', 'arrow-down', 'log-in', 'log-out', 'calendar', 'calendar-plus', 'clock', 'map-pin', 'users', 'user-plus', 'user-minus', 'user-check',
   'pencil', 'send', 'link', 'copy', 'share', 'file-text', 'list-ordered', 'package', 'lightbulb', 'alert-triangle', 'heart', 'sprout', 'shovel', 'handshake', 'image',
   'lock', 'mail', 'phone', 'message-circle', 'history', 'eye', 'rotate-ccw', 'printer', 'help-circle', 'download', 'plus', 'check', 'out', 'wand', 'puzzle',
-  'calendar-x', 'trash'];
+  'calendar-x', 'trash', 'droplet'];
 const GLYPHS = /[↗←×↓✓]/;
 /* every icon on screen points at a symbol in the sprite and is hidden from screen readers */
 function checkIcons(p, where) {
@@ -473,7 +473,7 @@ test('icons: the sprite has the set, every icon resolves, and none are read alou
 
   await signIn(p, 'Jessie');
   checkIcons(p, 'events');
-  assert.deepEqual(p.$$('.tabs a').filter(p.visible).map(a => a.querySelector('use').getAttribute('href')), ['#i-calendar', '#i-users', '#i-image', '#i-help-circle']);
+  assert.deepEqual(p.$$('.tabs a').filter(p.visible).map(a => a.querySelector('use').getAttribute('href')), ['#i-calendar', '#i-users', '#i-sprout', '#i-image', '#i-help-circle']);
   assert.ok(p.$('#attn use[href="#i-send"]'), 'the attention bar is marked as posts to send');
   p.$('#tiles [data-open="w7"]').click();
   await waitFor(() => p.$('#detail #dp-plan'), 2000, 'Workday #7 to open');
@@ -549,7 +549,7 @@ test('the prototype artifact still runs with its own sign-in, Viewing as, archit
   p.$('#si-google').click();
   assert.ok(p.visible('#p-events') && !p.d.body.classList.contains('out'), 'signed in');
   assert.ok(!p.visible('#who'), 'the artifact keeps its Viewing as select instead of the chip');
-  assert.deepEqual(p.$$('.tabs a').filter(p.visible).map(a => a.textContent), ['Events', 'Team', 'Flyers & posts', "How we'd build it"]);
+  assert.deepEqual(p.$$('.tabs a').filter(p.visible).map(a => a.textContent), ['Events', 'Team', 'Plants', 'Flyers & posts', "How we'd build it"]);
   assert.deepEqual(p.$$('#as option').map(o => o.textContent), ['Jessie', 'Phil', 'Kalynn', 'Sky']);
   assert.ok(p.$$('.sample').filter(p.visible).length >= 1, 'the sample badges');
 
@@ -4475,6 +4475,269 @@ test('the prototype artifact: tasks take a status and a new volunteer from the h
   p.set('#pe-contact', 'rob@example.org');
   p.$('#pe-form button[type=submit]').click();
   assert.match(teamTr(p, 'Rob').textContent, /rob@example\.org/);
+  assert.deepEqual(p.api.calls, [], 'the artifact calls no server');
+  p.noErrors();
+});
+
+/* ---------- Adopt a plant: the Plants page ---------- */
+const NICK = 'Big' + ' Mama'; // typed in by the test: the page itself has no made-up plants
+const openPlants = p => { p.$('.tabs a[data-tab=plants]').click(); assert.ok(p.visible('#p-plants') && !p.visible('#p-events'), 'the Plants page is shown'); };
+const plantCardOf = (p, id) => p.$$('#pl-list [data-pl]').find(c => c.dataset.pl === id);
+const sheetPlant = (g, id) => { const [h, ...rows] = g.tab('Plants'), r = rows.find(x => x[0] === id); return r && Object.fromEntries(h.map((k, i) => [k, r[i] == null ? '' : r[i]])); };
+const lastSent = (p, fn) => p.api.sent.filter(x => x.fn === fn).at(-1);
+// an adoption request in the Plants tab, as the public page's Adopt button will leave it
+function askToAdopt(g, id, who, contact) {
+  const sh = g.sheets.get('Plants'), head = g.tab('Plants')[0], r = g.tab('Plants').findIndex(x => x[0] === id) + 1;
+  [['status', 'requested'], ['requested by', who], ['requested contact', contact], ['requested at', '2026-10-24T16:30:00.000Z']].forEach(([h, v]) => sh.set(r, head.indexOf(h) + 1, v));
+}
+
+test("Plants: add Black Mission fig as Big Mama, pick Maya from the sign-ups as its steward, and the Plants tab has her contact; Print tag has a QR code to ?plant=", async t => {
+  const sheet = await seededSheet(t);
+  sheet.ctx.addVolunteer({ name: 'Maya Ortiz', email: 'maya@example.org', phone: '(510) 555-0101', best: 'Text', help: ['Adopt a plant'], id: 'smoke-maya-0001', elapsed: 9000 });
+  const mayaId = sheet.tab('Volunteers')[1][sheet.tab('Volunteers')[0].indexOf('id')];
+  const p = await openPage(t, withQRExport, sheet);
+  await signIn(p, 'Jessie');
+  openPlants(p);
+  assert.equal(p.$('.tabs a[aria-current=page]').textContent, 'Plants');
+  assert.equal(p.$('#p-plants .pagehead p').textContent, 'A newcomer adopts one plant, gets a reminder before each work day, and comes back to care for it.');
+  assert.equal(p.$('#pl-list .nxnote > span').textContent, 'No plants yet. Add the first plant the Guild would like a neighbor to look after.', 'nothing made up');
+  checkIcons(p, 'plants, empty');
+
+  // Add a plant: the form above the list, checked before it goes
+  p.$('#pl-add').click();
+  assert.ok(p.visible('#plf') && p.d.activeElement === p.$('#pl-plant'), 'the form opens on the Plant box');
+  assert.equal(p.$('#plf-t').textContent, 'Add a plant');
+  assert.equal(p.$('#pl-every').value, '7', 'care every 7 days to start');
+  p.$('#plf button[type=submit]').click();
+  assert.equal(p.$('#pl-err').textContent, 'Add what kind of plant it is.');
+  assert.equal(p.$('#pl-plant').getAttribute('aria-invalid'), 'true');
+  assert.equal(p.d.activeElement, p.$('#pl-plant'));
+  p.set('#pl-plant', 'Black Mission fig'); p.set('#pl-nick', NICK); p.set('#pl-latin', 'Ficus carica'); p.set('#pl-where', 'Front garden');
+  p.set('#pl-every', '61');
+  p.$('#plf button[type=submit]').click();
+  assert.equal(p.$('#pl-err').textContent, 'Care every can be 1 to 60 days.');
+  p.set('#pl-every', '7'); p.set('#pl-planted', '2025-03-09'); p.set('#pl-notes', 'Water deeply once a week in summer.');
+  p.$('#plf button[type=submit]').click();
+  await waitFor(() => sheetPlant(p.g, '001'), 3000, 'the Plants tab row');
+  await waitFor(() => plantCardOf(p, '001') && p.$('#plf').hidden, 3000, 'the card');
+  assert.deepEqual(lastSent(p, 'savePlant').args[1], { plant: 'Black Mission fig', nickname: NICK, latin: 'Ficus carica', where: 'Front garden', planted: '2025-03-09', careEvery: '7', lastCare: '',
+    careNotes: 'Water deeply once a week in summer.', cid: lastSent(p, 'savePlant').args[1].cid });
+  assert.ok(p.api.toasts.includes(`Added ${NICK}. Pick a steward when someone adopts it.`));
+  let card = plantCardOf(p, '001');
+  assert.equal(card.querySelector('h3').textContent, NICK);
+  assert.equal(card.querySelector('.lat').textContent, 'Black Mission fig · Ficus carica');
+  assert.equal(card.querySelector('.pill').textContent, 'Needs a steward');
+  assert.deepEqual([...card.querySelectorAll('.plc-facts li')].map(li => li.textContent), ['Front garden', 'Planted Mar 9, 2025', 'Care every 7 days', 'Last cared for: not logged yet']);
+  assert.equal(p.d.activeElement, card.querySelector('[data-plsel=steward]'), 'next: pick a steward');
+  // the Steward picker: the team, then the people who signed up
+  const sel = card.querySelector('[data-plsel=steward]');
+  assert.equal(sel.getAttribute('aria-label'), `Steward for ${NICK}`);
+  assert.deepEqual([...sel.querySelectorAll('optgroup')].map(g => g.label), ['Team', 'Signed up on the home page']);
+  assert.deepEqual([...sel.querySelectorAll('optgroup')[1].querySelectorAll('option')].map(o => [o.value, o.textContent]), [['v:' + mayaId, 'Maya Ortiz']]);
+  p.set(`#pl-list [data-pl="001"] [data-plsel=steward]`, 'v:' + mayaId);
+  await waitFor(() => sheetPlant(p.g, '001').steward === 'Maya Ortiz', 3000, 'the steward in the Sheet');
+  assert.deepEqual(lastSent(p, 'savePlant').args[1], { id: '001', steward: 'Maya Ortiz', stewardVol: mayaId });
+  const row = sheetPlant(p.g, '001');
+  assert.deepEqual([row.steward, row['steward contact'], row.status], ['Maya Ortiz', 'maya@example.org', 'adopted'], 'the Plants tab row shows her contact');
+  await waitFor(() => p.api.toasts.includes(`Maya is looking after ${NICK} now.`), 2000, 'the toast');
+  card = plantCardOf(p, '001');
+  assert.equal(card.querySelector('.pill').textContent, 'Adopted');
+  assert.equal(card.querySelector('.plc-reach').textContent, 'How to reach Maya Ortiz: maya@example.org');
+  assert.equal(card.querySelector('[data-plsel=steward]').value, 'v:' + mayaId);
+  p.set(`#pl-list [data-pl="001"] [data-plsel=backup]`, 't:Phil');
+  await waitFor(() => sheetPlant(p.g, '001').backup === 'Phil' && p.idle(), 3000, 'the backup');
+  assert.ok(p.api.toasts.includes(`Phil is the backup for ${NICK}.`));
+
+  // Show tag, then Print tag: the tag alone, with a real QR code to the plant's page
+  const link = URL_SITE + '?plant=001';
+  plantCardOf(p, '001').querySelector('[data-plact=tag]').click();
+  const tag = plantCardOf(p, '001').querySelector('.plc-tag .art.ptag');
+  assert.ok(tag && p.visible(tag), 'the tag');
+  assert.equal(plantCardOf(p, '001').querySelector('[data-plact=tag]').getAttribute('aria-expanded'), 'true');
+  assert.equal(tag.querySelector('.k').textContent, 'Stewarded plant · no. 001');
+  assert.equal(tag.querySelector('h4').textContent, NICK);
+  assert.equal(tag.querySelector('.lat').textContent, 'Black Mission fig · Ficus carica');
+  assert.deepEqual([...tag.querySelectorAll('.rowx > div')].map(d => d.textContent), ['PlantedMarch 9, 2025', 'StewardMaya', 'BackupPhil'], 'first names only');
+  assert.equal(tag.querySelector('.txt').textContent, 'Scan to follow this plant');
+  assert.equal(tag.querySelector('.qrs .url').textContent, 'localhost:8766/site?plant=001');
+  isQrOf(tag.querySelector('.qr svg.qrc'), link);
+  checkIcons(p, 'plants');
+  plantCardOf(p, '001').querySelector('[data-plact=print]').click();
+  assert.deepEqual(p.api.printed.at(-1), { body: 'printing', sheet: 'ps-tag', arts: ['art ptag'], page: '@page { size: letter portrait; margin: 0.4in; }',
+    title: 'ebpg-plant-001-big-mama-tag', qr: ['QR code for ' + link] });
+  const css = fs.readFileSync(SITE, 'utf8').match(/<style>([\s\S]*?)<\/style>/)[1];
+  assert.match(css, /#print-sheet\.ps-tag \.art \{ width: 5in; \}/, 'printed 5 inches wide');
+  assert.match(css, /#print-sheet\.ps-tag \.ps-cell \{[^}]*border: 1px dashed/, 'with a cut line');
+  p.w.dispatchEvent(new p.w.Event('afterprint'));
+  assert.equal(p.$('#print-sheet').children.length, 0, 'the print sheet is emptied');
+
+  // Edit: the form filled in; only what changed goes to the Sheet
+  plantCardOf(p, '001').querySelector('[data-plact=edit]').click();
+  assert.equal(p.$('#plf-t').textContent, `Edit ${NICK}`);
+  assert.deepEqual(['pl-plant', 'pl-nick', 'pl-where', 'pl-every', 'pl-planted'].map(id => p.$('#' + id).value), ['Black Mission fig', NICK, 'Front garden', '7', '2025-03-09']);
+  p.set('#pl-where', 'Front garden, by the gate');
+  p.$('#plf button[type=submit]').click();
+  await waitFor(() => sheetPlant(p.g, '001').where === 'Front garden, by the gate' && p.$('#plf').hidden, 3000, 'the edit');
+  assert.deepEqual(lastSent(p, 'savePlant').args[1], { where: 'Front garden, by the gate', id: '001' });
+  assert.ok(p.api.toasts.includes(`Saved ${NICK}.`));
+  assert.equal(p.d.activeElement, plantCardOf(p, '001').querySelector('[data-plact=edit]'), 'focus goes back to Edit');
+  assert.equal(sheetPlant(p.g, '001').steward, 'Maya Ortiz', 'the steward stays');
+  // after signing in again, the plant is there as the Sheet keeps it
+  p.$('#signout').click();
+  assert.equal(p.$$('#pl-list [data-pl]').length, 0, 'signed out, the plants and their contacts are gone from the page');
+  assert.ok(!p.$('#p-plants').innerHTML.includes('maya@example.org'));
+  await signIn(p, 'Phil');
+  openPlants(p);
+  assert.equal(plantCardOf(p, '001').querySelector('.plc-reach').textContent, 'How to reach Maya Ortiz: maya@example.org');
+  await waitFor(p.idle, 2000, 'calls to finish');
+  p.noErrors();
+});
+
+test('Plants: a request to adopt comes first with Approve and Decline, and the tab says how many wait; Remove asks first', async t => {
+  const sheet = await seededSheet(t);
+  const fig = sheet.ctx.savePlant(sheet.tab('Settings').find(r => r[0] === 'ORGANIZER_CODE')[1], { plant: 'Black Mission fig', nickname: NICK }).plant.id;
+  const code = sheet.tab('Settings').find(r => r[0] === 'ORGANIZER_CODE')[1];
+  const verbena = sheet.ctx.savePlant(code, { plant: 'Lemon verbena', backup: 'Phil' }).plant.id;
+  const balm = sheet.ctx.savePlant(code, { plant: 'Lemon balm' }).plant.id;
+  askToAdopt(sheet, fig, 'Ana Ruiz', 'ana@example.org');
+  askToAdopt(sheet, verbena, 'Ben Okafor', '(510) 555-0142');
+  const p = await openPage(t, null, sheet);
+  await signIn(p, 'Jessie');
+  const tab = p.$('.tabs a[data-tab=plants]');
+  assert.equal(tab.querySelector('.tabn').textContent, '2');
+  assert.equal(tab.getAttribute('aria-label'), 'Plants, 2 adoption requests to answer');
+  openPlants(p);
+  const secs = p.$$('#pl-list .plsec');
+  assert.deepEqual(secs.map(x => x.querySelector('h2').textContent), ['Asked to adopt2 requests to answer', 'In the garden1 plant']);
+  assert.deepEqual([...secs[0].querySelectorAll('[data-pl]')].map(c => c.dataset.pl), [fig, verbena], 'the requests come first');
+  const ask = plantCardOf(p, fig).querySelector('.plc-ask');
+  assert.equal(ask.querySelector('p').textContent, `Ana Ruiz asked to adopt ${NICK} · Oct 24ana@example.org`);
+  assert.ok(!plantCardOf(p, fig).querySelector('[data-plsel]'), 'no Steward picker while a request waits');
+  assert.equal(plantCardOf(p, fig).querySelector('.pill').textContent, 'Asked to adopt');
+  checkIcons(p, 'plant requests');
+
+  const yes = plantCardOf(p, fig).querySelector('[data-plact=approve]');
+  yes.focus(); yes.click(); // a click focuses the button in a browser (jsdom's click() doesn't)
+  assert.equal(plantCardOf(p, fig).querySelector('.plc-busy').textContent, 'Saving…');
+  assert.equal(p.d.activeElement.dataset.plact, 'approve', 'focus stays on Approve while it saves');
+  assert.equal(p.d.activeElement.getAttribute('aria-disabled'), 'true');
+  await waitFor(() => sheetPlant(p.g, fig).status === 'adopted' && p.idle(), 3000, 'the approval');
+  const row = sheetPlant(p.g, fig);
+  assert.deepEqual([row.steward, row['steward contact'], row['requested by'], row['requested contact'], row['requested at']], ['Ana Ruiz', 'ana@example.org', '', '', '']);
+  assert.ok(p.api.toasts.includes(`Ana is looking after ${NICK} now.`));
+  assert.equal(plantCardOf(p, fig).closest('.plsec').querySelector('h2').id, 'pl-all-h', 'in the garden now');
+  assert.equal(plantCardOf(p, fig).querySelector('.pill').textContent, 'Adopted');
+  assert.equal(tab.querySelector('.tabn').textContent, '1');
+  assert.ok(plantCardOf(p, fig).contains(p.d.activeElement), 'focus stays on its card');
+
+  plantCardOf(p, verbena).querySelector('[data-plact=decline]').click();
+  await waitFor(() => sheetPlant(p.g, verbena).status === 'needs a steward' && p.idle(), 3000, 'the decline');
+  assert.deepEqual([sheetPlant(p.g, verbena)['requested by'], sheetPlant(p.g, verbena).backup], ['', 'Phil']);
+  assert.ok(p.api.toasts.includes('Lemon verbena needs a steward again.'));
+  assert.equal(tab.querySelector('.tabn').textContent, '', 'no requests left');
+  assert.equal(tab.getAttribute('aria-label'), 'Plants');
+  assert.equal(p.$$('#pl-list .plsec').length, 1);
+
+  // a request another organizer answered first: the card says so, and shows what the Sheet has now
+  askToAdopt(p.g, balm, 'Cy Tran', 'cy@example.org');
+  p.d.dispatchEvent(new p.w.Event('visibilitychange'));
+  await waitFor(() => plantCardOf(p, balm)?.querySelector('[data-plact=approve]'), 3000, 'the new request, read from the Sheet');
+  p.g.ctx.approveAdoption(code, balm);
+  plantCardOf(p, balm).querySelector('[data-plact=approve]').click();
+  await waitFor(() => plantCardOf(p, balm).querySelector('.err'), 3000, 'the note on the card');
+  assert.equal(plantCardOf(p, balm).querySelector('.err').textContent, 'Cy Tran is looking after this plant already.');
+  await waitFor(() => plantCardOf(p, balm).querySelector('.pill').textContent === 'Adopted', 3000, 'the Sheet read again');
+
+  // Remove asks first; Keep it puts the buttons back; Remove takes the row out of the Plants tab
+  plantCardOf(p, verbena).querySelector('[data-plact=remove]').click();
+  assert.equal(plantCardOf(p, verbena).querySelector('.prm').textContent, 'Take Lemon verbena off the list?RemoveKeep it');
+  assert.equal(p.d.activeElement, plantCardOf(p, verbena).querySelector('[data-plact=rm-no]'));
+  p.d.activeElement.click();
+  assert.equal(p.d.activeElement, plantCardOf(p, verbena).querySelector('[data-plact=remove]'), 'Keep it: focus back on Remove');
+  p.d.activeElement.click();
+  plantCardOf(p, verbena).querySelector('[data-plact=rm-yes]').click();
+  await waitFor(() => !sheetPlant(p.g, verbena) && !plantCardOf(p, verbena) && p.idle(), 3000, 'the row to go');
+  assert.ok(p.api.toasts.includes('Took Lemon verbena off the list.'));
+  assert.deepEqual(p.g.tab('Plants').slice(1).map(r => r[0]), [fig, balm]);
+  assert.ok(p.$('#pl-list').contains(p.d.activeElement), 'focus stays in the list');
+  await waitFor(p.idle, 2000, 'calls to finish');
+  p.noErrors();
+});
+
+test('Plants: without "Edit events" the list is read-only, but Print tag works; values from the Sheet stay text; a bad id is a row to fix', async t => {
+  const sheet = await seededSheet(t);
+  const sh = sheet.sheets.get('Plants'), head = sheet.tab('Plants')[0], put = (r, h, v) => sh.set(r, head.indexOf(h) + 1, v);
+  put(2, 'plant', '<img src=x onerror="window.pwned=1">'); put(2, 'nickname', '<b>Fig</b>'); put(2, 'steward', 'Kim "K" <i>Lee</i>'); put(2, 'where', '<script>x</script>');
+  put(3, 'id', 'not an id!'); put(3, 'plant', 'Sage');
+  const p = await openPage(t, withQRExport, sheet);
+  await signIn(p, 'Sky'); // Sky can approve posts and assign tasks, but not edit events
+  await waitFor(() => p.$('#probs .probnote'), 2000, 'the note about the bad row');
+  assert.equal(p.$('#probs').textContent, 'Fix in the Sheet: Plants row 3, the id can only use letters, numbers, - and _ (40 at most).');
+  openPlants(p);
+  assert.ok(p.$('#pl-add').disabled && p.$('#pl-add').title === 'You need "Edit events"');
+  assert.equal(p.$('#pl-note').textContent, 'You need "Edit events" to add plants or change them. Ask Jessie if you need to.');
+  const card = plantCardOf(p, '001');
+  assert.ok(card, 'the row typed in by hand got its number');
+  assert.ok(!card.querySelector('select, [data-plact=edit], [data-plact=remove]'), 'nothing to change');
+  assert.equal(card.querySelector('h3').textContent, '<b>Fig</b>');
+  assert.equal(card.querySelector('.plc-who b').textContent, 'Kim "K" <i>Lee</i>');
+  assert.ok(!p.$('#pl-list img, #pl-list script, #pl-list h3 b') && !p.w.pwned, 'no markup from the Sheet');
+  card.querySelector('[data-plact=print]').click();
+  assert.deepEqual(p.api.printed[0].arts, ['art ptag']);
+  assert.equal(p.$('#print-sheet .ptag h4').textContent, '<b>Fig</b>');
+  assert.deepEqual([...p.$$('#print-sheet .rowx > div')].map(d => d.textContent), ['StewardKim']);
+  p.w.dispatchEvent(new p.w.Event('afterprint'));
+  assert.equal(p.$('#pl-tabn').textContent, '');
+  await waitFor(p.idle, 2000, 'calls to finish');
+  p.noErrors();
+});
+
+test("Plants: when the Sheet doesn't answer, Add a plant keeps everything and says so; sending it again adds it once", async t => {
+  const p = await openPage(t, null, await seededSheet(t));
+  await signIn(p, 'Jessie');
+  openPlants(p);
+  p.$('#pl-add').click();
+  p.set('#pl-plant', 'Meyer lemon'); p.set('#pl-where', 'South wall');
+  p.api.fail = 'savePlant';
+  p.$('#plf button[type=submit]').click();
+  assert.equal(p.$('#pl-save').getAttribute('aria-busy'), 'true', 'Saving… while it goes');
+  assert.equal(p.$('#pl-save').textContent, 'Saving…');
+  await waitFor(() => !p.$('#pl-err').hidden, 3000, 'the note');
+  assert.equal(p.$('#pl-err').textContent, "The Guild Sheet didn't answer. Try again in a minute.");
+  assert.ok(p.visible('#plf') && p.$('#pl-plant').value === 'Meyer lemon' && p.$('#pl-where').value === 'South wall', 'everything typed stays');
+  assert.equal(p.$('#pl-save').textContent, 'Add plant');
+  // the first send did reach the Sheet after all (only its answer was lost): the same cid adds it once
+  const cid = lastSent(p, 'savePlant').args[1].cid;
+  p.g.ctx.savePlant(p.code(), { plant: 'Meyer lemon', where: 'South wall', cid });
+  p.api.fail = '';
+  p.$('#plf button[type=submit]').click();
+  await waitFor(() => p.$('#plf').hidden && plantCardOf(p, '001'), 3000, 'the card');
+  assert.equal(lastSent(p, 'savePlant').args[1].cid, cid, 'the same cid');
+  assert.equal(p.g.tab('Plants').length, 2, 'one row');
+  assert.equal(p.$$('#pl-list [data-pl]').length, 1);
+  await waitFor(p.idle, 2000, 'calls to finish');
+  assert.deepEqual(p.api.errors, []);
+});
+
+test('the prototype artifact: Plants starts empty, takes a plant and a steward with no server, and prints its tag', async t => {
+  const p = loadPage(t, ARTIFACT, 'http://localhost/artifact', withQRExport);
+  await waitFor(() => p.shown('#p-landing'), 2000, 'the artifact landing page');
+  p.$('#signin-top').click();
+  p.$('#si-google').click();
+  openPlants(p);
+  assert.equal(p.$('#pl-list .nxnote > span').textContent, 'No plants yet. Add the first plant the Guild would like a neighbor to look after.');
+  p.$('#pl-list [data-plact=add]').click();
+  p.set('#pl-plant', 'Black Mission fig'); p.set('#pl-nick', NICK);
+  p.$('#plf button[type=submit]').click();
+  await waitFor(() => plantCardOf(p, '001'), 2000, 'the card');
+  p.set('#pl-list [data-pl="001"] [data-plsel=steward]', 't:Karen');
+  await waitFor(() => plantCardOf(p, '001').querySelector('.pill').textContent === 'Adopted', 2000, 'the steward');
+  assert.equal(plantCardOf(p, '001').querySelector('.warnchip').textContent, 'No email or phone for Karen yet');
+  plantCardOf(p, '001').querySelector('[data-plact=print]').click();
+  assert.deepEqual(p.api.printed[0].arts, ['art ptag']);
+  assert.deepEqual(p.api.printed[0].qr, [], 'no Sheet, so no plant page for a QR code to open');
+  assert.equal(p.$('#print-sheet .ptag .k').textContent, 'Stewarded plant · no. 001');
+  p.w.dispatchEvent(new p.w.Event('afterprint'));
   assert.deepEqual(p.api.calls, [], 'the artifact calls no server');
   p.noErrors();
 });
