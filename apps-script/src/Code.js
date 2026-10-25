@@ -230,10 +230,15 @@ function postTo(code, ev, channel, opts) {
     const e = readEvents_().find(r => r.cols.id === id);
     if (!e) throw new Error('Give the event a date first, then post.');
     const all = rows_('Posts', true), i = all.findIndex(r => r[0] === id && r[1] === channel);
-    const row = i >= 0 ? all[i] : [], status = String(row[PCOL.status] || ''), sent = SENT.indexOf(status) >= 0;
-    if (sent && !opts.force) throw new Error(channel === 'calendar' ? "Already posted. If the event changed, use Update calendar." : 'Already posted. To tell the Group about a change, use Draft an update.');
+    const row = i >= 0 ? all[i] : [], status = String(row[PCOL.status] || ''), sent = SENT.indexOf(status) >= 0, test = on_('TEST_MODE');
+    // force on the Group is Post for real: only a test send, now that test mode is off. Pressed from a second tab,
+    // or again after the Sheet didn't answer, the row says posted already, and the whole Group would get it twice.
+    // (Update calendar is safe to repeat: it changes the one entry where it is.)
+    const again = opts.force && (channel === 'calendar' || (status === 'test' && !test));
+    if (sent && !again) throw new Error(channel === 'calendar' ? "Already posted. If the event changed, use Update calendar." : 'Already posted. To tell the Group about a change, use Draft an update.');
+    if (sent && channel === 'calendar' && test && status === 'posted') throw new Error('Test mode is on, so the Guild calendar is left as it is. Turn TEST_MODE off on the Settings tab to update it.');
     if (!sent && status !== 'approved') throw new Error('Approve it first.');
-    const c = e.cols, text = String(row[PCOL.text] || ''), test = on_('TEST_MODE'), by = short_(opts.by, 60);
+    const c = e.cols, text = String(row[PCOL.text] || ''), by = short_(opts.by, 60);
     let message, calId = '', real = !test, updated = false;
     if (channel === 'ggroup') {
       const to = setting_('GROUP_EMAIL');
@@ -653,11 +658,21 @@ function saveEvent_(p) {
 /* One Posts row from the page. A Google Group or Calendar row the server sent ('posted', or 'test' in test mode)
    keeps its status, who posted it, when, the link and the calendar event, whatever the page says: a tab left open
    from before the post would otherwise bring the Post button back. The one way back to a draft is Draft an update,
-   which names the post it replaces by its 'posted at' (redo; '-' when the Sheet has no time for it). */
+   which names the post it replaces by its 'posted at' (redo; '-' when the Sheet has no time for it).
+   The other way round too: only postTo marks them sent. A page that says sent when the Sheet doesn't (a tab from
+   before Draft an update) leaves the Sheet's row as it is, so the update draft isn't lost. */
 function postRow_(id, x, was) {
   const row = [id, x.channel, x.status, short_(x.by, 60), x.text || '', x.edited ? 'yes' : '',
     short_(x.approvedBy, 60), short_(x.approvedAt, 40), short_(x.at, 40), postUrl_(x.url), '', x.stale ? 'yes' : ''];
-  if (!was || AUTO.indexOf(x.channel) < 0 || SENT.indexOf(was[PCOL.status]) < 0) return row;
+  if (AUTO.indexOf(x.channel) < 0) return row;
+  if (!was || SENT.indexOf(was[PCOL.status]) < 0) {
+    if (SENT.indexOf(x.status) < 0) return row;
+    if (was) return was.slice();
+    // no row in the Sheet at all: a draft again, which needs approving before it can go
+    row[PCOL.status] = 'review';
+    ['posted by', 'approved by', 'approved at', 'posted at', 'post url', 'stale'].forEach(h => { row[PCOL[h]] = ''; });
+    return row;
+  }
   if (x.redo && String(x.redo) === (was[PCOL['posted at']] || '-') && SENT.indexOf(x.status) < 0) return row;
   ['status', 'posted by', 'posted at', 'post url', 'calendar id'].forEach(h => { row[PCOL[h]] = was[PCOL[h]]; });
   return row;

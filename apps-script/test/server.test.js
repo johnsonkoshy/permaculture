@@ -202,13 +202,50 @@ test('postTo needs an approved post, refuses a second send unless forced, and co
   assert.throws(() => g.ctx.postTo(CODE, toPost(), 'ggroup', { by: 'Jessie' }), /^Error: Already posted\./);
   assert.equal(g.mail.length, 1);
   assert.equal(postRowOf(g, 'w7', 'ggroup')['posted by'], 'Phil', 'still the first post');
-  // force sends it again (Post for real, once test mode is off)
-  g.ctx.postTo(CODE, toPost(), 'ggroup', { by: 'Jessie', force: true });
-  assert.equal(g.mail.length, 2);
-  assert.equal(postRowOf(g, 'w7', 'ggroup')['posted by'], 'Jessie');
-  // a name that's too long is cut to 60 characters
+  // force is Post for real: not while test mode is still on
+  assert.throws(() => g.ctx.postTo(CODE, toPost(), 'ggroup', { by: 'Jessie', force: true }), /^Error: Already posted\. To tell the Group about a change, use Draft an update\.$/);
+  assert.equal(g.mail.length, 1);
+  // once test mode is off it sends the test again, for real; a name that's too long is cut to 60 characters
+  setSetting(g, 'TEST_MODE', 'FALSE');
+  setSetting(g, 'GROUP_EMAIL', 'ebpg@googlegroups.com');
   g.ctx.postTo(CODE, toPost(), 'ggroup', { by: '  ' + 'P'.repeat(90), force: true });
-  assert.equal(postRowOf(g, 'w7', 'ggroup')['posted by'], 'P'.repeat(60));
+  assert.equal(g.mail.length, 2);
+  assert.deepEqual([postRowOf(g, 'w7', 'ggroup').status, postRowOf(g, 'w7', 'ggroup')['posted by']], ['posted', 'P'.repeat(60)]);
+});
+
+test('Post for real goes out once: a second tab, or a press again after no answer, sends the Group nothing more', () => {
+  const g = seeded();
+  g.ctx.postTo(CODE, toPost(), 'ggroup', { by: 'Phil' });
+  assert.equal(postRowOf(g, 'w7', 'ggroup').status, 'test');
+  setSetting(g, 'TEST_MODE', 'FALSE');
+  setSetting(g, 'GROUP_EMAIL', 'ebpg@googlegroups.com');
+  // tab A presses Post for real
+  assert.equal(g.ctx.postTo(CODE, toPost(), 'ggroup', { by: 'Phil', force: true }).message, 'Emailed the Google Group.');
+  const at = postRowOf(g, 'w7', 'ggroup')['posted at'];
+  assert.equal(g.tab('Activity').at(-1)[2], 'Phil posted to the Google Group');
+  // tab B, still showing Test sent, presses it too (or tab A again, after the Sheet didn't answer)
+  assert.throws(() => g.ctx.postTo(CODE, toPost(), 'ggroup', { by: 'Jessie', force: true }), /^Error: Already posted\. To tell the Group about a change, use Draft an update\.$/);
+  assert.deepEqual(g.mail.map(m => m.to), ['owner@example.com', 'ebpg@googlegroups.com'], 'one email to the Group');
+  const row = postRowOf(g, 'w7', 'ggroup');
+  assert.deepEqual([row.status, row['posted by'], row['posted at']], ['posted', 'Phil', at]);
+});
+
+test('with test mode back on, Update calendar leaves a real Guild calendar entry as it is', () => {
+  const g = seeded();
+  setSetting(g, 'TEST_MODE', 'FALSE');
+  setSetting(g, 'CALENDAR_ID', 'guild@group.calendar.google.com');
+  g.ctx.postTo(CODE, toPost(), 'calendar', { by: 'Phil' });
+  const entry = { ...g.calendar[0] };
+  setSetting(g, 'TEST_MODE', 'TRUE');
+  const moved = toPost({ cols: { ...ev().cols, start: '11:00' } });
+  assert.throws(() => g.ctx.postTo(CODE, moved, 'calendar', { by: 'Phil', force: true }), /^Error: Test mode is on, so the Guild calendar is left as it is\. Turn TEST_MODE off on the Settings tab to update it\.$/);
+  assert.equal(g.calendar.length, 1);
+  assert.deepEqual([g.calendar[0].cal, g.calendar[0].id, g.calendar[0].start.toISOString()], [entry.cal, entry.id, entry.start.toISOString()], 'not moved');
+  assert.equal(postRowOf(g, 'w7', 'calendar').status, 'posted');
+  // test mode off again: it updates where it is
+  setSetting(g, 'TEST_MODE', 'FALSE');
+  assert.equal(g.ctx.postTo(CODE, moved, 'calendar', { by: 'Phil', force: true }).message, 'Updated on Guild calendar.');
+  assert.deepEqual([g.calendar.length, g.calendar[0].start.toISOString()], [1, '2026-10-25T18:00:00.000Z']);
 });
 
 test('a Group email that fails leaves the post approved, with nothing in Activity', () => {
@@ -723,7 +760,10 @@ test('replies go to REPLY_TO, or to the lead organizer when it is blank', () => 
   // no REPLY_TO and a lead with only a phone: no replyTo, so replies go to the owner who sends it
   setSetting(g, 'REPLY_TO', '');
   g.ctx.saveTeam(CODE, team.map(t => t.role === 'lead' ? { ...t, contact: '(510) 555-0100' } : t));
-  g.ctx.postTo(CODE, toPost(), 'ggroup', { by: 'Phil', force: true });
+  setSetting(g, 'TEST_MODE', 'FALSE');
+  setSetting(g, 'GROUP_EMAIL', 'ebpg@googlegroups.com');
+  g.ctx.postTo(CODE, toPost(), 'ggroup', { by: 'Phil', force: true }); // Post for real
+  assert.equal(g.mail.at(-1).to, 'ebpg@googlegroups.com');
   assert.equal(g.mail.at(-1).opts.replyTo, undefined);
 });
 
@@ -907,4 +947,30 @@ test('Draft an update: naming the post it replaces makes the Group row a draft a
   sh.set(r, g.tab('Posts')[0].indexOf('posted at') + 1, '');
   g.ctx.saveEvent(CODE, toPost({ posts: [{ ...update, redo: '-' }] }));
   assert.equal(postRowOf(g, 'w7', 'ggroup').status, 'review');
+});
+
+test('only postTo marks the Group or the Calendar as sent: a tab from before Draft an update keeps the draft', () => {
+  const g = seeded();
+  const first = g.ctx.postTo(CODE, toPost(), 'ggroup', { by: 'Phil' });
+  const old = { ...plain(first.event.posts.ggroup), text: GROUP_TEXT }; // what an older tab shows: Test sent, the first email
+  const update = { channel: 'ggroup', status: 'review', by: '', text: 'Subject: Update: OPC Garden Work Party, Sun 10/25\n\nNow at 11.', edited: false, approvedBy: '', approvedAt: '', at: '', url: '', stale: false, redo: old.at };
+  g.ctx.saveEvent(CODE, toPost({ posts: [update] }));
+  assert.equal(postRowOf(g, 'w7', 'ggroup').status, 'review');
+  // the older tab saves an edit to the title, still saying sent with the old text
+  g.ctx.saveEvent(CODE, toPost({ cols: { ...ev().cols, title: 'OPC Work Party' }, posts: [old] }));
+  assert.equal(g.tab('Events')[1][2], 'OPC Work Party', 'the rest of the edit is saved');
+  let row = postRowOf(g, 'w7', 'ggroup');
+  assert.deepEqual([row.status, row['posted by'], row['posted at'], row.text], ['review', '', '', update.text], 'the update draft is kept');
+  // approved in the Sheet: still not sent
+  g.ctx.saveEvent(CODE, toPost({ posts: [{ ...update, status: 'approved', approvedBy: 'Jessie', approvedAt: '2026-10-24T18:00:00.000Z' }] }));
+  g.ctx.saveEvent(CODE, toPost({ posts: [{ ...old, status: 'posted', by: 'Phil' }] }));
+  row = postRowOf(g, 'w7', 'ggroup');
+  assert.deepEqual([row.status, row['approved by'], row['posted by'], row.text], ['approved', 'Jessie', '', update.text]);
+  // a Calendar row the Sheet has never had can't arrive already sent
+  g.ctx.saveEvent(CODE, toPost({ posts: [{ ...approved('calendar', 'OPC Garden Work Party'), status: 'test', by: 'Phil', at: '2026-10-24T18:00:00.000Z' }] }));
+  row = postRowOf(g, 'w7', 'calendar');
+  assert.deepEqual([row.status, row['posted by'], row['posted at'], row['approved by'], row.text], ['review', '', '', '', 'OPC Garden Work Party']);
+  assert.throws(() => g.ctx.postTo(CODE, toPost({ posts: [] }), 'calendar', { by: 'Phil' }), /Approve it first/);
+  assert.equal(g.calendar.length, 0);
+  assert.equal(g.mail.length, 1);
 });

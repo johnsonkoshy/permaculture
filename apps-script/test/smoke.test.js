@@ -1555,12 +1555,60 @@ test('a test send, once test mode is off: Post for real sends it to the Group an
   await outreach(p, 'w7');
   assert.equal(pill(p, 'ggroup'), TEST_SENT);
   assert.deepEqual(acts(p, 'ggroup'), ['Post for real']);
+  // a second tab, open since before the real post, offers Post for real too
+  const q = await openPage(t, null, p.g);
+  await signIn(q, 'Jessie');
+  await outreach(q, 'w7');
+  assert.deepEqual(acts(q, 'ggroup'), ['Post for real']);
   p.$('#dp-out [data-act=again][data-ch=ggroup]').click();
   await waitFor(() => /^Posted by Phil · Oct 2[45]$/.test(pill(p, 'ggroup')), 3000, 'the real post');
   assert.deepEqual(p.g.mail.map(m => m.to), ['owner@example.com', 'ebpg@googlegroups.com']);
   assert.equal(postRow(p, 'w7', 'ggroup').status, 'posted');
   assert.deepEqual(acts(p, 'ggroup'), []);
   await waitFor(() => p.api.toasts.includes('Emailed the Google Group.'), 2000, 'the toast');
+  await waitFor(p.idle, 2000, 'calls to finish');
+  // the other tab presses it: the Sheet says it went already, and the Group gets no second email
+  q.$('#dp-out [data-act=again][data-ch=ggroup]').click();
+  await waitFor(() => q.api.toasts.includes('Already posted. To tell the Group about a change, use Draft an update.'), 3000, 'the Already posted toast');
+  assert.deepEqual(p.g.mail.map(m => m.to), ['owner@example.com', 'ebpg@googlegroups.com'], 'one email to the Group');
+  assert.deepEqual([postRow(p, 'w7', 'ggroup').status, postRow(p, 'w7', 'ggroup')['posted by']], ['posted', 'Phil']);
+  await waitFor(q.idle, 2000, 'calls to finish');
+  p.noErrors();
+  q.noErrors();
+});
+
+test("the Outreach summary says Everything is posted only when it all went out for real, not just as tests", async t => {
+  const p = await openPage(t);
+  await signIn(p, 'Phil');
+  await outreach(p, 'w7');
+  const used = p.$$('#dp-out .orow').map(r => r.dataset.row);
+  assert.ok(used.includes('ggroup') && used.includes('calendar'));
+  const copy = used.filter(ch => ch !== 'ggroup' && ch !== 'calendar');
+  p.$('#appr-all').click();
+  for (const ch of ['ggroup', 'calendar']) {
+    p.$(`#dp-out [data-act=post][data-ch=${ch}]`).click();
+    await waitFor(() => pill(p, ch) === TEST_SENT, 3000, ch + ' to be sent');
+  }
+  for (const ch of copy) {
+    p.$(`#dp-out [data-act=mark][data-ch=${ch}]`).click();
+    p.$(`form[data-mark=${ch}] button[type=submit]`).click();
+  }
+  const say = () => p.$('#dp-out .osum > span').textContent;
+  assert.equal(say(), `Everything has gone out · ${copy.length} posted · 2 test sent (the tests went only to the Sheet owner)`);
+  assert.ok(p.$('#dp-out .osum > span svg use[href="#i-check"]'), 'with its icon');
+  await waitFor(p.idle, 2000, 'calls to finish');
+  // once test mode is off and both go out for real, it's all posted
+  const set = (k, v) => p.g.sheets.get('Settings').set(p.g.tab('Settings').findIndex(r => r[0] === k) + 1, 2, v);
+  set('TEST_MODE', 'FALSE'); set('GROUP_EMAIL', 'ebpg@googlegroups.com');
+  p.$('#signout').click();
+  await signIn(p, 'Phil');
+  await outreach(p, 'w7');
+  p.$('#dp-out [data-act=again][data-ch=ggroup]').click();
+  await waitFor(() => /^Posted by Phil/.test(pill(p, 'ggroup')), 3000, 'the real Group post');
+  assert.equal(say(), `Everything has gone out · ${copy.length + 1} posted · 1 test sent (the test went only to the Sheet owner)`);
+  p.$('#dp-out [data-act=again][data-ch=calendar]').click();
+  await waitFor(() => /^Posted by Phil/.test(pill(p, 'calendar')), 3000, 'the real Calendar post');
+  assert.equal(say(), `Everything is posted · ${copy.length + 2} posted`);
   await waitFor(p.idle, 2000, 'calls to finish');
   p.noErrors();
 });
