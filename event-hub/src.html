@@ -1171,6 +1171,8 @@ a.nxcard:hover { transform: translateY(-3px); box-shadow: var(--shadow); }
 .join h2 { margin-bottom: 8px; }
 .joinf { display: grid; gap: 14px; }
 .joinf legend .hint, .joinf .fld .hint { font-weight: 400; }
+.joinf .vj-q { animation: up .25s ease-out; } /* a question that just showed up */
+@media (prefers-reduced-motion: reduce) { .joinf .vj-q { animation: none; } }
 .vj-reach .r2 { margin-bottom: 4px; }
 @media (max-width: 440px) { .vj-reach .r2 { grid-template-columns: 1fr; } }
 /* the box only bots fill in: off the screen, out of the tab order, and hidden from screen readers */
@@ -1455,10 +1457,10 @@ td code, .code code { font: 400 13px/1.5 var(--mono); }
           <div class="r2"><label class="fld"><span class="fl"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-mail"/></svg>Email</span><input id="vj-email" name="email" type="email" inputmode="email" autocomplete="email" maxlength="120" spellcheck="false"></label><label class="fld"><span class="fl"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-phone"/></svg>Phone</span><input id="vj-phone" name="phone" type="tel" inputmode="tel" autocomplete="tel" maxlength="30"></label></div>
           <p class="hint" id="vj-reach-h">An email or a phone number is enough.</p>
         </fieldset>
-        <fieldset><legend>Best way to reach you</legend><div class="picks" id="vj-best"><label><input type="radio" name="vj-best" value="Email"><span><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-mail"/></svg>Email</span></label><label><input type="radio" name="vj-best" value="Text"><span><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-message-circle"/></svg>Text</span></label></div></fieldset>
-        <fieldset><legend>I'd like to help with</legend><div class="picks" id="vj-picks"></div></fieldset>
-        <label class="fld">How did you hear about us? <span class="hint">optional</span><select id="vj-heard" name="heard"><option value="">Choose one</option></select></label>
-        <label class="chk vj-list"><input type="checkbox" id="vj-list" name="list"><span>Add me to the Guild email list<span class="hint">News about work days and meetings.</span></span></label>
+        <fieldset class="vj-q" id="vj-best-q" hidden><legend>Best way to reach you</legend><div class="picks" id="vj-best"><label><input type="radio" name="vj-best" value="Email"><span><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-mail"/></svg>Email</span></label><label><input type="radio" name="vj-best" value="Text"><span><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-message-circle"/></svg>Text</span></label></div></fieldset>
+        <fieldset class="vj-q" id="vj-help-q" hidden><legend>I'd like to help with</legend><div class="picks" id="vj-picks"></div></fieldset>
+        <label class="fld vj-q" id="vj-heard-q" hidden>How did you hear about us? <span class="hint">optional</span><select id="vj-heard" name="heard"><option value="">Choose one</option></select></label>
+        <label class="chk vj-list vj-q" id="vj-list-q" hidden><input type="checkbox" id="vj-list" name="list"><span>Add me to the Guild email list<span class="hint">News about work days and meetings.</span></span></label>
         <p class="err" id="vj-err" role="alert" hidden></p>
         <p class="vh" id="vj-status" role="status"></p>
         <div class="joinrow"><button class="btn primary lg" type="submit" id="vj-send"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-user-plus"/></svg>Join the list</button>
@@ -4527,6 +4529,19 @@ function newJoin() {
   $('#joinf').reset(); $('#vj-err').hidden = true; $('#vj-err').textContent = ''; $('#vj-status').textContent = '';
   $('#joinf').hidden = false; $('#joined').hidden = true; $('#joined').innerHTML = '';
   $('#vj-opened').value = String(tick()); joinId = '';
+  joinSteps();
+}
+/* the questions show up only once they're needed: what they'd like to help with once there's an email or a phone,
+   how they heard about us once they've picked, the best way to reach them only when they gave both, and the email list
+   only with an email. A question that goes away again lets go of its answer, so nothing hidden is ever sent. */
+function joinSteps() {
+  const email = !!$('#vj-email').value.trim(), phone = !!$('#vj-phone').value.trim();
+  const picked = $$('input[name=vj-help]:checked').length > 0;
+  const show = (q, on, clear) => { $(q).hidden = !on; if (!on) clear(); };
+  show('#vj-help-q', email || phone || picked, () => {});
+  show('#vj-heard-q', picked, () => { $('#vj-heard').value = ''; });
+  show('#vj-best-q', email && phone, () => $$('input[name=vj-best]').forEach(i => { i.checked = false; }));
+  show('#vj-list-q', email, () => { $('#vj-list').checked = false; });
 }
 const joinErr = (msg, el) => { const e = $('#vj-err'); e.textContent = msg; e.hidden = false; if (el) el.focus(); };
 // what the form says, or what's missing (with the field to go to)
@@ -4612,6 +4627,9 @@ function bindJoin() {
     $('#vj-ev').value = ''; $('#vj-for').hidden = true; $('#vj-for').innerHTML = '';
     $('#vj-name').focus();
   });
+  $('#joinf').addEventListener('input', joinSteps);
+  $('#joinf').addEventListener('change', joinSteps);
+  window.addEventListener('pageshow', joinSteps); // Back can bring the page back with the browser's own refill of the form
   $('#joinf').addEventListener('submit', e => { e.preventDefault(); sendJoin(); });
   $('#vj-err').addEventListener('click', e => { if (e.target.closest('#vj-retry')) sendJoin(); });
   $('#joined').addEventListener('click', e => {
@@ -4630,6 +4648,7 @@ function joinAs(k) {
   if ($('#joinf').hidden) newJoin();
   const box = $(`#vj-picks input[value="${k}"]`);
   if (box) box.checked = true;
+  joinSteps();
   urlTo(homeHref('#join'), true);
   $('#vj-name').scrollIntoView({ block: 'center' });
   $('#vj-name').focus({ preventScroll: true });

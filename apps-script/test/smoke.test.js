@@ -3504,6 +3504,40 @@ const fromMock = (g, name) => JSON.parse(JSON.stringify(require('vm').runInConte
 const volRowsOf = g => { const [head, ...rows] = g.tab('Volunteers'); return rows.filter(r => r.some(Boolean)).map(r => Object.fromEntries(head.map((h, i) => [h, r[i] == null ? '' : r[i]]))); };
 const joinCalls = p => p.api.sent.filter(x => x.fn === 'addVolunteer').map(x => x.args[0]);
 
+test('volunteer form: each question shows up only once it is needed, and one that goes away lets go of its answer', async t => {
+  const p = await openPage(t);
+  const qs = () => ['#vj-help-q', '#vj-heard-q', '#vj-best-q', '#vj-list-q'].filter(q => p.shown(q));
+  assert.ok(p.shown('#vj-name') && p.shown('#vj-email') && p.shown('#vj-phone'));
+  assert.deepEqual(qs(), [], 'at first: just a name and a way to reach them');
+  p.set('#vj-name', 'Sam');
+  assert.deepEqual(qs(), [], 'a name alone asks nothing more');
+  p.set('#vj-phone', '510 555 0101');
+  assert.deepEqual(qs(), ['#vj-help-q'], 'a phone: what they would like to help with');
+  p.$('#vj-picks input').click();
+  assert.deepEqual(qs(), ['#vj-help-q', '#vj-heard-q'], 'a pick: how they heard about us');
+  p.set('#vj-email', 'sam@example.org');
+  assert.deepEqual(qs(), ['#vj-help-q', '#vj-heard-q', '#vj-best-q', '#vj-list-q'], 'an email too: the best way to reach them, and the email list');
+  p.$('input[name=vj-best][value=Email]').click(); p.$('#vj-list').click(); p.set('#vj-heard', 'A friend');
+  p.set('#vj-email', '');
+  assert.deepEqual(qs(), ['#vj-help-q', '#vj-heard-q'], 'no email: no best way, no email list');
+  assert.ok(!p.$('input[name=vj-best]:checked') && !p.$('#vj-list').checked, 'and their answers are let go');
+  p.$('#vj-picks input').click();
+  assert.deepEqual([qs(), p.$('#vj-heard').value], [['#vj-help-q'], ''], 'no pick: no How did you hear');
+  p.set('#vj-phone', '');
+  assert.deepEqual(qs(), [], 'no way to reach them: back to the start');
+  // Host a project ticks its choice, so the choices show before anything is typed
+  p.$('#involved a[data-join=host]').click();
+  assert.ok(p.shown('#vj-help-q') && p.$('#vj-picks input[value=host]').checked);
+  // a fresh form after a sign-up starts short again
+  settled(p); p.set('#vj-name', 'Sam'); p.set('#vj-email', 'sam@example.org');
+  p.$('#vj-send').click();
+  await waitFor(() => p.shown('#joined'), 3000, 'the thank-you');
+  p.$('#vj-again').click();
+  assert.deepEqual(qs(), []);
+  await waitFor(p.idle, 2000, 'calls to finish');
+  p.noErrors();
+});
+
 test('volunteer form: name, email and phone, the best way to reach you, its choices (the same as the Sheet keeps), the email list, and a honeypot', async t => {
   const p = await openPage(t);
   assert.deepEqual([p.$('#vj-name').required, p.$('#vj-name').getAttribute('autocomplete'), p.$('#vj-name').maxLength], [true, 'name', 80]);
@@ -3534,11 +3568,8 @@ test('volunteer form: name, email and phone, the best way to reach you, its choi
   p.set('#vj-email', ''); p.set('#vj-phone', '555-01'); submit();
   assert.equal(err(), 'Please check your phone number. It needs at least 7 digits.');
   assert.equal(p.d.activeElement, p.$('#vj-phone'));
-  p.set('#vj-phone', '510 555 0101'); p.$('input[name=vj-best][value=Email]').click(); submit();
-  assert.equal(err(), 'Add your email, or pick Text as the best way to reach you.');
-  p.$('input[name=vj-best][value=Text]').click(); p.$('#vj-list').click(); submit();
-  assert.equal(err(), 'Add your email to get the Guild email list.');
-  p.$('#vj-list').click(); p.set('#vj-name', 'Sam <3'); submit();
+  p.set('#vj-phone', '510 555 0101');
+  p.set('#vj-name', 'Sam <3'); submit();
   assert.equal(err(), "Please write your name with letters, spaces and . ' - only.");
   p.set('#vj-name', 'Sam'); submit();
   assert.equal(err(), 'Pick at least one way you would like to help.');
