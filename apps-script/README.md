@@ -61,7 +61,10 @@ Sign in to the Guild account and open the Sheet. Use **File → Make a copy**, w
 ```bash
 npm install                      # once: the build uses acorn to read the page's JavaScript
 python3 build.py                 # event-hub/src.html + src/bridge.js -> dist/ (runs gas-safe.js)
-node --test test/server.test.js  # backend tests against a mock of Google's services
+node --test test/                # all tests (or: npm test, which builds first)
+                                 #   server.test.js: backend against a mock of Google's services
+                                 #   smoke.test.js: the built site/ page in jsdom against that mock
+                                 #   (landing, sign-in, saving an edit, volunteer sign-up)
 node test/dev-server.js          # the real page + mock backend at http://localhost:8766/
 clasp push --force               # upload dist/ (after build.py)
 netlify deploy --dir site --prod # publish site/ to https://ebpg-event-hub.netlify.app
