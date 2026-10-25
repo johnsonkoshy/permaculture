@@ -359,7 +359,7 @@ test("signed in as Phil: the chip, the four tabs, plain-words permissions and th
   assert.equal(p.$('#who .vh').textContent, 'Signed in as ', 'the "Signed in as" part is for screen readers');
   assert.equal(p.$('#who .av').textContent, 'P', 'with the avatar');
   assert.equal(p.$('#who .av').getAttribute('aria-hidden'), 'true');
-  assert.deepEqual(p.$$('.tabs a').filter(p.visible).map(a => a.textContent), ['Events', 'Team', 'Templates', 'Help']);
+  assert.deepEqual(p.$$('.tabs a').filter(p.visible).map(a => a.textContent), ['Events', 'Team', 'Flyers & posts', 'Help']);
   const note = "You can't manage the team. Ask Jessie if you need to.";
   assert.equal(p.$('#team-note').textContent, note);
   p.$('#tiles [data-open]').click();
@@ -543,7 +543,7 @@ test('the prototype artifact still runs with its own sign-in, Viewing as, archit
   p.$('#si-google').click();
   assert.ok(p.visible('#p-events') && !p.d.body.classList.contains('out'), 'signed in');
   assert.ok(!p.visible('#who'), 'the artifact keeps its Viewing as select instead of the chip');
-  assert.deepEqual(p.$$('.tabs a').filter(p.visible).map(a => a.textContent), ['Events', 'Team', 'Templates', "How we'd build it"]);
+  assert.deepEqual(p.$$('.tabs a').filter(p.visible).map(a => a.textContent), ['Events', 'Team', 'Flyers & posts', "How we'd build it"]);
   assert.deepEqual(p.$$('#as option').map(o => o.textContent), ['Jessie', 'Phil', 'Kalynn', 'Sky']);
   assert.ok(p.$$('.sample').filter(p.visible).length >= 1, 'the sample badges');
 
@@ -2430,4 +2430,165 @@ test('the prototype artifact draws its own events at once, with the same cards, 
   assert.ok(r.shown('#p-event') && r.$('#detail #dp-plan'), "Workday #7's plan");
   assert.deepEqual(p.api.calls.concat(r.api.calls), [], 'the artifact calls no server');
   p.noErrors(); r.noErrors();
+});
+
+/* ---------- QR codes on the flyers and the garden sign (Flyers & posts) ---------- */
+// qrcode-generator 1.4.4 from npm: the same qrcode.js cdnjs serves (its sha512 matches cdnjs's), which the page loads
+// minified from cdnjs. jsdom loads no outside scripts, so a page gets it only from withQR; without it, the page is offline.
+const QR_LIB = fs.readFileSync(require.resolve('qrcode-generator'), 'utf8');
+const QR_SRC = 'https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js';
+const withQR = (w, g, api) => {
+  w.eval(QR_LIB);
+  // keep each text the page turns into a code
+  const real = w.qrcode;
+  api.qr = [];
+  w.qrcode = (...a) => { const qr = real(...a), add = qr.addData; qr.addData = (d, m) => { api.qr.push(String(d)); return add.call(qr, d, m); }; return qr; };
+};
+/* the SVG draws exactly the QR code of `text` (error correction M) with a quiet zone of 2 modules, in currentColor */
+function isQrOf(svg, text) {
+  assert.ok(svg, 'a QR code for ' + text);
+  assert.equal(svg.getAttribute('role'), 'img');
+  assert.equal(svg.getAttribute('aria-label'), 'QR code for ' + text);
+  const qr = require('qrcode-generator')(0, 'M');
+  qr.addData(text); qr.make();
+  const n = qr.getModuleCount();
+  assert.equal(svg.getAttribute('viewBox'), `0 0 ${n + 4} ${n + 4}`, 'a quiet zone of 2 modules');
+  const path = svg.querySelector('path'), d = path.getAttribute('d'), RUN = /M(\d+) (\d+)h(\d+)v1h-\3z/g;
+  assert.equal(path.getAttribute('fill'), 'currentColor');
+  assert.equal(d.replace(RUN, ''), '', 'the path is only runs of modules');
+  const dark = new Set();
+  for (const [, x, y, run] of d.matchAll(RUN)) for (let i = 0; i < +run; i++) dark.add((+x + i) + ',' + y);
+  const want = new Set();
+  for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (qr.isDark(r, c)) want.add((c + 2) + ',' + (r + 2));
+  assert.deepEqual([...dark].sort(), [...want].sort(), 'the modules are the code of ' + text);
+}
+const WORKDAY = (g, v) => { g.sheets.get('Settings').set(g.tab('Settings').findIndex(r => r[0] === 'WORKDAY_SCHEDULE') + 1, 2, v); delete g.cache['public:v1']; };
+const hostOf = (p, id) => { const ev = p.g.tab('Events'), h = ev[0]; return ev.find(r => r[0] === id)[h.indexOf('host')]; };
+const weekday = date => new Date(date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long' });
+const dateOf = (p, id) => { const ev = p.g.tab('Events'), h = ev[0]; return ev.find(r => r[0] === id)[h.indexOf('date')]; };
+async function openFlyers(p, id) {
+  p.$('.tabs a[data-tab=materials]').click();
+  assert.ok(p.visible('#p-materials'), 'Flyers & posts is shown');
+  p.set('#m-ev', id);
+  return p.$('#m-event');
+}
+
+test('the page loads qrcode-generator 1.4.4 from cdnjs with its integrity hash, and nothing made up is left on the templates', () => {
+  for (const [name, html] of [['site/index.html', fs.readFileSync(SITE, 'utf8')], ['event-hub/src.html', fs.readFileSync(ARTIFACT, 'utf8')]]) {
+    const tags = html.match(/<script src="[^"]*"[^>]*><\/script>/g) || [];
+    assert.deepEqual(tags, [`<script src="${QR_SRC}" integrity="sha512-ZDSPMa/JM1D+7kdg2x3BsruQ6T/JpJo3jWDWkCZsP+5yVyp1KfESqLI+7RqB5k24F7p2cV7i2YHh/890y6P6Sw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>`], name + ': the one outside script');
+    assert.ok(html.indexOf(QR_SRC) < html.indexOf('<style>'), name + ': in the head');
+    for (const s of ['QR<br>code', 'Big Mama', 'Nia T.', 'Rosa', '2nd Sundays', 'RSVP on Partiful</span>', 'link on our Linktree</small>']) assert.ok(!html.includes(s), `${s} is not in ${name}`);
+  }
+});
+
+test('Flyers & posts: the flyer has a real QR code to the event page, a draft says Publish first, and the hero flyer has one too', async t => {
+  const p = await openPage(t, withQR, await seededSheet(t));
+  const link = URL_SITE + '?ev=w7';
+  // signed out: the hero's flyer is the next published event's
+  isQrOf(p.$('#hero-cards .art.flyer .ft .qr svg.qrc'), link);
+  assert.equal(p.$('#hero-cards .art.flyer .cta').textContent, 'Details and RSVPlocalhost:8766/site?ev=w7');
+  await signIn(p);
+  const tab = p.$('.tabs a[data-tab=materials]');
+  assert.equal(tab.textContent, 'Flyers & posts');
+  const gal = await openFlyers(p, 'w7');
+  assert.equal(p.$('#p-materials h1').textContent, 'Flyers & posts');
+  assert.equal(tab.getAttribute('aria-current'), 'page');
+  const ft = gal.querySelector('.art.flyer .ft');
+  isQrOf(ft.querySelector('.qr svg.qrc'), link);
+  assert.ok(p.api.qr.includes(link), 'the code holds the event page link');
+  assert.equal(ft.querySelector('.cta').firstChild.textContent, 'Details and RSVP');
+  assert.equal(ft.querySelector('.cta small').textContent, 'localhost:8766/site?ev=w7', 'the short link, without http://');
+  assert.equal(gal.querySelector('.art.story .pill').textContent, 'Details: link in bio');
+  // a draft has no public page yet
+  p.set('#m-ev', 'm2');
+  const dft = p.$('#m-event .art.flyer .ft');
+  assert.equal(dft.querySelector('.qr.none').textContent, 'Publish to get a QR code');
+  assert.ok(dft.querySelector('.qr.none use[href="#i-lock"]'), 'with a lock icon');
+  assert.ok(!dft.querySelector('svg.qrc') && !dft.querySelector('.cta small'), 'no code and no link for a draft');
+  assert.ok(!p.api.qr.some(x => /ev=m2/.test(x)), 'no code is made for it');
+  // its tile cover too, and every published tile's flyer has its own code
+  for (const tile of p.$$('#tiles [data-open]')) {
+    const id = tile.dataset.open, f = tile.querySelector('.cover .art.flyer .ft');
+    if (id === 'm2') assert.equal(f.querySelector('.qr').textContent, 'Publish to get a QR code');
+    else isQrOf(f.querySelector('.qr svg.qrc'), URL_SITE + '?ev=' + id);
+  }
+  checkIcons(p, 'Flyers & posts');
+  p.noErrors();
+});
+
+test('Flyers & posts, any week: the thank-you card is from the picked event\'s host, and the garden sign has WORKDAY_SCHEDULE and a QR code to #join', async t => {
+  const p = await openPage(t, withQR, await seededSheet(t));
+  await signIn(p);
+  for (const id of ['w7', 'm2']) {
+    await openFlyers(p, id);
+    const card = p.$('#m-any .art.card5');
+    assert.equal(card.querySelector('p').textContent, `Thanks for spending ${weekday(dateOf(p, id))} with us. See you at the next one.`);
+    assert.equal(card.querySelector('.sig').textContent, '— ' + hostOf(p, id).split(' ')[0], id + "'s host signs it");
+  }
+  assert.equal(weekday(dateOf(p, 'w7')), 'Sunday');
+  assert.deepEqual(p.$$('#m-any figcaption b').map(b => b.textContent), ['Quote post', 'Thank-you card', 'Garden sign'], 'no plant tag');
+  assert.ok(p.$$('#m-any figcaption').every(f => f.querySelector('svg.ic[aria-hidden="true"]')), 'each with its icon');
+  const sign = p.$('#m-any .art.sign');
+  assert.equal(sign.querySelector('.txt').textContent, '4th Sundays, 10 AM · Oakland Peace Center', 'the Settings tab\'s WORKDAY_SCHEDULE');
+  isQrOf(sign.querySelector('.qr svg.qrc'), URL_SITE + '#join');
+  assert.equal(sign.querySelector('.qrb .url').textContent, 'localhost:8766/site#join');
+  assert.deepEqual([...sign.querySelectorAll('ol li')].map(li => li.textContent), ['Scan the code', 'RSVP to a work day', 'Come say hi']);
+  for (const s of ['Big Mama', 'Nia T.', 'Rosa', '2nd Sundays', 'Stewarded plant']) assert.ok(!p.$('#p-materials').textContent.includes(s), s);
+  p.noErrors();
+});
+
+test('the garden sign follows WORKDAY_SCHEDULE on the Settings tab, even when the page signs straight back in', async t => {
+  const sheet = await seededSheet(t);
+  const p = loadPage(t, SITE, URL_SITE, (w, g, api) => {
+    withCode('tab', 'Phil')(w, g, api);
+    withQR(w, g, api);
+    WORKDAY(g, '3rd Saturdays, 9 AM');
+    // the public answer comes after the sign-in's
+    const f = w.fetch;
+    w.fetch = (u, o) => /"fn":"getPublic"/.test(String(o && o.body)) ? new w.Promise(r => w.setTimeout(r, 300)).then(() => f(u, o)) : f(u, o);
+  }, sheet);
+  await waitFor(() => p.shown('#p-events') && !p.d.body.classList.contains('out'), 4000, 'the events page');
+  await waitFor(() => p.api.done.some(c => c.fn === 'getPublic') && p.idle(), 4000, 'the public answer');
+  assert.ok(p.api.done.findIndex(c => c.fn === 'signIn') < p.api.done.findIndex(c => c.fn === 'getPublic'), 'signed in first');
+  await openFlyers(p, 'w7');
+  assert.equal(p.$('#m-any .art.sign .txt').textContent, '3rd Saturdays, 9 AM · Oakland Peace Center');
+  p.noErrors();
+});
+
+test('without the QR library (offline, or cdnjs blocked): the flyers and the sign show the short link, with no box and no errors', async t => {
+  const p = await openPage(t, null, await seededSheet(t));
+  assert.equal(typeof p.w.qrcode, 'undefined');
+  const hero = p.$('#hero-cards .art.flyer .ft');
+  assert.ok(!hero.querySelector('.qr'), 'no box on the hero flyer');
+  assert.equal(hero.querySelector('.cta small').textContent, 'localhost:8766/site?ev=w7');
+  await signIn(p);
+  const ft = (await openFlyers(p, 'w7')).querySelector('.art.flyer .ft');
+  assert.ok(!ft.querySelector('.qr, svg.qrc'), 'no box on the flyer');
+  assert.equal(ft.querySelector('.cta').textContent, 'Details and RSVPlocalhost:8766/site?ev=w7');
+  const sign = p.$('#m-any .art.sign');
+  assert.ok(!sign.querySelector('.qr, svg.qrc'), 'no box on the sign');
+  assert.equal(sign.querySelector('.qrb.text .url').textContent, 'localhost:8766/site#join');
+  assert.deepEqual([...sign.querySelectorAll('ol li')].map(li => li.textContent), ['Go to the link below', 'RSVP to a work day', 'Come say hi']);
+  assert.equal(sign.querySelector('.txt').textContent, '4th Sundays, 10 AM · Oakland Peace Center');
+  p.noErrors();
+});
+
+test("the prototype artifact's flyers and sign point at the public site", async t => {
+  const p = loadPage(t, ARTIFACT, 'http://localhost/artifact', withQR);
+  await waitFor(() => p.shown('#p-landing'), 2000, 'the artifact landing page');
+  isQrOf(p.$('#hero-cards .art.flyer .qr svg.qrc'), 'https://ebpg-event-hub.netlify.app/?ev=w7');
+  p.$('#signin-top').click();
+  p.$('#si-google').click();
+  await openFlyers(p, 'w7');
+  const ft = p.$('#m-event .art.flyer .ft');
+  isQrOf(ft.querySelector('.qr svg.qrc'), 'https://ebpg-event-hub.netlify.app/?ev=w7');
+  assert.equal(ft.querySelector('.cta small').textContent, 'ebpg-event-hub.netlify.app/?ev=w7');
+  const sign = p.$('#m-any .art.sign');
+  isQrOf(sign.querySelector('.qr svg.qrc'), 'https://ebpg-event-hub.netlify.app/#join');
+  assert.equal(sign.querySelector('.url').textContent, 'ebpg-event-hub.netlify.app/#join');
+  assert.equal(sign.querySelector('.txt').textContent, '4th Sundays, 10 AM · Oakland Peace Center');
+  assert.equal(p.$('#m-any .art.card5 .sig').textContent, '— Jessie');
+  assert.deepEqual(p.api.calls, [], 'the artifact calls no server');
+  p.noErrors();
 });

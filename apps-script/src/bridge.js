@@ -127,6 +127,14 @@ if (window.EBPG_GAS) {
     CHANNELS.forEach(ch => { ev.posts[ch.id] = { status: 'off', text: '', edited: false, ...NO_TRAIL, open: false }; });
     return ev;
   }
+  /* the Settings the public page shows. They come with every public answer and are nobody's edits, so they're kept
+     signed in too (the garden sign on Flyers & posts uses WORKDAY_SCHEDULE) */
+  function pubSettings(set) {
+    set = set || {};
+    PUB.SCHEDULE_TEXT = String(set.SCHEDULE_TEXT ?? '').trim();
+    PUB.LINKTREE_URL = safeUrl(set.LINKTREE_URL) || LINKTREE;
+    if (set.WORKDAY_SCHEDULE != null) PUB.WORKDAY_SCHEDULE = String(set.WORKDAY_SCHEDULE).trim();
+  }
   // names and roles only: what each person can do comes with signing in
   const namesOnly = team => (Array.isArray(team) ? team : []).map(t => ({ name: String(t?.name ?? ''), role: ROLE[t?.role] ? t.role : 'vol', contact: '', via: '', perms: allPerms(false) }));
   /* signed out: the Sheet's public view, and nothing else. A Sheet nobody has set up yet has no events and no
@@ -136,9 +144,7 @@ if (window.EBPG_GAS) {
     EVENTS.length = 0; st.events.forEach(e => EVENTS.push(fromPublic(e)));
     TEAM.splice(0, TEAM.length, ...namesOnly(st.team));
     if (st.gardens?.length) GARDENS.splice(0, GARDENS.length, ...st.gardens);
-    const set = st.settings || {};
-    PUB.SCHEDULE_TEXT = String(set.SCHEDULE_TEXT ?? '').trim();
-    PUB.LINKTREE_URL = safeUrl(set.LINKTREE_URL) || LINKTREE;
+    pubSettings(st.settings);
     if (!EVENTS.find(e => e.id === S.sel)) S.sel = nextEvent()?.id;
     pubState = 'ready';
     return true;
@@ -550,6 +556,7 @@ if (window.EBPG_GAS) {
   const rs = history.replaceState.bind(history);
   history.replaceState = (...a) => { try { rs(...a); } catch {} }; // the Apps Script frame may refuse URL changes
   evLink = id => G.url ? G.url + '?ev=' + encodeURIComponent(id) : '';
+  siteLink = hash => G.url ? G.url + hash : ''; // the garden sign's QR code: this page, at #join
   CH.luma.mode = 'copy'; CH.luma.note = '';
   $('#si-code').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); $('#si-pick button')?.focus(); } });
 
@@ -581,7 +588,7 @@ if (window.EBPG_GAS) {
     run('getPublic').then(st => {
       if (!st || !Array.isArray(st.events)) return publicFailed();
       keepPublic(st); pubAnswered = true;
-      if (live || held) return; // the Sheet's own rows win
+      if (live || held) { pubSettings(st.settings); renderMaterials(); return; } // the Sheet's own rows win; its public Settings still count
       loadPublic(st); render(); renderMaterials(); redrawLanding();
     }, publicFailed).finally(() => { readingPublic = false; });
   }

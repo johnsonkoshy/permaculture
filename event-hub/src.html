@@ -5,6 +5,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Mono:wght@400;600&family=Atkinson+Hyperlegible+Next:wght@400;600;700&family=Young+Serif&display=swap">
+<!-- QR codes on the flyers and the garden sign: qrcode-generator 1.4.4 (MIT). Without it they show the short link instead. -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js" integrity="sha512-ZDSPMa/JM1D+7kdg2x3BsruQ6T/JpJo3jWDWkCZsP+5yVyp1KfESqLI+7RqB5k24F7p2cV7i2YHh/890y6P6Sw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <style>
 /* Layout: one working screen. Event list on the left, the selected event's channels on the right. */
 :root {
@@ -289,6 +291,7 @@ legend { font-size: 13px; font-weight: 700; color: var(--ink-2); margin-bottom: 
 .art { container-type: inline-size; position: relative; overflow: hidden; border-radius: 6px; box-shadow: var(--shadow); max-width: 100%; }
 .art * { box-sizing: border-box; }
 .art .serif { font-family: var(--display); line-height: 1.05; letter-spacing: -.01em; }
+.art h4 { margin: 0; } /* the browser's own h4 margins pushed a flyer's time and place out of view; each piece spaces with gap */
 
 .flyer { aspect-ratio: 8.5 / 11; background: var(--b-cream); color: var(--b-canopy); display: grid; grid-template-rows: 42% minmax(0, 1fr) auto; }
 .flyer .ph { position: relative; }
@@ -303,10 +306,14 @@ legend { font-size: 13px; font-weight: 700; color: var(--ink-2); margin-bottom: 
 .flyer .tags { display: flex; flex-wrap: wrap; gap: 1.6cqw; }
 .flyer .tags span { font: 600 2.5cqw/1 var(--body); padding: 1.4cqw 2.4cqw; border-radius: 99px; border: .3cqw solid var(--b-sage-deep); color: var(--b-canopy); }
 .flyer .ft { background: var(--b-sage); color: var(--b-cream); padding: 4cqw 7cqw; display: flex; align-items: center; gap: 4cqw; justify-content: space-between; }
-.flyer .ft .cta { font: 400 4.4cqw/1.1 var(--display); }
-.flyer .ft .cta small { display: block; font: 600 2.5cqw/1.4 var(--mono); letter-spacing: .04em; margin-top: 1cqw; }
+.flyer .ft .cta { font: 400 4.4cqw/1.1 var(--display); min-width: 0; }
+.flyer .ft .cta small { display: block; font: 600 2.5cqw/1.4 var(--mono); letter-spacing: .04em; margin-top: 1cqw; overflow-wrap: anywhere; }
 .flyer .ft svg { width: 12cqw; height: 12cqw; flex: none; --mk-bg: var(--b-canopy); }
-.qr { width: 15cqw; aspect-ratio: 1; flex: none; background: var(--b-cream); border-radius: 1.5cqw; display: grid; place-items: center; text-align: center; color: var(--b-canopy); font: 600 2cqw/1.2 var(--mono); padding: 1cqw; border: .4cqw dashed var(--b-canopy); }
+/* a QR code: dark modules on cream, with its quiet zone (2 modules) inside the SVG. .none: a draft's "Publish to get a QR code" */
+.qr { width: 17cqw; aspect-ratio: 1; flex: none; background: var(--b-cream); color: var(--b-canopy); border-radius: 1.2cqw; overflow: hidden; }
+.art .qr svg.qrc { display: block; width: 100%; height: 100%; }
+.qr.none { display: grid; place-content: center; justify-items: center; gap: .8cqw; padding: 1.2cqw; text-align: center; font: 600 1.8cqw/1.2 var(--mono); border: .4cqw dashed var(--b-canopy); }
+.art .qr.none .ic { width: 3cqw; height: 3cqw; }
 
 .ig { aspect-ratio: 1; background: var(--b-sage); color: var(--b-cream); }
 .ig .ring { position: absolute; width: 68cqw; aspect-ratio: 1; border-radius: 50%; right: -12cqw; top: 2cqw; border: .5cqw solid var(--b-cream); }
@@ -319,7 +326,7 @@ legend { font-size: 13px; font-weight: 700; color: var(--ink-2); margin-bottom: 
 .ig .gs { position: absolute; left: 7cqw; top: 7cqw; display: flex; gap: 2cqw; align-items: center; font: 400 3.6cqw/1 var(--display); }
 .ig .gs svg { width: 8cqw; height: 8cqw; --mk-bg: var(--b-canopy); }
 
-.quote { aspect-ratio: 1; background: var(--b-canopy); color: var(--b-cream); display: grid; align-content: space-between; padding: 8cqw; }
+.quote { aspect-ratio: 1; background: var(--b-canopy); color: var(--b-cream); display: grid; align-content: space-between; padding: 8%; } /* not 8cqw: an .art's own padding would be measured against the viewport */
 .quote .q { font: 400 10cqw/1.04 var(--display); }
 .quote .q em { font-style: normal; color: var(--b-lemon); }
 .quote .src { display: flex; justify-content: space-between; align-items: end; gap: 4cqw; font: 600 2.8cqw/1.4 var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--b-sage); }
@@ -338,7 +345,7 @@ legend { font-size: 13px; font-weight: 700; color: var(--ink-2); margin-bottom: 
 .story .ft p { font: 400 4.2cqw/1.4 var(--body); color: var(--b-soil); }
 .story .ft .pill { justify-self: start; background: var(--b-fern); color: var(--b-cream); padding: 3cqw 6cqw; border-radius: 99px; font: 700 4.2cqw/1 var(--body); }
 
-.mail { aspect-ratio: 3 / 1; background: var(--b-sage); color: var(--b-cream); display: grid; grid-template-columns: 1fr auto; align-items: center; padding: 0 6cqw; }
+.mail { aspect-ratio: 3 / 1; background: var(--b-sage); color: var(--b-cream); display: grid; grid-template-columns: 1fr auto; align-items: center; padding: 0 6%; }
 .mail .k { font: 600 1.5cqw/1 var(--mono); letter-spacing: .12em; text-transform: uppercase; opacity: .9; }
 .mail h4 { font-size: 7cqw; margin-top: 1.4cqw; }
 .mail p { font: 400 1.9cqw/1.4 var(--body); margin-top: 1.2cqw; max-width: 48ch; }
@@ -358,17 +365,23 @@ legend { font-size: 13px; font-weight: 700; color: var(--ink-2); margin-bottom: 
 .ptag .rowx b { display: block; font: 600 2.2cqw/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--b-sage-deep); margin-bottom: .8cqw; }
 .ptag .txt { margin-top: 1.4cqw; font: 600 2.7cqw/1.3 var(--mono); background: var(--b-lemon); padding: 1.6cqw 2.4cqw; border-radius: 1.4cqw; justify-self: start; }
 
-.sign { aspect-ratio: 3 / 2; background: var(--b-fern); color: var(--b-cream); display: grid; grid-template-columns: 1.3fr 1fr; }
-.sign .l { padding: 7cqw; display: grid; align-content: space-between; gap: 3cqw; }
-.sign h4 { font-size: 7.6cqw; }
+/* one row the height of the sign, so a long line in one column can't push the other column's text out of view */
+.sign { aspect-ratio: 3 / 2; background: var(--b-fern); color: var(--b-cream); display: grid; grid-template-columns: 1.3fr 1fr; grid-template-rows: minmax(0, 1fr); }
+.sign .l { padding: 7cqw; display: grid; align-content: space-between; gap: 3cqw; min-height: 0; }
+.sign h4 { font-size: 6.8cqw; }
 .sign p { font: 400 2.3cqw/1.45 var(--body); opacity: .92; max-width: 34ch; }
 .sign .m { display: flex; gap: 2cqw; align-items: center; font: 400 2.8cqw/1 var(--display); }
 .sign .m svg { width: 7cqw; height: 7cqw; --mk-bg: var(--b-canopy); }
-.sign .r { background: var(--b-cream); color: var(--b-canopy); padding: 6cqw 5cqw; display: grid; gap: 2.4cqw; align-content: center; }
+.sign .r { background: var(--b-cream); color: var(--b-canopy); padding: 5cqw 4.5cqw; display: grid; gap: 2.2cqw; align-content: center; min-height: 0; }
 .sign .r .k { font: 600 1.8cqw/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--b-fern); }
-.sign .r ol { margin: 0; padding-left: 3cqw; display: grid; gap: 1.6cqw; font: 400 2.3cqw/1.35 var(--body); }
-.sign .r .txt { font: 400 3.8cqw/1.1 var(--display); }
-.sign .r .txt small { display: block; font: 600 1.9cqw/1.4 var(--mono); margin-top: .8cqw; }
+.sign .r ol { margin: 0; padding-left: 3cqw; display: grid; gap: 1.2cqw; font: 400 2.3cqw/1.35 var(--body); }
+.sign .r .txt { font: 400 3.4cqw/1.1 var(--display); }
+.sign .r .txt.long { font-size: 2.6cqw; }
+.sign .r .txt small { display: block; font: 600 1.9cqw/1.4 var(--mono); letter-spacing: .06em; text-transform: uppercase; margin-top: .8cqw; }
+.sign .r .qrb { display: grid; gap: 1cqw; justify-items: start; }
+.sign .r .qr { width: 14cqw; }
+.sign .r .url { font: 600 1.6cqw/1.3 var(--mono); color: var(--b-fern); overflow-wrap: anywhere; }
+.sign .r .qrb.text .url { font-size: 2.2cqw; color: var(--b-canopy); }
 
 .card5 { aspect-ratio: 7 / 5; background: var(--b-cream); color: var(--b-canopy); display: grid; grid-template-columns: 1fr 1fr; }
 .card5 .l { background: var(--b-sage); display: grid; place-items: center; position: relative; overflow: hidden; }
@@ -1126,7 +1139,7 @@ td code, .code code { font: 400 13px/1.5 var(--mono); }
 <header class="top">
   <div class="wrap">
     <div class="lock"><svg><use href="#mark"/></svg><b>East Bay Permaculture Guild</b><span>Event Hub</span></div>
-    <nav class="tabs" aria-label="Sections"><a href="#events" data-tab="events"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-calendar"/></svg>Events</a><a href="#team" data-tab="team"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-users"/></svg>Team</a><a href="#materials" data-tab="materials"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-image"/></svg>Templates</a><a class="live" href="#help" data-tab="help"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-help-circle"/></svg>Help</a>
+    <nav class="tabs" aria-label="Sections"><a href="#events" data-tab="events"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-calendar"/></svg>Events</a><a href="#team" data-tab="team"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-users"/></svg>Team</a><a href="#materials" data-tab="materials"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-image"/></svg>Flyers &amp; posts</a><a class="live" href="#help" data-tab="help"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-help-circle"/></svg>Help</a>
 <!--PROTO-->
 <a href="#architecture" data-tab="architecture">How we'd build it</a>
 <!--/PROTO-->
@@ -1306,7 +1319,7 @@ td code, .code code { font: 400 13px/1.5 var(--mono); }
 
   <!-- ============ MATERIALS ============ -->
   <div id="p-materials" data-page="materials" hidden>
-    <div class="pagehead"><div><h1>Templates</h1><p>On-brand flyers and posts, filled in from each event.</p></div>
+    <div class="pagehead"><div><h1>Flyers &amp; posts</h1><p>Flyers, posts and a garden sign in the Guild's colors, filled in from each event.</p></div>
 <!--PROTO-->
 <span class="sample">Stand-in photos</span>
 <!--/PROTO-->
@@ -1317,12 +1330,7 @@ td code, .code code { font: 400 13px/1.5 var(--mono); }
     </div>
     <div class="msec">
       <div class="msec-h"><h2><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-repeat"/></svg>Any week</h2></div>
-      <div class="mgal">
-        <figure class="mat"><div class="art quote"><div class="arc"></div><div class="q">Use small and <em>slow</em> solutions.</div><div class="src"><span>Permaculture principle no. 9<br>East Bay Permaculture Guild</span><svg><use href="#mark"/></svg></div></div><figcaption><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-quote"/></svg><b>Quote post</b> · Instagram, quiet weeks</figcaption></figure>
-        <figure class="mat"><div class="art card5"><div class="l"><div class="c"><svg><use href="#mark"/></svg></div></div><div class="r"><h4 class="serif">Glad you came.</h4><p>Thanks for spending Sunday with us. See you at the next one.</p><span class="sig">— Rosa</span></div></div><figcaption><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-heart"/></svg><b>Thank-you card</b> · 5 × 7, handwritten line</figcaption></figure>
-        <figure class="mat w2"><div class="art ptag"><div class="hole"><i></i></div><div class="bd"><span class="k">Stewarded plant · no. 014</span><h4 class="serif">Big Mama</h4><span class="lat">Black Mission fig · Ficus carica</span><div class="rowx"><div><b>Planted</b>March 9, 2025</div><div><b>Steward</b>Nia T.</div><div><b>Backup</b>Rosa M.</div></div><span class="txt">Scan to follow her</span></div></div><figcaption><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-sprout"/></svg><b>Plant tag</b> · garden stake</figcaption></figure>
-        <figure class="mat w2"><div class="art sign"><div class="l"><div class="m"><svg><use href="#mark"/></svg>East Bay Permaculture Guild</div><h4 class="serif">This garden is tended by neighbors.</h4><p>Work days are open to everyone. No experience needed.</p></div><div class="r"><span class="k">How to join</span><ol><li>Scan the code</li><li>RSVP to a work day</li><li>Come say hi</li></ol><div class="txt">2nd Sundays<small>10 AM · OAKLAND PEACE CENTER</small></div></div></div><figcaption><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-signpost"/></svg><b>Garden sign</b> · 24 × 16 in, fence</figcaption></figure>
-      </div>
+      <div class="mgal" id="m-any"></div>
     </div>
   </div>
 
@@ -1731,7 +1739,7 @@ let pubState = 'ready';
 let pubAnswered = true, planAfter = '';
 const TITLE0 = document.title;
 const LINKTREE = 'https://linktr.ee/eastbaypermacultureguild';
-const PUB = { SCHEDULE_TEXT: '', LINKTREE_URL: LINKTREE };
+const PUB = { SCHEDULE_TEXT: '', LINKTREE_URL: LINKTREE, WORKDAY_SCHEDULE: '4th Sundays, 10 AM' }; // WORKDAY_SCHEDULE: the Settings tab's own default
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -1886,13 +1894,48 @@ const kindOf = ev => ev.series === 'meeting' ? 'Community meeting' : ev.series =
 // a tag typed into the Sheet that isn't one of TAGS shows as typed
 const tagName = t => (TAGS.find(x => x[0] === t) || [t, String(t)])[1];
 const tagLabels = ev => ev.tags.filter(t => t !== 'outdoor').map(t => ([['beginner', 'No experience needed'], ['tools', 'Tools provided'], ['kids', 'Kids welcome'], ['potluck', 'Potluck']].find(x => x[0] === t) || [t, tagName(t)])[1]);
+/* QR codes for the printed pieces, from qrcode-generator (loaded from cdnjs in the head). qrSVG(text, cellPx): the code as
+   an inline SVG in currentColor, error correction M, with a quiet zone of 2 modules and cellPx pixels a module unless CSS
+   sizes it. '' when the library didn't load (offline, or blocked) or the text can't fit: the piece then shows only the
+   short link. Each code is worked out once, since the tiles and the landing page redraw often. */
+const QR_SVGS = new Map();
+function qrSVG(text, cellPx = 4) {
+  text = String(text || '');
+  if (!text || typeof window.qrcode !== 'function') return '';
+  const key = cellPx + ' ' + text;
+  if (!QR_SVGS.has(key)) {
+    let svg = '';
+    try {
+      const qr = window.qrcode(0, 'M');
+      qr.addData(text); qr.make();
+      const n = qr.getModuleCount(), q = 2, size = n + 2 * q;
+      let d = '';
+      // one rectangle per run of dark modules in a row
+      for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) {
+        if (!qr.isDark(r, c)) continue;
+        let run = 1;
+        while (c + run < n && qr.isDark(r, c + run)) run++;
+        d += `M${c + q} ${r + q}h${run}v1h-${run}z`; c += run - 1;
+      }
+      svg = `<svg class="qrc" role="img" aria-label="${esc('QR code for ' + text)}" viewBox="0 0 ${size} ${size}" width="${size * cellPx}" height="${size * cellPx}" shape-rendering="crispEdges"><path fill="currentColor" d="${d}"/></svg>`;
+    } catch { svg = ''; }
+    QR_SVGS.set(key, svg);
+  }
+  return QR_SVGS.get(key);
+}
+// a link as printed: without the https://
+const shortUrl = u => String(u || '').replace(/^https?:\/+/i, '');
+/* The flyer's QR code opens the event's public page, with the short link beside it. A draft has no public page yet,
+   so its flyer says to publish it first. */
 function flyerArt(ev) {
-  const d = D(ev.date);
+  const d = D(ev.date), link = onSite(ev) ? qrLink(ev.id) : '', code = qrSVG(link);
+  const qr = !onSite(ev) ? `<div class="qr none">${ic('lock')}<span>${ev.status === 'cancelled' ? 'Cancelled, so no QR code' : 'Publish to get a QR code'}</span></div>`
+    : code ? `<div class="qr">${code}</div>` : '';
   return `<div class="art flyer"><div class="ph">${photo(ev.photo)}<div class="date"><span>${d.toLocaleDateString('en-US', { month: 'short' })}</span><b>${d.getDate()}</b><span>${d.toLocaleDateString('en-US', { weekday: 'short' })}</span></div></div>
   <div class="bd"><span class="kick">EBPG · ${kindOf(ev)}</span><h4 class="serif">${esc(ev.title)}</h4>
   <div class="when">${t12(ev.start)}–${t12(ev.end)}<br>${esc(ev.place)}</div>
   <div class="tags">${tagLabels(ev).slice(0, 3).map(t => `<span>${esc(t)}</span>`).join('')}</div></div>
-  <div class="ft"><div class="cta">RSVP on Partiful<small>link on our Linktree</small></div><div class="qr">QR<br>code</div></div></div>`;
+  <div class="ft"><div class="cta">Details and RSVP${link ? `<small class="url">${esc(shortUrl(link))}</small>` : ''}</div>${qr}</div></div>`;
 }
 function igArt(ev) {
   return `<div class="art ig"><div class="gs"><svg><use href="#mark"/></svg>EBPG</div><div class="ring"></div><div class="disc">${photo(ev.photo)}</div><div class="lem"></div>
@@ -1902,7 +1945,7 @@ function storyArt(ev) {
   const d = D(ev.date);
   return `<div class="art story"><div class="hd"><span class="k">Save the date</span><h4 class="serif">${esc(ev.title)}</h4></div>
   <div class="mid"><div class="disc">${photo(ev.photo)}</div><div class="tag">${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}<small>${t12s(ev.start)} · ${esc(ev.place)}</small></div></div>
-  <div class="ft"><p>${esc(tagLabels(ev).slice(0, 2).join('. '))}${tagLabels(ev).length ? '.' : ''}</p><span class="pill">RSVP on Partiful</span></div></div>`;
+  <div class="ft"><p>${esc(tagLabels(ev).slice(0, 2).join('. '))}${tagLabels(ev).length ? '.' : ''}</p><span class="pill">Details: link in bio</span></div></div>`;
 }
 function mailArt(ev) {
   const d = D(ev.date);
@@ -1915,6 +1958,23 @@ const MATS = [
   ['mail', 'Email header', 'Google Group', mailArt, 'mail'],
 ];
 const matFig = (ev, [k, name, use, fn, icon]) => `<figure class="mat ${k === 'mail' ? 'wide' : ''}">${fn(ev)}<figcaption>${ic(icon)}<b>${name}</b> · ${use}</figcaption></figure>`;
+/* Any week: a quote post; a thank-you card from the host of the event picked above, for the day it fell on; and the
+   garden sign, with WORKDAY_SCHEDULE from the Settings tab and a QR code to the volunteer form on the home page */
+const quoteArt = () => `<div class="art quote"><div class="arc"></div><div class="q">Use small and <em>slow</em> solutions.</div><div class="src"><span>Permaculture principle no. 9<br>East Bay Permaculture Guild</span><svg><use href="#mark"/></svg></div></div>`;
+function thanksArt(ev) {
+  const day = ev && ev.date ? D(ev.date).toLocaleDateString('en-US', { weekday: 'long' }) : '';
+  const host = String((ev && ev.host) || '').trim().split(/\s+/)[0];
+  return `<div class="art card5"><div class="l"><div class="c"><svg><use href="#mark"/></svg></div></div><div class="r"><h4 class="serif">Glad you came.</h4><p>Thanks for spending ${day ? esc(day) : 'the day'} with us. See you at the next one.</p><span class="sig">— ${esc(host || 'East Bay Permaculture Guild')}</span></div></div>`;
+}
+function signArt() {
+  const link = siteLink('#join'), code = qrSVG(link), when = String(PUB.WORKDAY_SCHEDULE || '').trim();
+  const steps = [link ? (code ? 'Scan the code' : 'Go to the link below') : '', 'RSVP to a work day', 'Come say hi'].filter(Boolean);
+  const qr = link ? `<div class="qrb${code ? '' : ' text'}">${code ? `<div class="qr">${code}</div>` : ''}<span class="url">${esc(shortUrl(link))}</span></div>` : '';
+  return `<div class="art sign"><div class="l"><div class="m"><svg><use href="#mark"/></svg>East Bay Permaculture Guild</div><h4 class="serif">This garden is tended by neighbors.</h4><p>Work days are open to everyone. No experience needed.</p></div>`
+    + `<div class="r"><span class="k">How to join</span><ol>${steps.map(t => `<li>${t}</li>`).join('')}</ol>${qr}`
+    + `<div class="txt${when.length > 24 ? ' long' : ''}">${when ? `${esc(when)}<small><span class="vh"> · </span>Oakland Peace Center</small>` : 'Oakland Peace Center'}</div></div></div>`;
+}
+const anyFig = (art, icon, name, use, cls = '') => `<figure class="mat ${cls}">${art}<figcaption>${ic(icon)}<b>${name}</b> · ${use}</figcaption></figure>`;
 
 /* events: real OPC plans */
 const MAP = 'https://maps.app.goo.gl/9jQkydC38eJrRScr6';
@@ -2196,11 +2256,17 @@ function renderTiles() {
 let evLink = id => ''; // the live build links to its own page
 // the public event page's full link, for sharing and calendars: on the live site the same ?ev= link (organizers who are signed in get the plan)
 let pubLink = id => evLink(id);
+// the printed pieces' QR codes: a flyer's opens its event's public page, the garden sign's the home page at a section (siteLink('#join'))
+let qrLink = id => evLink(id), siteLink = hash => ''; // the live build sets siteLink to its own page
 /*PROTO*/
 const ARTIFACT = 'https://claude.ai/artifact/EDjxHQH1WdzLnhMVGh6taL';
 const SEEDED = ['w2', 'w5', 'm1', 'w6', 'w7', 'm2'];
 evLink = id => SEEDED.includes(id) ? ARTIFACT + '#ev-' + id : '';
 pubLink = id => ARTIFACT + '#pub-' + encodeURIComponent(id);
+// the artifact's flyers and sign point at the Guild's public site, which has the same starter events
+const SITE = 'https://ebpg-event-hub.netlify.app/';
+qrLink = id => SEEDED.includes(id) ? SITE + '?ev=' + encodeURIComponent(id) : '';
+siteLink = hash => SITE + hash;
 /*/PROTO*/
 const DETAIL = Object.assign(document.createElement('div'), { id: 'detail', className: 'detail' });
 // while the event pop-up is open, the page behind it can't be reached by Tab, a click or a screen reader
@@ -2759,6 +2825,9 @@ function renderMaterials() {
   sel.innerHTML = up.map(e => `<option value="${esc(e.id)}" ${e.id === cur ? 'selected' : ''}>${esc(shortDate(e.date))} · ${esc(e.title)}</option>`).join('');
   const ev = EVENTS.find(e => e.id === sel.value) || up[0];
   $('#m-event').innerHTML = ev ? MATS.map(m => matFig(ev, m).replace('mat wide', 'mat w2')).join('') : '<p class="hint">No events yet. Create one on the Events page.</p>';
+  $('#m-any').innerHTML = anyFig(quoteArt(), 'quote', 'Quote post', 'Instagram, quiet weeks')
+    + anyFig(thanksArt(ev), 'heart', 'Thank-you card', '5 × 7, from the event picked above')
+    + anyFig(signArt(), 'signpost', 'Garden sign', '24 × 16 in, fence', 'w2');
 }
 $('#m-ev').addEventListener('change', renderMaterials);
 
