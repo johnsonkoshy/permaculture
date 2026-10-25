@@ -43,10 +43,12 @@ The Event Hub prototype, now saving to a real Google Sheet. The page is hosted o
 - **Signing in:** the name you pick says *Signing in…* while the Sheet wakes up (the very first sign-in, which fills an empty Sheet, can take up to a minute). Tick **Remember this device for 30 days** to stay signed in on that phone or laptop; otherwise the code is forgotten when the tab closes. Sign out forgets it either way.
 - **Help tab** for organizers: where the data lives (with a link to the Sheet), the organizer code, test mode, when reminders go out, hand edits, and who the lead organizer is.
 - **Events:** creating, editing, the host and co-hosts, the timeline and "who's bringing what" all save to the Sheet in under a second.
-- **Post button:**
-  - **Google Group:** sends the email.
-  - **Calendar:** adds the event.
-  - **Partiful, Luma, Meetup, Facebook, Instagram and chats:** stay copy and paste. Luma's API needs a paid plan, and Partiful has none.
+- **Outreach review:** every post starts as a draft (*Draft · needs review*). Someone with **Approve & post** on the Team page clicks **Approve** (*Approved by Sky*); the text stays editable, and changing it sends it back to review. **Approve all drafts** approves every draft of an event at once. People without the permission see where each post stands, read-only, with who can approve it. The attention bar on the Events page says how many drafts wait for review and how many approved posts are ready, and **Review next** opens the soonest one.
+- **Posting, once approved:**
+  - **Google Group:** the **Post** button sends the email.
+  - **Calendar:** the **Post** button adds the event.
+  - **Partiful, Luma, Meetup, Facebook, Instagram and chats:** stay copy and paste (Luma's API needs a paid plan, and Partiful has none). **Copy text** puts the text on the clipboard and **Open Partiful** opens the site; copying alone never counts as posted. **Mark as posted** asks for the link to the post (optional, `https://` only) and then shows *Posted by Phil · Oct 25* with **View post**. **Undo** puts it back to approved.
+  - The Posts tab keeps the trail in its own columns: `posted by`, `approved by`, `approved at`, `posted at` (times in UTC, like `2026-10-25T17:03:00.000Z`) and `post url`. A link that doesn't start with `https://` isn't kept. The Activity tab says *Phil approved Partiful*, *Phil copied the Partiful text*, *Phil marked Partiful as posted* and *Phil un-marked Partiful*.
 - **Reminders:** every hour the script checks for events. The evening before and the morning of, it emails each person bringing something. People with only a phone number go on a "text these people" email to the host. If Gmail refuses one, the Reminders tab gets a `failed: ...` line, the others still go out, it's tried again the next hour, and the lead organizer gets one email a day listing what failed.
 - **Email limits and replies:** replies to every email go to `REPLY_TO` on the Settings tab, or to the lead organizer's email on the Team tab when that's blank. When fewer than `MAIL_RESERVE` (30) emails are left for the day, welcome and new-volunteer emails wait so reminders can still go out; each one held back is a `skipped (quota): ...` line on the Reminders tab.
 - **Safe values:** the server keeps only the four known photos, `https://` map and RSVP links, known tags or plain words up to 30 characters, titles up to 200 characters, descriptions up to 4,000 and "what to bring" up to 500. Event and task ids can use only letters, numbers, `-` and `_`; an Events row with any other id is listed on the Events page as a row to fix. The page escapes everything it shows from the Sheet.
@@ -68,7 +70,7 @@ Sign in to the Guild account and open the Sheet. Use **File → Make a copy**, w
 
 ## Known limits (fine for a pilot)
 
-- The organizer code is one shared password. Permissions inside the app, such as who can post, are honor-system; the server checks only the code. Someone guessing wrong 20 times pauses sign-in for everyone for up to 10 minutes.
+- The organizer code is one shared password. Permissions inside the app, such as who can approve and post, are honor-system; the server checks only the code. Someone guessing wrong 20 times pauses sign-in for everyone for up to 10 minutes.
 - If two people save the same event in the same second, the last save wins. Different events are fine.
 - An event's whole plan has to fit in one cell (45,000 characters). A save over that says "This event's plan is too long to save. Shorten the notes." and the Sheet keeps the last saved version.
 - Gmail allows about 100 emails a day from a free account. `MAIL_RESERVE` keeps the last 30 for reminders.

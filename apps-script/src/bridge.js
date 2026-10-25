@@ -78,7 +78,10 @@ if (window.EBPG_GAS) {
       cols: { label: ev.label || '', title: ev.title, date: ev.date, start: ev.start, end: ev.end, place: ev.place, address: ev.address || '', host: hostOf(pl), cohosts: cohostsOf(pl).join(', '),
         about: ev.about || '', bring: ev.bring || '', tags: ev.tags.join(', '), notes: (pl.notes || []).join('\n'), timeline: PT.timeline(pl) },
       tasks: (tasks || []).map(t => ({ id: t.id, what: t.text, who: t.who || '', status: t.status || '', last: t.last || '' })),
-      posts: CHANNELS.filter(c => posts[c.id] && posts[c.id].status !== 'off').map(c => ({ channel: c.id, status: posts[c.id].status, by: posts[c.id].by || '', text: posts[c.id].text, edited: !!posts[c.id].edited })),
+      posts: CHANNELS.filter(c => posts[c.id] && posts[c.id].status !== 'off').map(c => {
+        const q = posts[c.id];
+        return { channel: c.id, status: q.status, by: q.by || '', text: q.text, edited: !!q.edited, approvedBy: q.approvedBy || '', approvedAt: q.approvedAt || '', at: q.at || '', url: q.url || '' };
+      }),
       log: log || [],
     };
   };
@@ -100,8 +103,10 @@ if (window.EBPG_GAS) {
     ev.posts = {};
     CHANNELS.forEach(ch => {
       const p = r.posts[ch.id];
-      ev.posts[ch.id] = p ? { status: STATUS[p.status] ? p.status : 'review', text: p.text || draft(ch.id, ev), edited: !!p.edited, by: p.by || '', open: false }
-        : { status: 'off', text: draft(ch.id, ev), edited: false, by: '', open: false };
+      // who approved it and when, and who posted it, when and where: the Posts tab's own columns
+      ev.posts[ch.id] = p ? { status: STATUS[p.status] ? p.status : 'review', text: p.text || draft(ch.id, ev), edited: !!p.edited,
+        by: p.by || '', approvedBy: p.approvedBy || '', approvedAt: p.approvedAt || '', at: p.at || '', url: safeUrl(p.url), open: false }
+        : { status: 'off', text: draft(ch.id, ev), edited: false, ...NO_TRAIL, open: false };
     });
     ev.log = r.log;
     return ev;

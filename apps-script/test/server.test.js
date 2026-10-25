@@ -646,3 +646,59 @@ test('signIn says whether test mode is on, who gets the emails, whether the Grou
   const pub = JSON.stringify(g.ctx.getPublic());
   assert.ok(!pub.includes('owner@example.com') && !/testMode|quota/.test(pub), 'not in the public view');
 });
+
+/* ---------- outreach review: who approved, who posted, when, and the link ---------- */
+const TRAIL = ['approved by', 'approved at', 'posted at', 'post url'];
+const reviewed = () => [
+  { channel: 'partiful', status: 'posted', by: 'Phil', text: 'Come dig', edited: false, approvedBy: 'Sky', approvedAt: '2026-10-24T17:05:00.000Z', at: '2026-10-25T16:30:00.000Z', url: 'https://partiful.com/e/abc' },
+  { channel: 'ggroup', status: 'approved', by: '', text: 'Subject: Sun 10/25: Work party\n\nHi all,\n\nCome dig.', edited: true, approvedBy: 'Phil', approvedAt: '2026-10-24T18:00:00.000Z', at: '', url: '' },
+  { channel: 'instagram', status: 'review', by: '', text: 'Dig day', edited: false, approvedBy: '', approvedAt: '', at: '', url: '' },
+];
+
+test('the four Posts trail columns round-trip through saveEvent and signIn', () => {
+  const g = seeded();
+  g.ctx.saveEvent(CODE, ev({ posts: reviewed() }));
+  const [head, ...rows] = g.tab('Posts');
+  assert.deepEqual(head, ['event id', 'channel', 'status', 'posted by', 'text', 'edited', ...TRAIL]);
+  assert.deepEqual(rows.find(r => r[1] === 'partiful'), ['w7', 'partiful', 'posted', 'Phil', 'Come dig', '', 'Sky', '2026-10-24T17:05:00.000Z', '2026-10-25T16:30:00.000Z', 'https://partiful.com/e/abc']);
+  assert.deepEqual(rows.find(r => r[1] === 'ggroup').slice(2), ['approved', '', 'Subject: Sun 10/25: Work party\n\nHi all,\n\nCome dig.', 'yes', 'Phil', '2026-10-24T18:00:00.000Z', '', '']);
+  const posts = plain(g.ctx.signIn(CODE).events.find(e => e.cols.id === 'w7').posts);
+  assert.deepEqual(posts.partiful, { channel: 'partiful', status: 'posted', by: 'Phil', text: 'Come dig', edited: false, approvedBy: 'Sky', approvedAt: '2026-10-24T17:05:00.000Z', at: '2026-10-25T16:30:00.000Z', url: 'https://partiful.com/e/abc' });
+  assert.deepEqual([posts.ggroup.status, posts.ggroup.approvedBy, posts.ggroup.approvedAt, posts.ggroup.at, posts.ggroup.url], ['approved', 'Phil', '2026-10-24T18:00:00.000Z', '', '']);
+  assert.deepEqual([posts.instagram.status, posts.instagram.approvedBy, posts.instagram.url], ['review', '', '']);
+  // saving the same again changes nothing, and the public view never sees any of it
+  const before = g.tab('Posts');
+  g.ctx.saveEvent(CODE, ev({ posts: reviewed() }));
+  assert.deepEqual(g.tab('Posts'), before);
+  assert.deepEqual(plain(g.ctx.getPublic().events[0].posts), {});
+});
+
+test('a post url is kept only when it starts with https://; names and times are capped', () => {
+  const g = seeded();
+  const bad = ['http://partiful.com/e/abc', 'javascript:alert(1)', 'partiful.com/e/abc', 'https://x.org/a b', 'https://x.org/"><img src=x>', 'https://' + 'a'.repeat(2000), '=HYPERLINK("https://x.org")'];
+  bad.forEach(url => {
+    g.ctx.saveEvent(CODE, ev({ posts: [{ ...reviewed()[0], url }] }));
+    assert.equal(g.tab('Posts')[1][9], '', JSON.stringify(url.slice(0, 40)) + ' is not kept');
+  });
+  g.ctx.saveEvent(CODE, ev({ posts: [{ ...reviewed()[0], url: '  https://www.instagram.com/p/C9xyz/  ', by: ' ' + 'P'.repeat(90), approvedBy: 'S'.repeat(90), at: '2026-10-25T16:30:00.000Z' + 'x'.repeat(50) }] }));
+  const row = g.tab('Posts')[1];
+  assert.equal(row[9], 'https://www.instagram.com/p/C9xyz/');
+  assert.equal(row[3], 'P'.repeat(60));
+  assert.equal(row[6], 'S'.repeat(60));
+  assert.equal(row[8].length, 40);
+});
+
+test('a Posts tab from before the trail columns gets them at the right end, and its rows still read', () => {
+  const g = seeded();
+  const sh = g.sheets.get('Posts');
+  sh.cells = sh.cells.map(r => r.slice(0, 6)); // the old six columns
+  sh.set(1, 7, 'my notes'); sh.set(2, 7, 'ask Jessie first'); // and one added by hand
+  const read = plain(g.ctx.signIn(CODE).events[0].posts.ggroup);
+  assert.deepEqual([read.status, read.approvedBy, read.approvedAt, read.at, read.url], ['review', '', '', '', '']);
+  g.ctx.doGet({});
+  assert.deepEqual(g.tab('Posts')[0], ['event id', 'channel', 'status', 'posted by', 'text', 'edited', 'my notes', ...TRAIL]);
+  assert.equal(g.tab('Posts')[1][6], 'ask Jessie first', 'nothing moved');
+  g.ctx.saveEvent(CODE, ev({ posts: [reviewed()[1]] }));
+  const row = g.tab('Posts')[1];
+  assert.deepEqual(row.slice(7), ['Phil', '2026-10-24T18:00:00.000Z', '', '']);
+});

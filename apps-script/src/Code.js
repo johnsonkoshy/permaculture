@@ -7,7 +7,7 @@
 const TABS = {
   Events: ['id', 'label', 'title', 'date', 'start', 'end', 'place', 'address', 'host', 'co-hosts', 'description', 'bring', 'tags', 'notes', 'timeline', "data (don't edit)"],
   Bringing: ['event id', 'what', 'who', 'status', 'task id', 'last time'],
-  Posts: ['event id', 'channel', 'status', 'posted by', 'text', 'edited'],
+  Posts: ['event id', 'channel', 'status', 'posted by', 'text', 'edited', 'approved by', 'approved at', 'posted at', 'post url'],
   Team: ['name', 'role', 'email or phone', 'reminders by', 'create events', 'edit events', 'post', 'assign tasks', 'manage team'],
   Volunteers: ['signed up', 'name', 'contact', 'wants to help with', 'note'],
   Activity: ['event id', 'when', 'what'],
@@ -590,8 +590,15 @@ function saveEvent_(p) {
   if (i >= 0) put_('Events', i + 2, [row]);
   else append_('Events', [row]);
   replaceFor_('Bringing', id, (p.tasks || []).map(t => [id, t.what, t.who || '', t.status || '', t.id || '', t.last || '']));
-  replaceFor_('Posts', id, (p.posts || []).map(x => [id, x.channel, x.status, x.by || '', x.text || '', x.edited ? 'yes' : '']));
+  replaceFor_('Posts', id, (p.posts || []).map(x => [id, x.channel, x.status, short_(x.by, 60), x.text || '', x.edited ? 'yes' : '',
+    short_(x.approvedBy, 60), short_(x.approvedAt, 40), short_(x.at, 40), postUrl_(x.url)]));
   replaceFor_('Activity', id, (p.log || []).slice(-100).map(l => [id, l[0], l[1]])); // the newest 100
+}
+function short_(v, n) { return String(v == null ? '' : v).trim().slice(0, n); }
+/* A link to a post on Partiful, Instagram and so on: kept only when it's a plain https:// link. */
+function postUrl_(v) {
+  const s = String(v == null ? '' : v).trim();
+  return s.length <= 2000 && /^https:\/\/[^\s"'<>]+$/i.test(s) ? s : '';
 }
 /* Bringing, Posts and Activity: swap one event's rows, keeping every other event's. */
 function replaceFor_(name, id, fresh) {
@@ -622,7 +629,7 @@ function readAll_() {
     return m;
   };
   const tasks = byEv('Bringing', r => ({ what: r[1], who: r[2], status: r[3], id: r[4], last: r[5] }));
-  const posts = byEv('Posts', r => ({ channel: r[1], status: r[2], by: r[3], text: r[4], edited: !!r[5] }));
+  const posts = byEv('Posts', r => ({ channel: r[1], status: r[2], by: r[3], text: r[4], edited: !!r[5], approvedBy: r[6], approvedAt: r[7], at: r[8], url: r[9] }));
   const log = byEv('Activity', r => [r[1], r[2]]);
   const problems = []; // rows an organizer needs to fix in the Sheet
   return {

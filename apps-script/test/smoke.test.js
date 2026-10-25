@@ -81,9 +81,10 @@ function stub(w, g, api) {
 /* shown on screen: no hidden attribute and no display:none (from the page's CSS) on it or any parent */
 const onScreen = (w, el) => { for (; el && el.nodeType === 1; el = el.parentElement) if (el.hidden || w.getComputedStyle(el).display === 'none') return false; return true; };
 
-/* load a page in a fresh jsdom with a fresh mock Sheet; before(w, g) runs before the page's scripts */
-function loadPage(t, file, url, before) {
-  const g = makeGas({ page: undefined, now: START, settings: { ORGANIZER_CODE: 'garden-test-2468' } }); // the code starts blank, so set one
+/* load a page in a fresh jsdom with a fresh mock Sheet (or `sheet`, another page's mock, for a reload);
+   before(w, g) runs before the page's scripts */
+function loadPage(t, file, url, before, sheet) {
+  const g = sheet || makeGas({ page: undefined, now: START, settings: { ORGANIZER_CODE: 'garden-test-2468' } }); // the code starts blank, so set one
   const api = { errors: [], calls: [], sent: [], done: [], out: {}, most: {}, latency: 0, fail: '', pending: 0, copied: [], opened: [], toasts: [] };
   const vc = new VirtualConsole();
   vc.on('error', (...a) => api.errors.push('console.error: ' + a.map(x => (x && x.stack) || String(x)).join(' ')));
@@ -118,9 +119,9 @@ function loadPage(t, file, url, before) {
   return p;
 }
 /* the built Netlify page; waits for its first call to finish */
-async function openPage(t, before) {
+async function openPage(t, before, sheet) {
   assert.ok(fs.existsSync(SITE), MISSING);
-  const p = loadPage(t, SITE, 'http://localhost:8766/site', before);
+  const p = loadPage(t, SITE, 'http://localhost:8766/site', before, sheet);
   await waitFor(() => p.api.calls.includes('getPublic') && p.idle(), 4000, 'the page to load the public events');
   return p;
 }
@@ -356,7 +357,7 @@ test("signed in as Phil: the chip, the four tabs, plain-words permissions and th
   await signIn(p, 'Kalynn');
   assert.equal(p.$('#who > span:last-child').textContent, 'Signed in as Kalynn · Co-organizer');
   p.$('#tiles [data-open]').click();
-  assert.equal((await waitFor(() => p.$('#detail #perm-note'), 2000, 'the permissions note')).textContent, "You can't post or manage the team. Ask Jessie if you need to.");
+  assert.equal((await waitFor(() => p.$('#detail #perm-note'), 2000, 'the permissions note')).textContent, "You can't approve posts or manage the team. Ask Jessie if you need to.");
   await waitFor(p.idle, 2000, 'calls to finish');
   p.noErrors();
 });
@@ -448,7 +449,8 @@ test('icons: the sprite has the set, every icon resolves, and none are read alou
   p.$('#detail [data-dtab="outreach"]').click();
   p.$('#dp-out [data-act=toggle]').click();
   checkIcons(p, 'outreach');
-  assert.ok(p.$$('#dp-out [data-act=post]').every(b => b.querySelector('use[href="#i-copy"], use[href="#i-send"]')), 'post buttons say copy or send');
+  const approve = p.$$('#dp-out [data-act=approve]');
+  assert.ok(approve.length && approve.every(b => b.querySelector('use[href="#i-check"]')), 'Approve buttons have a check');
   p.$('#detail [data-dtab="plan"]').click();
   p.$('#edit-ev').click();
   await waitFor(() => p.$('#editf'), 2000, 'the edit form');
@@ -524,14 +526,20 @@ test('the prototype artifact still runs with its own sign-in, Viewing as, archit
   p.$('.tabs a[data-tab=events]').click();
   p.$('#tiles [data-open="w7"]').click();
   p.$('#detail [data-dtab="outreach"]').click();
+  assert.ok(!p.$('#dp-out [data-act=post]'), 'nothing can be posted before it is approved');
+  p.$('#dp-out [data-act=approve][data-ch=ggroup]').click();
+  assert.equal(p.$('#dp-out [data-row=ggroup] .pill').textContent, 'Approved by Jessie');
   p.$('#dp-out [data-act=post][data-ch=ggroup]').click();
   await waitFor(() => p.api.toasts.includes('Posted to Google Group email (simulated)'), 2000, 'the simulated post');
+  assert.match(p.$('#dp-out [data-row=ggroup] .pill').textContent, /^Posted by Jessie · \w{3} \d{1,2}$/);
   p.$('#m-x').click();
 
   p.set('#as', 'Kalynn');
   await waitFor(() => p.api.toasts.includes('Viewing as Kalynn'), 2000, 'the Viewing as toast');
   p.$('#tiles [data-open="w7"]').click();
-  assert.equal(p.$('#detail #perm-note').textContent, "You can't post or manage the team. Ask Jessie if you need to.");
+  assert.equal(p.$('#detail #perm-note').textContent, "You can't approve posts or manage the team. Ask Jessie if you need to.");
+  p.$('#detail [data-dtab="outreach"]').click();
+  assert.ok(p.$$('#dp-out [data-act=approve]').every(b => b.disabled), 'Kalynn cannot approve');
   assert.deepEqual(p.api.calls, [], 'the artifact calls no server');
   p.noErrors();
 });
@@ -1189,5 +1197,157 @@ test('when the 2-minute read finds the code changed while an event is open, the 
   assert.equal(p.$('#si-err').textContent, 'Type the organizer code first.');
   await sleep(50);
   assert.equal(p.api.sent.length, from + 1);
+  p.noErrors();
+});
+
+/* ---------- outreach review: approve, copy, mark as posted with a link, undo ---------- */
+const pill = (p, ch) => p.$(`#dp-out [data-row="${ch}"] .pill`).textContent;
+const acts = (p, ch) => p.$$(`#dp-out [data-row="${ch}"] .oacts > *`).map(b => b.textContent.trim());
+const postRow = (p, ev, ch) => { const [head, ...rows] = p.g.tab('Posts'), r = rows.find(x => x[0] === ev && x[1] === ch); return r && Object.fromEntries(head.map((h, i) => [h, r[i]])); };
+const activity = (p, ev) => p.g.tab('Activity').filter(r => r[0] === ev).map(r => r[2]);
+async function outreach(p, id) {
+  p.$(`#tiles [data-open="${id}"]`).click();
+  (await waitFor(() => p.$('#detail [data-dtab="outreach"]'), 2000, 'the event to open')).click();
+  return waitFor(() => p.shown('#dp-out') && p.$$('#dp-out .orow').length && p.$('#dp-out'), 2000, 'the Outreach tab');
+}
+
+test('outreach review: Phil approves Partiful, copies it, marks it posted with a link, and it stays posted after a reload until Undo', async t => {
+  const p = await openPage(t);
+  await signIn(p, 'Phil');
+  const drafts = p.g.tab('Posts').slice(1).filter(r => r[2] === 'review').length;
+  assert.ok(drafts >= 2);
+  assert.equal(p.$('#attn .grow').textContent, `${drafts} drafts to review · 0 approved, ready to post`);
+  assert.ok(!/posts ready to go out/.test(p.d.body.textContent));
+
+  // Review next opens the soonest event with drafts, on its Outreach tab
+  p.$('#jump').click();
+  await waitFor(() => p.shown('#dp-out') && p.$$('#dp-out .orow').length, 2000, 'Review next to open the Outreach tab');
+  assert.equal(p.$('#m-title').textContent, 'Workday #7', 'Workday #7 is next');
+  const rows = p.$$('#dp-out .orow');
+  assert.ok(rows.every(r => r.classList.contains('review') && r.querySelector('.pill').textContent === 'Draft · needs review'), 'every channel is a draft');
+  assert.ok(rows.every(r => { const b = r.querySelector('[data-act=approve]'); return b && !b.disabled; }), 'every draft shows Approve');
+  assert.ok(!p.$('#dp-out [data-act=post], #dp-out [data-act=copy], #dp-out [data-act=mark]'), 'nothing to post or copy before approval');
+  assert.match(p.$('#dp-out .osum').textContent, new RegExp(`^${rows.length} drafts to review · 0 approved, ready to post · 0 posted`));
+  assert.equal(p.$('#appr-all').textContent, 'Approve all drafts');
+
+  // Approve: the text stays editable, and Copy text, Open Partiful and Mark as posted take its place
+  p.$('#dp-out [data-act=approve][data-ch=partiful]').click();
+  assert.equal(pill(p, 'partiful'), 'Approved by Phil');
+  assert.deepEqual(acts(p, 'partiful'), ['Copy text', 'Open Partiful', 'Mark as posted']);
+  assert.equal(p.$('#dp-out [data-row=partiful] .oacts a').href, 'https://partiful.com/');
+  assert.equal(p.d.activeElement.dataset.act, 'copy', 'focus moves to Copy text');
+  assert.match(p.$('#attn .grow').textContent, new RegExp(`^${drafts - 1} drafts to review · 1 approved, ready to post$`));
+  p.$('#dp-out [data-row=partiful] [data-act=toggle]').click();
+  assert.equal(p.$('#ta-w7-partiful').readOnly, false, 'approved text stays editable');
+
+  // Copy text: on the clipboard, logged, and still only approved
+  const text = p.$('#ta-w7-partiful').value;
+  p.$('#dp-out [data-act=copy][data-ch=partiful]').click();
+  await waitFor(() => p.api.copied.includes(text), 2000, 'the Partiful text on the clipboard');
+  await waitFor(() => p.api.toasts.includes('Copied. Paste it on Partiful.'), 2000, 'the copied toast');
+  assert.ok(p.$('#dp-out [data-row=partiful]').classList.contains('approved'), 'copying is not posting');
+  p.$('#dp-out [data-act=copy][data-ch=partiful]').click();
+  await waitFor(() => p.api.copied.filter(x => x === text).length === 2 && p.api.toasts.filter(x => x === 'Copied. Paste it on Partiful.').length === 2, 2000, 'a second copy');
+
+  // Mark as posted: an optional https link
+  p.$('#dp-out [data-act=mark][data-ch=partiful]').click();
+  const input = p.$('#mk-w7-partiful');
+  assert.equal(p.d.activeElement, input, 'the link field gets focus');
+  assert.equal(input.closest('label').textContent, 'Link to the post (optional, https)');
+  assert.deepEqual(acts(p, 'partiful'), ['Copy text', 'Open Partiful'], 'no second Mark as posted while the field is open');
+  p.set('#mk-w7-partiful', 'partiful.com/e/abc');
+  p.$('form[data-mark=partiful] button[type=submit]').click();
+  assert.ok(p.shown('#mk-w7-partiful-err'), 'a link without https:// is refused');
+  assert.equal(p.$('#mk-w7-partiful').getAttribute('aria-invalid'), 'true');
+  assert.ok(p.$('#dp-out [data-row=partiful]').classList.contains('approved'));
+  p.set('#mk-w7-partiful', 'https://partiful.com/e/abc');
+  p.$('form[data-mark=partiful] button[type=submit]').click();
+  assert.match(pill(p, 'partiful'), /^Posted by Phil · Oct 2[45]$/);
+  const view = p.$('#dp-out [data-row=partiful] .ostat a');
+  assert.equal(view.textContent, 'View post');
+  assert.equal(view.href, 'https://partiful.com/e/abc');
+  assert.equal(view.target, '_blank');
+  assert.deepEqual(acts(p, 'partiful'), ['Undo']);
+  assert.equal(p.d.activeElement.dataset.act, 'undo', 'focus moves to Undo');
+  p.$('#dp-out [data-row=partiful] [data-act=toggle]').click();
+  assert.equal(p.$('#ta-w7-partiful').readOnly, true, 'a posted text is read-only');
+  checkIcons(p, 'outreach review');
+
+  // the Posts tab: posted, by Phil, when, and the link
+  await waitFor(() => postRow(p, 'w7', 'partiful')?.status === 'posted', 3000, 'the Posts row to say posted');
+  const row = postRow(p, 'w7', 'partiful');
+  assert.equal(row['posted by'], 'Phil');
+  assert.equal(row['approved by'], 'Phil');
+  assert.match(row['approved at'], /^2026-10-2\dT\d\d:\d\d:\d\d\.\d{3}Z$/);
+  assert.match(row['posted at'], /^2026-10-2\dT\d\d:\d\d:\d\d\.\d{3}Z$/);
+  assert.equal(row['post url'], 'https://partiful.com/e/abc');
+  await waitFor(p.idle, 2000, 'saves to finish');
+  assert.deepEqual(activity(p, 'w7').slice(-3), ['Phil approved Partiful', 'Phil copied the Partiful text', 'Phil marked Partiful as posted'], 'two copies are one line');
+  p.noErrors();
+
+  // a reload of the page: still posted, with View post
+  const q = await openPage(t, null, p.g);
+  await signIn(q, 'Phil');
+  assert.ok(!q.api.calls.includes('seed'));
+  await outreach(q, 'w7');
+  assert.ok(q.$('#dp-out [data-row=partiful]').classList.contains('posted'));
+  assert.match(pill(q, 'partiful'), /^Posted by Phil · Oct 2[45]$/);
+  assert.equal(q.$('#dp-out [data-row=partiful] .ostat a').href, 'https://partiful.com/e/abc');
+  assert.match(q.$('#dp-out .osum > span').textContent, / · 1 posted$/);
+
+  // Undo: back to approved, and the Sheet forgets the post
+  q.$('#dp-out [data-act=undo][data-ch=partiful]').click();
+  assert.equal(pill(q, 'partiful'), 'Approved by Phil');
+  assert.deepEqual(acts(q, 'partiful'), ['Copy text', 'Open Partiful', 'Mark as posted']);
+  assert.ok(!q.$('#dp-out [data-row=partiful] .ostat a'), 'no View post');
+  await waitFor(() => postRow(q, 'w7', 'partiful')?.status === 'approved', 3000, 'the Posts row back to approved');
+  assert.deepEqual(['posted by', 'posted at', 'post url'].map(k => postRow(q, 'w7', 'partiful')[k]), ['', '', '']);
+  await waitFor(q.idle, 2000, 'saves to finish');
+  assert.equal(activity(q, 'w7').at(-1), 'Phil un-marked Partiful');
+
+  // changing approved text puts it back in review, with the caret where it was
+  q.$('#dp-out [data-row=partiful] [data-act=toggle]').click();
+  const ta = q.$('#ta-w7-partiful');
+  ta.focus();
+  q.set('#ta-w7-partiful', ta.value + ' See you there!');
+  assert.equal(pill(q, 'partiful'), 'Draft · needs review');
+  assert.equal(q.d.activeElement.id, 'ta-w7-partiful', 'typing carries on in the text');
+  assert.deepEqual(acts(q, 'partiful'), ['Approve']);
+
+  // Approve all drafts: one line each
+  const left = q.$$('#dp-out .orow.review').map(r => r.dataset.row);
+  q.$('#appr-all').click();
+  assert.equal(q.$$('#dp-out .orow.review').length, 0);
+  assert.ok(!q.$('#appr-all'), 'gone once nothing is left to review');
+  await waitFor(() => q.api.toasts.includes(`Approved ${left.length} drafts`), 2000, 'the approved toast');
+  await waitFor(() => q.g.tab('Posts').slice(1).filter(r => r[0] === 'w7').every(r => r[2] === 'approved'), 3000, 'every w7 Posts row approved');
+  await waitFor(q.idle, 2000, 'saves to finish');
+  const names = { partiful: 'Partiful', ggroup: 'Google Group email', calendar: 'Guild Google Calendar', instagram: 'Instagram', chats: 'WhatsApp & Hylo chats', luma: 'Luma', meetup: 'Meetup', facebook: 'Facebook group' };
+  assert.deepEqual(activity(q, 'w7').slice(-left.length), left.map(c => 'Phil approved ' + names[c]));
+  // the Google Group and the Calendar get Post once approved; copy channels never say posted on their own
+  assert.deepEqual(acts(q, 'ggroup'), ['Post']);
+  assert.ok(q.$$('#dp-out .orow').every(r => !/Posted/.test(r.querySelector('.pill').textContent)));
+  q.noErrors();
+});
+
+test('without "Approve & post": Approve is turned off, the text is read-only, and the hint says who can approve', async t => {
+  const p = await openPage(t);
+  await signIn(p, 'Kalynn');
+  await outreach(p, 'w7');
+  const approve = p.$$('#dp-out [data-act=approve]');
+  assert.ok(approve.length >= 2 && approve.every(b => b.disabled && b.getAttribute('aria-disabled') === 'true' && b.title === 'You need "Approve & post"'), 'Approve is turned off');
+  assert.ok(p.$('#appr-all').disabled, 'and so is Approve all drafts');
+  const hints = p.$$('#dp-out .orow .ostat .hint').map(h => h.textContent);
+  assert.equal(hints.length, approve.length);
+  assert.ok(hints.every(h => h === 'Jessie, Phil or Sky can approve this'), hints[0]);
+  assert.ok(p.$$('#dp-out .orow .pill').every(x => x.textContent === 'Draft · needs review'));
+  p.$('#dp-out [data-row=partiful] [data-act=toggle]').click();
+  assert.equal(p.$('#ta-w7-partiful').readOnly, true, 'the text is read-only');
+  approve[0].click();
+  assert.equal(p.$$('#dp-out .orow.review').length, approve.length, 'a click on a turned-off Approve does nothing');
+  p.$('#m-x').click();
+  p.$('.tabs a[data-tab=team]').click();
+  assert.ok(p.$$('#team-tbl thead th').some(th => th.textContent === 'Approve & post'), 'the Team table names the permission');
+  await waitFor(p.idle, 2000, 'calls to finish');
   p.noErrors();
 });

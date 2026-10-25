@@ -594,8 +594,16 @@ legend { font-size: 13px; font-weight: 700; color: var(--ink-2); margin-bottom: 
 .oname { border: 0; background: transparent; padding: 0; text-align: left; cursor: pointer; font: 700 15px/1.3 var(--body); color: var(--ink); display: grid; gap: 1px; }
 .oname .hint { font-weight: 400; font-size: 12px; }
 .oname:hover .hint { color: var(--fern); text-decoration: underline; }
-.orow .done { font-size: 13px; font-weight: 700; color: var(--fern); white-space: nowrap; display: inline-flex; align-items: center; gap: 4px; }
-.orow .done .ic { width: 14px; height: 14px; }
+.ohead { display: grid; gap: 6px; min-width: 0; justify-items: start; }
+.ostat { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.ostat .pill { white-space: normal; line-height: 1.25; }
+.ostat a { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 700; color: var(--fern); }
+.ostat a .ic { width: 13px; height: 13px; }
+.oacts { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+.oacts.wide { grid-column: 2 / -1; justify-content: flex-start; }
+.omark { grid-column: 2 / -1; display: grid; gap: 8px; padding: 12px; border: 1px solid var(--line-2); border-radius: 10px; background: var(--surface); }
+.omark-b { display: flex; gap: 8px; flex-wrap: wrap; }
+@media (max-width: 560px) { .oacts { grid-column: 2 / -1; justify-content: flex-start; } .omark { grid-column: 1 / -1; } }
 .obody a.hint { display: inline-flex; align-items: center; gap: 4px; justify-self: start; }
 .obody a.hint .ic { width: 13px; height: 13px; }
 .obody { grid-column: 1 / -1; display: grid; gap: 6px; }
@@ -910,7 +918,7 @@ td code, .code code { font: 400 13px/1.5 var(--mono); }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 /* phones: small buttons and inline action links are at least 44px tall, so they're easy to tap */
 @media (max-width: 600px) {
-  .btn.sm, .tog, .x, .obody a.hint, .dh .meta a, .doc-kv a, .savest button, .chk { min-height: 44px; }
+  .btn.sm, .tog, .x, .obody a.hint, .ostat a, .dh .meta a, .doc-kv a, .savest button, .chk { min-height: 44px; }
   .dh .meta a, .doc-kv a { display: inline-flex; align-items: center; }
   .x { min-width: 44px; }
 }
@@ -1537,6 +1545,10 @@ await supabase.from('volunteers').insert({
         <p>Everyone who's bringing something gets a reminder email from 6 PM the evening before, and again between 8 AM and noon on the day. People with only a phone number go on a list emailed to the host, so someone can text them. If a reminder doesn't go through, the hub tries again the next hour and emails the lead organizer about it. To pause reminders, set <code>REMINDERS</code> on the Settings tab to FALSE.</p>
         <p>A free Gmail account can send about 100 emails a day. When fewer than <code>MAIL_RESERVE</code> are left, welcome and new-volunteer emails wait, so reminders can still go out; each one held back is noted on the Reminders tab. Replies to the hub's emails go to <code>REPLY_TO</code>, or to the lead organizer's email when that's blank.</p>
       </section>
+      <section aria-labelledby="hp-out">
+        <h2 id="hp-out">Approving and posting</h2>
+        <p>Every post starts as a draft. Someone with <b>Approve &amp; post</b> on the Team page reads it, fixes anything, and clicks <b>Approve</b>. Changing the text afterwards sends it back for another look. Once it's approved, the Google Group email and the Calendar have a <b>Post</b> button. For Partiful, Instagram and the other sites, click <b>Copy text</b>, paste it there, then <b>Mark as posted</b> and add the link to the post if you have it. <b>Undo</b> puts it back if it was marked by mistake. The Posts tab of the Sheet keeps who approved and posted each one, when, and the link.</p>
+      </section>
       <section aria-labelledby="hp-edit">
         <h2 id="hp-edit">Fixing things in the Sheet</h2>
         <p>You can change an event's title, date, times, place, host, co-hosts, description, notes or timeline, or who's bringing what, right in the Sheet. Your change shows up here within two minutes, or as soon as you come back to this tab. An event with changes here that haven't been saved yet keeps those until they are. Leave the last Events column, "data (don't edit)", as it is.</p>
@@ -1592,7 +1604,7 @@ const CHANNELS = [
 ];
 const CH = Object.fromEntries(CHANNELS.map(c => [c.id, c]));
 const TAGS = [['beginner', 'Beginner friendly'], ['tools', 'Tools provided'], ['kids', 'Kids welcome'], ['potluck', 'Potluck'], ['outdoor', 'Outdoors']];
-const PERMS = [['create', 'Create events'], ['edit', 'Edit events'], ['approve', 'Post'], ['tasks', 'Assign tasks'], ['team', 'Manage team']];
+const PERMS = [['create', 'Create events'], ['edit', 'Edit events'], ['approve', 'Approve & post'], ['tasks', 'Assign tasks'], ['team', 'Manage team']];
 const PERM_ICON = { create: 'calendar-plus', edit: 'pencil', approve: 'send', tasks: 'list-checks', team: 'users' };
 const ROLE = { lead: 'Lead organizer', co: 'Co-organizer', vol: 'Volunteer' };
 const allPerms = v => Object.fromEntries(PERMS.map(([k]) => [k, v]));
@@ -1614,8 +1626,8 @@ const organizers = () => TEAM.filter(t => t.role !== 'vol');
 const can = k => !!person(ME)?.perms[k];
 const AVC = ['#F2C14E', '#A8C49A', '#9EC3D6', '#D9B79A', '#C9D9A6', '#E8B9A0'];
 const avatar = n => { n = String(n ?? ''); return `<span class="av" style="background:${AVC[[...n].reduce((a, c) => a + c.charCodeAt(0), 0) % AVC.length]}" aria-hidden="true">${esc(n.split(' ').map(x => x[0]).join('').slice(0, 2))}</span>`; };
-const NOPE = { create: 'You need "Create events"', edit: 'You need "Edit events"', approve: 'You need "Post"', tasks: 'You need "Assign tasks"', team: 'You need "Manage team"' };
-const CANT = { create: 'create events', edit: 'edit events', approve: 'post', tasks: 'assign tasks', team: 'manage the team' };
+const NOPE = { create: 'You need "Create events"', edit: 'You need "Edit events"', approve: 'You need "Approve & post"', tasks: 'You need "Assign tasks"', team: 'You need "Manage team"' };
+const CANT = { create: 'create events', edit: 'edit events', approve: 'approve posts', tasks: 'assign tasks', team: 'manage the team' };
 const orList = a => a.length > 1 ? a.slice(0, -1).join(', ') + ' or ' + a[a.length - 1] : a[0] || '';
 const lead = () => TEAM.find(t => t.role === 'lead');
 // what this person can't do, in plain words, and who to ask
@@ -1659,7 +1671,7 @@ let taskSeq = 0;
 const mkTask = (type, text, who, status, rems) => ({ id: 't' + (++taskSeq), type, text, who, status, rems: rems || defaultRems(type), assignedOn: who ? TODAY : '', open: false });
 const HOSTS = { map: f => organizers().map(t => t.name).map(f) };
 const PHOTOS = [['trellis', 'Garden work'], ['moat', 'Before the dig'], ['pantry', 'Building'], ['none', 'Illustration']];
-const STATUS = { off: 'Not used', review: 'Needs approval', approved: 'Approved', posted: 'Posted' };
+const STATUS = { off: 'Not used', review: 'Draft · needs review', approved: 'Approved', posted: 'Posted' };
 
 function goodToKnow(ev) {
   const t = [ev.tags.includes('beginner') && 'no experience needed', ev.tags.includes('tools') && 'tools and gloves provided', ev.tags.includes('kids') && 'kids welcome with a grown-up', ev.tags.includes('potluck') && 'bring a dish to share if you can'].filter(Boolean);
@@ -1685,9 +1697,13 @@ function draft(ch, ev) {
       return `${ev.title} is ${shortDate(ev.date)} at ${t12s(ev.start)}, ${ev.place}. ${g} Who's in? RSVP on Partiful (link on our Linktree).`;
   }
 }
+// each post's trail, kept on the Posts tab: who approved it and when, then who posted it, when, and the link to it
+const NO_TRAIL = { approvedBy: '', approvedAt: '', by: '', at: '', url: '' };
+const toReview = p => Object.assign(p, NO_TRAIL, { status: 'review' });
+const approvePost = p => Object.assign(p, NO_TRAIL, { status: 'approved', approvedBy: ME, approvedAt: new Date().toISOString() });
 function makePosts(ev, chosen, status = 'review') {
   const posts = {};
-  CHANNELS.forEach(c => { const on = chosen.includes(c.id); posts[c.id] = { status: on ? status : 'off', text: draft(c.id, ev), edited: false, by: '', open: false }; });
+  CHANNELS.forEach(c => { const on = chosen.includes(c.id); posts[c.id] = { status: on ? status : 'off', text: draft(c.id, ev), edited: false, ...NO_TRAIL, open: false }; });
   return posts;
 }
 
@@ -1885,7 +1901,7 @@ function applyPerms() {
   $('#new-ev').disabled = !can('create'); $('#new-ev').title = can('create') ? '' : NOPE.create;
   if (!d) return;
   gate('#edit-ev, #ph-pick, #add-ch', 'edit', d);
-  gate('#appr-all, [data-act=approve], [data-act=post]', 'approve', d);
+  gate('#appr-all, [data-act=approve], [data-act=post], [data-act=copy], [data-act=mark], [data-act=undo], [data-mark] input, [data-mark] button', 'approve', d);
   gate('#nt-text, #nt-who, #nt-add, [data-tdel]', 'tasks', d);
   gate('#plan-next', 'create', d);
   gate('#addrow input, #addrow button, [data-rmrow], [data-chk], [data-additem] input, [data-additem] button, #addarea input, #addarea button, #addsup input, #addsup button, [data-sup], [data-idea], #adddeb input, #adddeb button', 'edit', d);
@@ -1918,12 +1934,12 @@ function renderTeam() {
   const edit = can('team');
   $('#team-note').innerHTML = edit ? '' : `<div class="perm-note" style="margin-bottom:12px">${ic('lock')}<span>${esc(cantNote(person(ME) || TEAM[0]))}</span></div>`;
   renderHelp();
-  $('#team-tbl').innerHTML = `<thead><tr><th>Person</th><th>Role</th><th>Reminders</th>${PERMS.map(([k, l]) => `<th class="c"><span class="thi">${ic(PERM_ICON[k])}${l}</span></th>`).join('')}<th></th></tr></thead><tbody>${TEAM.map((t, i) => {
+  $('#team-tbl').innerHTML = `<thead><tr><th>Person</th><th>Role</th><th>Reminders</th>${PERMS.map(([k, l]) => `<th class="c"><span class="thi">${ic(PERM_ICON[k])}${esc(l)}</span></th>`).join('')}<th></th></tr></thead><tbody>${TEAM.map((t, i) => {
     const lock = !edit || t.role === 'lead';
     return `<tr><td><span class="nm">${avatar(t.name)}<span><b>${esc(t.name)}</b><br>${t.contact ? `<span class="hint">${ic(String(t.contact).includes('@') ? 'mail' : 'phone')}${esc(t.contact)}</span>` : '<span class="warnchip">No contact yet</span>'}</span></span></td>
     <td>${t.role === 'lead' ? esc(ROLE.lead) : `<select data-role="${i}" ${edit ? '' : 'disabled'} aria-label="Role for ${esc(t.name)}"><option value="co" ${t.role === 'co' ? 'selected' : ''}>Co-organizer</option><option value="vol" ${t.role === 'vol' ? 'selected' : ''}>Volunteer</option></select>`}</td>
     <td>${t.via ? ic(t.via === 'Email' ? 'mail' : 'message-circle') + esc(t.via) : '<span class="hint">—</span>'}</td>
-    ${PERMS.map(([k, l]) => `<td class="c">${t.role === 'vol' ? '<span class="hint">—</span>' : `<input type="checkbox" data-perm="${i}" data-k="${k}" ${t.perms[k] ? 'checked' : ''} ${lock ? 'disabled' : ''} aria-label="${esc(t.name)}: ${l}">`}</td>`).join('')}
+    ${PERMS.map(([k, l]) => `<td class="c">${t.role === 'vol' ? '<span class="hint">—</span>' : `<input type="checkbox" data-perm="${i}" data-k="${k}" ${t.perms[k] ? 'checked' : ''} ${lock ? 'disabled' : ''} aria-label="${esc(t.name)}: ${esc(l)}">`}</td>`).join('')}
     <td>${t.role === 'lead' || !edit ? '' : `<button class="tog" type="button" data-rm="${i}" aria-label="Remove ${esc(t.name)}">${ic('user-minus')}Remove</button>`}</td></tr>`;
   }).join('')}</tbody>`;
   $$('[data-perm]').forEach(c => c.addEventListener('change', () => { TEAM[c.dataset.perm].perms[c.dataset.k] = c.checked; whenSaved(() => toast('Permissions saved', 'check')); render(); }));
@@ -1962,15 +1978,16 @@ $('#probs').addEventListener('click', e => {
   const next = $$('#probs [data-pgone]')[Math.min(i, keys.length - 2)], h1 = $('#p-events h1');
   if (next) next.focus(); else if (!$('#new-ev').disabled) $('#new-ev').focus(); else { h1.tabIndex = -1; h1.focus(); }
 });
+const drafts = n => `${n} ${n === 1 ? 'draft' : 'drafts'} to review`;
 function renderAttn() {
-  const up = EVENTS.filter(e => e.date >= TODAY);
-  const need = up.map(e => [e, counts(e).review + counts(e).approved]).filter(x => x[1]);
-  const total = need.reduce((a, x) => a + x[1], 0);
-  const ready = up.reduce((a, e) => a + counts(e).approved, 0);
-  $('#attn').innerHTML = total
-    ? `<div class="attn">${ic('send')}<span class="grow"><b>${total} posts ready to go out</b> · ${need.length} ${need.length === 1 ? 'event' : 'events'}</span><button class="btn ghost sm" type="button" id="jump">Review next</button></div>`
+  const up = EVENTS.filter(e => e.date >= TODAY && !e.isNew).sort((a, b) => a.date.localeCompare(b.date));
+  const review = up.reduce((a, e) => a + counts(e).review, 0), ready = up.reduce((a, e) => a + counts(e).approved, 0);
+  // the soonest event with drafts to review, else the soonest with approved posts waiting to go out
+  const next = up.find(e => counts(e).review) || up.find(e => counts(e).approved);
+  $('#attn').innerHTML = review + ready
+    ? `<div class="attn">${ic('send')}<span class="grow"><b>${drafts(review)}</b> · ${ready} approved, ready to post</span><button class="btn ghost sm" type="button" id="jump">Review next</button></div>`
     : `<div class="attn ok">${ic('check')}<span class="grow"><b>All posted.</b></span></div>`
-  $('#jump')?.addEventListener('click', () => { S.dtab = 'outreach'; openEvent(need[0][0].id, 'modal'); });
+  $('#jump')?.addEventListener('click', () => { S.dtab = 'outreach'; openEvent(next.id, 'modal'); });
 }
 const tileLabel = e => `Open ${e.title}, ${longDate(e.date)}${unsaved(e.id) ? '. Changes not saved yet' : ''}`;
 // flag the tiles of events whose last save failed, without redrawing them (so focus stays put)
@@ -2076,7 +2093,7 @@ function renderDetail() {
     </div>
     <div class="dpanel" id="dp-plan" role="tabpanel" aria-labelledby="dt-plan" ${S.dtab === 'plan' ? '' : 'hidden'}>${docHTML(ev)}</div>
     <div class="dpanel" id="dp-out" role="tabpanel" aria-labelledby="dt-out" ${S.dtab === 'outreach' ? '' : 'hidden'}>
-      <div class="osum"><span>${c.off === CHANNELS.length ? 'No outreach recorded for this event.' : `${c.review + c.approved ? `${ic('send')}<b>${c.review + c.approved} ready to post</b>` : `${ic('check')}Everything is posted`} · ${c.posted} posted`}</span></div>
+      <div class="osum"><span>${c.off === CHANNELS.length ? 'No outreach recorded for this event.' : c.review + c.approved ? `${ic('send')}<b>${drafts(c.review)}</b> · ${c.approved} approved, ready to post · ${c.posted} posted` : `${ic('check')}Everything is posted · ${c.posted} posted`}</span>${c.review >= 2 ? `<button class="btn ghost sm" type="button" id="appr-all">${ic('check')}Approve all drafts</button>` : ''}</div>
       ${c.off < CHANNELS.length ? `<ul class="olist">${CHANNELS.filter(ch => ev.posts[ch.id].status !== 'off').map(ch => chRow(ev, ch)).join('')}</ul>` : ''}
       ${c.off && !past ? `<label class="addch"><span class="hint">${ic('plus')}Also post to</span><select id="add-ch" aria-label="Add a channel"><option value="">Choose a channel</option>${CHANNELS.filter(ch => ev.posts[ch.id].status === 'off').map(ch => `<option value="${esc(ch.id)}">${esc(ch.name)}</option>`).join('')}</select></label>` : ''}
       <div class="chs"><div class="chs-h">${fold('log', 'Activity', ev.log.length, 'history')}</div><ul class="log" id="log-body" ${hid('log')}>${ev.log.slice().reverse().map(([t, w]) => `<li><span>${esc(t)}</span><span>${esc(w)}</span></li>`).join('')}</ul></div>
@@ -2183,7 +2200,7 @@ function bindEdit(ev) {
       const q = ev.posts[c.id];
       if (q.status === 'posted') { if (!ev.isNew) q.stale = true; return; }
       if (!q.edited) q.text = draft(c.id, ev);
-      if (q.status === 'approved') { q.status = 'review'; q.by = ''; }
+      if (q.status === 'approved') toReview(q);
     });
     const wasNew = !!ev.isNew; delete ev.isNew; S.editing = false;
     ev.log.push([nowStamp(), wasNew ? `${ME} created the event` : `${ME} edited the event`]);
@@ -2224,14 +2241,36 @@ function tasksHTML(ev) {
     ${up ? `<tfoot><tr><td><input id="nt-text" placeholder="e.g. Plates, cups, napkins" aria-label="What"></td><td><select id="nt-who" aria-label="Who"><option value="">Needs someone</option>${people}</select></td><td class="rm"><button class="btn ghost sm" type="button" id="nt-add">${ic('plus')}Add</button></td></tr></tfoot>` : ''}
   </table></div></div>`;
 }
+// who can approve, for the hint people without "Approve & post" see
+const whoApproves = () => { const a = organizers().filter(t => t.perms.approve).map(t => t.name.split(' ')[0]); return a.length ? `${orList(a)} can approve this` : 'The lead organizer can approve this'; };
+const onDay = s => { const d = new Date(s); return s && !isNaN(d) ? d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''; };
+function postPill(p) {
+  if (p.status === 'approved') return p.approvedBy ? `Approved by ${p.approvedBy}` : 'Approved';
+  if (p.status === 'posted') return (p.by ? `Posted by ${p.by}` : 'Posted') + (onDay(p.at) ? ` · ${onDay(p.at)}` : '');
+  return STATUS[p.status] || STATUS.review;
+}
+/* One channel: review → Approve → (Post, or Copy text, Open the site, Mark as posted) → posted, with Undo for copy channels.
+   Only people with "Approve & post" get the actions; everyone sees where it stands. */
 function chRow(ev, ch) {
-  const p = ev.posts[ch.id];
-  const btn = p.status === 'posted' ? `<span class="done">${ic('check')}Posted</span>` : `<button class="btn primary sm" type="button" data-act="post" data-ch="${esc(ch.id)}">${ic(ch.mode === 'auto' ? 'send' : 'copy')}Post</button>`;
-  const site = ch.mode === 'copy' ? safeUrl(ch.url) : '';
-  return `<li class="orow ${esc(p.status)}"><span class="logo" style="background:${esc(ch.color)}">${esc(ch.abbr)}</span>
-    <button class="oname" type="button" data-act="toggle" data-ch="${esc(ch.id)}" aria-expanded="${!!p.open}">${esc(ch.name)}<span class="hint">${p.status !== 'posted' ? 'Read draft · ' : ''}${ch.mode === 'auto' ? 'posts automatically' : 'copy and paste'}</span></button>
-    ${btn}
-    ${p.open ? `<div class="obody"><textarea id="ta-${esc(ev.id)}-${esc(ch.id)}" data-ta="${esc(ch.id)}" aria-label="${esc(ch.name)} text" ${p.status === 'posted' ? 'readonly' : ''}>${esc(p.text)}</textarea>${site ? `<a class="hint" href="${esc(site)}" target="_blank" rel="noopener">Open ${esc(ch.name)}${ic('out')}</a>` : ''}</div>` : ''}</li>`;
+  const p = ev.posts[ch.id], id = esc(ch.id), auto = ch.mode === 'auto', ok = can('approve');
+  const site = safeUrl(ch.url), link = p.status === 'posted' ? safeUrl(p.url) : '';
+  const act = (a, icon, label, kind = 'ghost') => `<button class="btn ${kind} sm" type="button" data-act="${a}" data-ch="${id}">${ic(icon)}${label}</button>`;
+  let acts = '';
+  if (p.status === 'review') acts = act('approve', 'check', 'Approve', 'primary'); // shown to everyone, turned off by applyPerms when not allowed
+  else if (ok && p.status === 'approved') acts = auto ? act('post', 'send', 'Post', 'primary')
+    : act('copy', 'copy', 'Copy text') + (site ? `<a class="btn ghost sm" href="${esc(site)}" target="_blank" rel="noopener">Open ${esc(ch.name)}${ic('out')}</a>` : '') + (p.marking ? '' : act('mark', 'check', 'Mark as posted', 'primary'));
+  else if (ok && p.status === 'posted' && !auto) acts = act('undo', 'rotate-ccw', 'Undo');
+  const mk = `mk-${esc(ev.id)}-${id}`;
+  const mark = ok && p.status === 'approved' && p.marking ? `<form class="omark" data-mark="${id}" novalidate>
+      <label class="fld" for="${mk}">Link to the post (optional, https)<input id="${mk}" type="url" inputmode="url" autocomplete="off" spellcheck="false" placeholder="https://" aria-describedby="${mk}-err"></label>
+      <p class="err" id="${mk}-err" role="alert" hidden></p>
+      <div class="omark-b"><button class="btn primary sm" type="submit">${ic('check')}Save</button>${act('unmark', 'x', 'Cancel')}</div></form>` : '';
+  return `<li class="orow ${esc(p.status)}" data-row="${id}"><span class="logo" style="background:${esc(ch.color)}">${esc(ch.abbr)}</span>
+    <div class="ohead"><button class="oname" type="button" data-act="toggle" data-ch="${id}" aria-expanded="${!!p.open}">${esc(ch.name)}<span class="hint">${p.status !== 'posted' ? 'Read draft · ' : ''}${auto ? 'posts automatically' : 'copy and paste'}</span></button>
+      <span class="ostat"><span class="pill ${esc(p.status)}">${esc(postPill(p))}</span>${link ? `<a href="${esc(link)}" target="_blank" rel="noopener">View post${ic('out')}</a>` : ''}${!ok && p.status === 'review' ? `<span class="hint">${esc(whoApproves())}</span>` : ''}</span></div>
+    ${acts ? `<div class="oacts${ok && p.status === 'approved' && !auto ? ' wide' : ''}">${acts}</div>` : ''}
+    ${p.open ? `<div class="obody"><textarea id="ta-${esc(ev.id)}-${id}" data-ta="${id}" aria-label="${esc(ch.name)} text" ${p.status === 'posted' ? 'readonly' : ''}>${esc(p.text)}</textarea>${site && p.status === 'review' ? `<a class="hint" href="${esc(site)}" target="_blank" rel="noopener">Open ${esc(ch.name)}${ic('out')}</a>` : ''}</div>` : ''}
+    ${mark}</li>`;
 }
 function bindTasks(ev) {
   $$('[data-tdel]', $('#detail')).forEach(b => b.addEventListener('click', () => {
@@ -2259,37 +2298,76 @@ function bindDetail(ev) {
     renderDetail();
   }));
   $('#ph-pick')?.addEventListener('change', x => { ev.photo = x.target.value; render(); renderMaterials(); });
+  // after a redraw, keyboard focus goes back to the same channel: to `sel` in its row, else its name
+  const refocus = (id, sel) => { const row = $(`#detail .orow[data-row="${id}"]`); (row && ((sel && row.querySelector(sel)) || row.querySelector('.oname')))?.focus(); };
   $('#appr-all')?.addEventListener('click', () => {
+    if (!can('approve')) return;
     const ids = CHANNELS.filter(c => ev.posts[c.id].status === 'review').map(c => c.id);
-    ids.forEach(id => { ev.posts[id].status = 'approved'; ev.posts[id].by = ME; });
-    ev.log.push([nowStamp(), `${ME} approved ${ids.map(i => CH[i].name).join(', ')}`]);
-    render(); toast(`Approved ${ids.length} posts`, 'check');
+    ids.forEach(id => { approvePost(ev.posts[id]); ev.log.push([nowStamp(), `${ME} approved ${CH[id].name}`]); });
+    render(); toast(`Approved ${ids.length} drafts`, 'check');
+    refocus(ids[0], '.oacts button');
   });
   $$('[data-act]', $('#detail')).forEach(b => b.addEventListener('click', async () => {
     const id = b.dataset.ch, p = ev.posts[id], ch = CH[id];
+    let focus = ''; // what gets keyboard focus in this row once it's redrawn
     switch (b.dataset.act) {
-      case 'toggle': p.open = !p.open; break;
+      case 'toggle': p.open = !p.open; focus = '.oname'; break;
       case 'add': p.status = 'review'; p.open = true; p.text = draft(id, ev); ev.log.push([nowStamp(), `${ME} added ${ch.name}`]); break;
-      case 'approve': p.status = 'approved'; p.by = ME; p.open = false; ev.log.push([nowStamp(), `${ME} approved ${ch.name}`]); toast(`${ch.name} approved`, 'check'); break;
+      case 'approve':
+        if (!can('approve') || p.status !== 'review') return;
+        approvePost(p); ev.log.push([nowStamp(), `${ME} approved ${ch.name}`]); toast(`${ch.name} approved`, 'check'); focus = '.oacts button'; break;
+      // the Google Group and the Calendar: the server sends it
       case 'post':
-        if (ch.mode === 'copy') { try { await navigator.clipboard.writeText(p.text); toast(`Copied. Paste it on ${ch.name}.`, 'check'); } catch { toast(`Open the text and copy it for ${ch.name}.`); } ev.log.push([nowStamp(), `${ME} posted to ${ch.name}`]); }
-        else if (remote) { b.disabled = true; try { toast(await remote.post(ev, id), 'check'); } catch (er) { b.disabled = false; toast(er.message); return; } ev.log.push([nowStamp(), `${ME} posted to ${ch.name}`]); }
+        if (!can('approve') || p.status !== 'approved' || ch.mode !== 'auto') return;
+        if (remote) { b.disabled = true; try { toast(await remote.post(ev, id), 'check'); } catch (er) { b.disabled = false; toast(er.message); return; } ev.log.push([nowStamp(), `${ME} posted to ${ch.name}`]); }
 /*PROTO*/
         else { ev.log.push([nowStamp(), `${ME} posted to ${ch.name} (simulated)`]); toast(`Posted to ${ch.name} (simulated)`); }
 /*/PROTO*/
-        p.status = 'posted'; p.by = ME; p.open = false; break;
-      case 'copy': try { await navigator.clipboard.writeText(p.text); toast('Copied. Paste it on ' + ch.name + '.', 'check'); } catch { p.open = true; renderDetail(); const ta = document.getElementById('ta-' + ev.id + '-' + id); ta?.focus(); ta?.select(); toast('Text selected. Press Ctrl+C or Cmd+C to copy.'); } return;
-      case 'mark': p.status = 'posted'; ev.log.push([nowStamp(), `${ME} marked ${ch.name} posted`]); toast(`${ch.name} marked as posted`, 'check'); break;
+        Object.assign(p, { status: 'posted', by: ME, at: new Date().toISOString(), url: '', open: false }); focus = '.oname'; break;
+      // copy and paste channels: copying is not posting, so it stays approved until someone marks it as posted
+      case 'copy':
+        try { await navigator.clipboard.writeText(p.text); }
+        catch { p.open = true; renderDetail(); const ta = document.getElementById('ta-' + ev.id + '-' + id); ta?.focus(); ta?.select(); toast('Text selected. Press Ctrl+C or Cmd+C to copy.'); return; }
+        toast(`Copied. Paste it on ${ch.name}.`, 'check');
+        if (p.status !== 'approved') return; // marked or changed while the copy went through
+        { const line = `${ME} copied the ${ch.name} text`; if ((ev.log.at(-1) || [])[1] !== line) ev.log.push([nowStamp(), line]); } // copying twice is one line
+        focus = '[data-act=copy]'; break;
+      case 'mark': p.marking = true; focus = 'input'; break;
+      case 'unmark': p.marking = false; focus = '[data-act=mark]'; break;
+      case 'undo':
+        if (!can('approve') || p.status !== 'posted' || ch.mode === 'auto') return;
+        Object.assign(p, { status: 'approved', by: '', at: '', url: '' }); ev.log.push([nowStamp(), `${ME} un-marked ${ch.name}`]);
+        toast(`${ch.name} is back to approved, not posted`, 'check'); focus = '[data-act=mark]'; break;
     }
-    render();
+    render(); refocus(id, focus);
+  }));
+  // Mark as posted: an optional https link to the post, then posted by me, now
+  $$('form[data-mark]', $('#detail')).forEach(f => f.addEventListener('submit', e => {
+    e.preventDefault();
+    const id = f.dataset.mark, p = ev.posts[id], ch = CH[id], inp = f.querySelector('input'), err = f.querySelector('.err'), url = inp.value.trim();
+    if (!can('approve') || p.status !== 'approved') return;
+    if (url && !safeUrl(url)) {
+      err.textContent = 'Use the full link, starting with https://, or leave it blank.'; err.hidden = false;
+      inp.setAttribute('aria-invalid', 'true'); inp.focus(); return;
+    }
+    Object.assign(p, { status: 'posted', by: ME, at: new Date().toISOString(), url, marking: false, open: false });
+    ev.log.push([nowStamp(), `${ME} marked ${ch.name} as posted`]);
+    toast(`${ch.name} marked as posted`, 'check');
+    render(); refocus(id, '[data-act=undo]');
   }));
   $('#add-ch')?.addEventListener('change', x => {
     const id = x.target.value; if (!id) return; const p = ev.posts[id];
     p.status = 'review'; p.open = true; p.text = draft(id, ev); ev.log.push([nowStamp(), `${ME} added ${CH[id].name}`]); render();
   });
   $$('[data-ta]', $('#detail')).forEach(ta => ta.addEventListener('input', () => {
-    const p = ev.posts[ta.dataset.ta]; p.text = ta.value; p.edited = true; sync();
-    if (p.status === 'approved') { p.status = 'review'; p.by = ''; }
+    const p = ev.posts[ta.dataset.ta]; p.text = ta.value; p.edited = true;
+    if (p.status !== 'approved') { sync(); return; }
+    // changed text needs a fresh look: back to review, and the row redrawn with the caret where it was
+    toReview(p); p.marking = false;
+    const a = ta.selectionStart, z = ta.selectionEnd;
+    render();
+    const again = document.getElementById(ta.id); again?.focus(); again?.setSelectionRange(a, z);
+    toast(`The text changed, so ${CH[ta.dataset.ta].name} needs review again`);
   }));
 }
 
@@ -2398,7 +2476,7 @@ function openDrawer(ev) {
         if (p.status === 'off') { p.status = 'review'; p.text = draft(c.id, ev); p.edited = false; return; }
         if (p.status === 'posted') { p.stale = true; return; }
         if (!p.edited) p.text = draft(c.id, ev);
-        if (p.status === 'approved') { p.status = 'review'; p.by = ''; }
+        if (p.status === 'approved') toReview(p);
       });
       ev.log.push([nowStamp(), `${ME} edited the details`]);
       toast('Saved');
