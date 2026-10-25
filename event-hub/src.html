@@ -757,12 +757,25 @@ legend { font-size: 13px; font-weight: 700; color: var(--ink-2); margin-bottom: 
 .who-tbl tfoot td { border-bottom: 0; padding-top: 10px; vertical-align: middle; }
 .who-tbl input, .who-tbl select { width: 100%; border: 1px solid var(--line-2); border-radius: 8px; padding: 7px 9px; background: var(--surface); font-size: 14px; color: var(--ink); }
 .who-tbl .twin { font-weight: 700; }
-/* on a phone each task is a card: what (and Remove) on top, then who, then where it stands */
-@media (max-width: 600px) { .who-tbl thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); } }
-@media (max-width: 600px) { .who-tbl tr { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--line); } .who-tbl td { display: block; width: auto !important; padding: 3px 0; border-bottom: 0; } }
-@media (max-width: 600px) { .who-tbl tbody tr.cant { background: var(--flag-soft); margin: 0 -10px; padding-inline: 10px; border-radius: 8px; } .who-tbl tr.cant > td { background: transparent; } }
-@media (max-width: 600px) { .who-tbl .tw { grid-column: 1; } .who-tbl .rm { grid-column: 2; grid-row: 1; } .who-tbl .tp, .who-tbl .ts { grid-column: 1 / -1; } }
-@media (max-width: 600px) { .who-tbl tfoot tr { border-bottom: 0; } .who-tbl tfoot .ts { display: none; } .who-tbl tfoot .tp { grid-row: 2; } }
+/* the list lays itself out by the room it has (the event pop-up is narrow even on a laptop):
+   a table when there's space, otherwise each item is a compact card: what and Remove, then who and status side by side */
+#tasks-body { container-type: inline-size; }
+.who-tbl .trow { display: table-row; }
+.who-tbl select, .who-tbl input { padding: 5px 8px; font-size: 13.5px; border-radius: 8px; }
+.who-tbl tbody td { padding-block: 7px; }
+@container (max-width: 560px) {
+  .who-tbl, .who-tbl tbody, .who-tbl tfoot { display: block; width: 100%; }
+  .who-tbl thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .who-tbl tr, .who-tbl tr.trow { display: grid; width: 100%; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; column-gap: 8px; row-gap: 4px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+  .who-tbl td { display: block; width: auto !important; padding: 0 !important; border-bottom: 0; }
+  .who-tbl .tw { grid-column: 1 / 3; } .who-tbl .rm { grid-column: 3; grid-row: 1; align-self: center; }
+  .who-tbl .tp { grid-column: 1; } .who-tbl .ts { grid-column: 2 / 4; }
+  .who-tbl .twhat { padding: 2px 0; }
+  .who-tbl .tsub { margin-top: 2px; }
+  .who-tbl tbody tr.cant { background: var(--flag-soft); margin: 0 -10px; padding-inline: 10px; border-radius: 8px; } .who-tbl tr.cant > td { background: transparent; }
+  .who-tbl tfoot tr { border-bottom: 0; } .who-tbl tfoot .ts { display: none; } .who-tbl tfoot .tp { grid-row: 2; }
+}
+@container (max-width: 340px) { .who-tbl .tp, .who-tbl .ts { grid-column: 1 / -1; } }
 
 .osum { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 15px; color: var(--ink-2); }
 .osum b { color: var(--ink); }
