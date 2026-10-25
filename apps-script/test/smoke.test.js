@@ -388,6 +388,108 @@ test('the Netlify and Google-hosted pages use the same error script', () => {
   assert.equal(onErr(head), onErr(google), 'build.py on_err and Code.js ON_ERROR match');
 });
 
+/* ---------- icons and the event pop-up ---------- */
+const ICONS = ['x', 'arrow-left', 'arrow-down', 'log-in', 'log-out', 'calendar', 'calendar-plus', 'clock', 'map-pin', 'users', 'user-plus', 'user-minus', 'user-check',
+  'pencil', 'send', 'link', 'copy', 'share', 'file-text', 'list-ordered', 'package', 'lightbulb', 'alert-triangle', 'heart', 'sprout', 'shovel', 'handshake', 'image',
+  'lock', 'mail', 'phone', 'message-circle', 'history', 'eye', 'rotate-ccw', 'printer', 'help-circle', 'download', 'plus', 'check', 'out'];
+const GLYPHS = /[↗←×↓✓]/;
+/* every icon on screen points at a symbol in the sprite and is hidden from screen readers */
+function checkIcons(p, where) {
+  const uses = p.$$('use').map(u => u.getAttribute('href')).filter(h => h.startsWith('#i-'));
+  const missing = [...new Set(uses)].filter(h => !p.d.querySelector('symbol' + h));
+  assert.deepEqual(missing, [], `icons with no symbol (${where})`);
+  const loud = p.$$('svg.ic').filter(svg => svg.getAttribute('aria-hidden') !== 'true');
+  assert.equal(loud.length, 0, `icons that screen readers would read (${where})`);
+  const typed = p.$$('a, button').filter(el => GLYPHS.test(el.textContent)).map(el => el.textContent.trim());
+  assert.deepEqual(typed, [], `typed arrows or crosses in links and buttons (${where})`);
+  const mute = p.$$('button').filter(b => !b.textContent.trim() && !b.getAttribute('aria-label'));
+  assert.deepEqual(mute.map(b => b.outerHTML.slice(0, 80)), [], `icon-only buttons need an aria-label (${where})`);
+}
+
+test('icons: the sprite has the set, every icon resolves, and none are read aloud', async t => {
+  const p = await openPage(t);
+  for (const n of ICONS) {
+    const sym = p.$('symbol#i-' + n);
+    assert.ok(sym, 'symbol i-' + n);
+    assert.equal(sym.getAttribute('viewBox'), '0 0 24 24', n + ' uses the 24px grid');
+    const g = sym.querySelector('g');
+    assert.ok(g && g.getAttribute('stroke') === 'currentColor' && g.getAttribute('stroke-width') === '2' && g.getAttribute('fill') === 'none', n + ' uses the shared stroke style');
+  }
+  checkIcons(p, 'landing');
+  assert.ok(p.$('#signin-top use[href="#i-log-in"]') && p.$('#signout use[href="#i-log-out"]'), 'sign in and sign out icons');
+  assert.ok(p.$$('#involved .ic-chip').length === 3 && p.$$('#involved .ic-chip').every(i => i.tagName === 'I'), 'the three get-involved cards have an icon chip (an <i>, not a span)');
+  assert.ok(!p.$('#join > svg'), 'the Join us watermark is drawn by CSS, so every svg in #join is an icon');
+  assert.ok(p.$$('#nextup button .meta use[href="#i-calendar"]').length >= 1 && p.$$('#nextup button .meta use[href="#i-map-pin"]').length >= 1, 'when and where on the event cards');
+  for (const id of ['vj-err', 'si-err', 'ap-err']) assert.equal(p.$('#' + id).getAttribute('role'), 'alert', id + ' is announced');
+
+  // an error message keeps its words when the script sets them (the warning icon is CSS)
+  p.$('#joinf button[type=submit]').click();
+  assert.equal(p.$('#vj-err').textContent, 'Add your name so we know who to welcome.');
+
+  await signIn(p, 'Jessie');
+  checkIcons(p, 'events');
+  assert.deepEqual(p.$$('.tabs a').filter(p.visible).map(a => a.querySelector('use').getAttribute('href')), ['#i-calendar', '#i-users', '#i-image', '#i-help-circle']);
+  assert.ok(p.$('#attn use[href="#i-send"]'), 'the attention bar is marked as posts to send');
+  p.$('#tiles [data-open="w7"]').click();
+  await waitFor(() => p.$('#detail #dp-plan'), 2000, 'Workday #7 to open');
+  checkIcons(p, 'event plan');
+  assert.deepEqual(p.$$('#detail .dh .fact use').map(u => u.getAttribute('href')), ['#i-calendar', '#i-clock', '#i-map-pin', '#i-out']);
+  assert.deepEqual(p.$$('#detail .fold').map(f => f.querySelector('use')?.getAttribute('href')), ['#i-users', '#i-list-ordered', '#i-package', '#i-history']);
+  assert.ok(p.$$('#detail [data-tdel]').every(b => b.querySelector('use[href="#i-x"]') && /^Remove /.test(b.getAttribute('aria-label'))), 'remove buttons: an x icon and a label');
+  p.$('#detail [data-dtab="outreach"]').click();
+  p.$('#dp-out [data-act=toggle]').click();
+  checkIcons(p, 'outreach');
+  assert.ok(p.$$('#dp-out [data-act=post]').every(b => b.querySelector('use[href="#i-copy"], use[href="#i-send"]')), 'post buttons say copy or send');
+  p.$('#detail [data-dtab="plan"]').click();
+  p.$('#edit-ev').click();
+  await waitFor(() => p.$('#editf'), 2000, 'the edit form');
+  checkIcons(p, 'edit form');
+  assert.equal(p.$('#ed-err').getAttribute('role'), 'alert');
+  assert.ok(p.$('#editf [data-cancel] use[href="#i-x"]') && p.$('#editf button[type=submit] use[href="#i-check"]'), 'Cancel and Save icons');
+  p.$('#editf [data-cancel]').click();
+  p.$('#m-x').click();
+
+  p.$('.tabs a[data-tab=team]').click();
+  checkIcons(p, 'team');
+  assert.ok(p.$$('#team-tbl [data-rm]').every(b => b.getAttribute('aria-label') === 'Remove ' + b.closest('tr').querySelector('b').textContent), 'Remove names the person');
+  // toasts with an icon still show the words as plain text
+  p.set('#ap-name', 'Sam <b>Lee</b>');
+  p.set('#ap-contact', 'sam.lee@example.org');
+  p.$('#addp button[type=submit]').click();
+  const toast = p.$('#toast');
+  assert.equal(toast.textContent, 'Sam <b>Lee</b> added as volunteer');
+  assert.ok(toast.querySelector('use[href="#i-check"]') && !toast.querySelector('b'), 'a check icon, and the name is not HTML');
+  assert.ok(p.$('#team-tbl use[href="#i-mail"]'), 'an email contact gets a mail icon');
+  await waitFor(p.idle, 2000, 'calls to finish');
+  p.noErrors();
+});
+
+test('the event pop-up: Close has an x icon, the page behind is inert, Tab stays inside, focus comes back', async t => {
+  const p = await openPage(t);
+  await signIn(p);
+  const tile = p.$('#tiles [data-open="w7"]');
+  tile.focus();
+  tile.click();
+  await waitFor(() => p.$('#detail #dp-plan'), 2000, 'the pop-up');
+  const close = p.$('#m-x');
+  assert.ok(close.querySelector('svg.ic use[href="#i-x"]'), 'the Close button shows an x');
+  assert.equal(close.textContent, 'Close');
+  assert.ok(p.$('main').hasAttribute('inert') && p.$('header.top').hasAttribute('inert'), 'the page behind is inert');
+  const box = p.$('#modal .mbox');
+  const focusable = [...box.querySelectorAll('a[href], button, input, select, textarea')].filter(el => !el.disabled && !el.closest('[hidden]'));
+  const first = focusable[0], last = focusable.at(-1);
+  const tab = (el, shiftKey = false) => el.dispatchEvent(new p.w.KeyboardEvent('keydown', { key: 'Tab', shiftKey, bubbles: true, cancelable: true }));
+  last.focus(); tab(last);
+  assert.equal(p.d.activeElement, first, 'Tab on the last control wraps to the first');
+  first.focus(); tab(first, true);
+  assert.equal(p.d.activeElement, last, 'Shift+Tab on the first control wraps to the last');
+  p.d.dispatchEvent(new p.w.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+  assert.ok(!p.shown('#modal'), 'Escape closes it');
+  assert.ok(!p.$('main').hasAttribute('inert') && !p.$('header.top').hasAttribute('inert'), 'the page is usable again');
+  assert.equal(p.d.activeElement.dataset.open, 'w7', 'focus is back on the event tile');
+  p.noErrors();
+});
+
 /* ---------- the prototype artifact keeps working ---------- */
 test('the prototype artifact still runs with its own sign-in, Viewing as, architecture page and simulated posts', async t => {
   const p = loadPage(t, ARTIFACT, 'http://localhost/artifact');

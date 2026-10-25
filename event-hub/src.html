@@ -9,7 +9,7 @@
 /* Layout: one working screen. Event list on the left, the selected event's channels on the right. */
 :root {
   --paper: #F1F3EA; --surface: #FAFBF5; --raised: #FFFFFF;
-  --ink: #1B2A21; --ink-2: #4A5A4F; --ink-3: #737F75;
+  --ink: #1B2A21; --ink-2: #4A5A4F; --ink-3: #5F6B61; /* 4.98:1 on --paper, so small text stays readable */
   --line: #DADFCF; --line-2: #C5CCB9;
   --fern: #376451; --fern-ink: #FFFFFF; --fern-soft: #E1EAD9;
   --sage: #8AA37C;
@@ -23,6 +23,9 @@
   --mono: "Atkinson Hyperlegible Mono", ui-monospace, "SF Mono", Menlo, monospace;
   /* fixed brand colors for printed and social pieces */
   --b-sage: #8AA37C; --b-sage-deep: #6E8962; --b-canopy: #1C3A2B; --b-fern: #376451; --b-cream: #F6F1E3; --b-lemon: #F2C14E; --b-soil: #5E4434;
+  /* the Guild mark without its disc, for the Join us watermark. Slashes in these data URLs are written %2F, since Apps Script cuts lines at a double slash */
+  --mark-lines: url("data:image/svg+xml,%3Csvg xmlns='http:%2F%2Fwww.w3.org%2F2000%2Fsvg' viewBox='0 0 64 64'%3E%3Ccircle cx='45' cy='20' r='7' fill='%23F2C14E'/%3E%3Cg fill='none' stroke='%23F6F1E3' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M7 41C17 35 25 35 33 40C41 45 49 43 57 37'/%3E%3Cpath d='M11 48.5C17 45.5 22 51 29 48.5C36 46 41 51.5 48 48.5C50 47.6 51.5 47 53 47.2'/%3E%3Cpath d='M28 38V22'/%3E%3Cpath d='M28 27C28 21 32.5 17.5 38 17.5C38 23 33.5 27 28 27Z'/%3E%3Cpath d='M28 31C28 26 23.5 22.5 18 23C18 28 22.5 31 28 31Z'/%3E%3C/g%3E%3C/svg%3E");
+  --i-alert: url("data:image/svg+xml,%3Csvg xmlns='http:%2F%2Fwww.w3.org%2F2000%2Fsvg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3'/%3E%3Cpath d='M12 9v4M12 17h.01'/%3E%3C/svg%3E");
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
@@ -70,7 +73,30 @@ a { color: var(--fern); }
 .who > span:last-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .who b { color: var(--ink); }
 .vh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-@media (max-width: 640px) { .tabs { margin-left: 0; } }
+.tabs a { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.tabs a .ic { width: 15px; height: 15px; }
+/* narrower screens: the name and account on one row, the section tabs on a second row that scrolls sideways if it must */
+@media (max-width: 1180px) {
+  .top .wrap { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 10px; }
+  .lock { min-width: 0; }
+  .lock b { min-width: 0; }
+  .topbtns { grid-column: 2; grid-row: 1; flex-wrap: nowrap; }
+  .tabs { grid-column: 1 / -1; margin: 0 -16px; padding: 0 16px 2px; overflow-x: auto; scrollbar-width: none; }
+}
+/* phones: a smaller two-line name, the avatar alone in the chip (its words stay for screen readers), no tab icons */
+@media (max-width: 640px) {
+  .lock { gap: 8px; }
+  .lock b { font-size: 16px; line-height: 1.15; }
+  .lock span { display: none; }
+  .tabs a { padding: 7px 11px; }
+  .tabs a .ic { display: none; }
+  .who { padding: 3px; }
+  .who > span:last-child { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+}
+@media (max-width: 400px) { #signout .ic { display: none; } }
+
+/* icons: the symbol sprite below this stylesheet, used through ic() in the script */
+.ic { width: 16px; height: 16px; flex: none; vertical-align: -3px; }
 
 /* buttons, pills */
 .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; border: 1px solid transparent; border-radius: 999px; padding: 8px 14px; font-weight: 700; font-size: 14px; cursor: pointer; text-decoration: none; line-height: 1.1; white-space: nowrap; }
@@ -101,6 +127,8 @@ main { padding-block: 24px 64px; }
 .attn { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 12px 14px; border-radius: 12px; background: var(--lemon-soft); color: var(--ink); margin-bottom: 18px; }
 .attn b { color: var(--lemon-ink); }
 .attn .grow { flex: 1; min-width: 200px; }
+.attn > .ic { color: var(--lemon-ink); width: 18px; height: 18px; }
+.attn.ok > .ic { color: var(--fern); }
 .attn.ok { background: var(--fern-soft); }
 .attn.ok b { color: var(--fern); }
 .layout { display: grid; grid-template-columns: minmax(0, 360px) minmax(0, 1fr); gap: 18px; align-items: start; }
@@ -134,7 +162,10 @@ main { padding-block: 24px 64px; }
 @media (max-width: 560px) { .detail { padding: 16px; } }
 .dh { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; align-items: start; }
 .dh h2 { font-size: clamp(24px, 3vw, 30px); }
-.dh .meta { color: var(--ink-2); margin-top: 6px; font-size: 14px; }
+.dh .meta { color: var(--ink-2); margin-top: 6px; font-size: 14px; display: flex; flex-wrap: wrap; gap: 4px 14px; }
+.dh .fact { display: inline-flex; align-items: center; gap: 6px; }
+.dh .fact .ic, .doc-kv .ic { width: 15px; height: 15px; color: var(--ink-3); }
+a .ic.out { width: 13px; height: 13px; margin-left: 3px; vertical-align: -1px; }
 .dh .actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .about { color: var(--ink-2); max-width: 70ch; }
 .tags { display: flex; gap: 6px; flex-wrap: wrap; }
@@ -160,7 +191,8 @@ main { padding-block: 24px 64px; }
 .ch-row b { font-size: 15px; display: block; }
 .ch-row .sub { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-top: 3px; font-size: 12px; color: var(--ink-3); }
 .ca { display: flex; gap: 6px; align-items: center; justify-content: flex-end; flex-wrap: wrap; }
-.tog { border: 0; background: transparent; color: var(--ink-2); font-size: 13px; font-weight: 700; cursor: pointer; padding: 6px 4px; text-decoration: underline; text-underline-offset: 3px; }
+.tog { border: 0; background: transparent; color: var(--ink-2); font-size: 13px; font-weight: 700; cursor: pointer; padding: 6px 4px; text-decoration: underline; text-underline-offset: 3px; display: inline-flex; align-items: center; gap: 6px; }
+.tog .ic { width: 14px; height: 14px; }
 .ch-body { border-top: 1px solid var(--line); padding: 12px; display: grid; gap: 8px; }
 .ch-body textarea { width: 100%; min-height: 140px; resize: vertical; border: 1px solid var(--line-2); border-radius: 10px; padding: 10px 12px; background: var(--surface); line-height: 1.5; font-size: 14px; }
 .ch-body textarea:focus { outline: none; border-color: var(--fern); box-shadow: 0 0 0 3px var(--fern-soft); }
@@ -180,6 +212,8 @@ main { padding-block: 24px 64px; }
 .fld { display: grid; gap: 4px; font-size: 13px; font-weight: 700; color: var(--ink-2); }
 .fld input, .fld textarea, .fld select { border: 1px solid var(--line-2); border-radius: 8px; padding: 9px 10px; background: var(--raised); font-weight: 400; font-size: 15px; color: var(--ink); width: 100%; min-width: 0; }
 .fld textarea { min-height: 88px; resize: vertical; line-height: 1.45; }
+.fld .fl { display: inline-flex; align-items: center; gap: 6px; }
+.fld .fl .ic { width: 14px; height: 14px; color: var(--ink-3); }
 .fld input:focus, .fld textarea:focus, .fld select:focus { outline: none; border-color: var(--fern); }
 .r2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
 .r3 { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
@@ -192,7 +226,8 @@ legend { font-size: 13px; font-weight: 700; color: var(--ink-2); margin-bottom: 
 .picks span { display: inline-flex; align-items: center; gap: 6px; padding: 6px 11px; border-radius: 999px; border: 1px solid var(--line-2); font-size: 13px; font-weight: 700; background: var(--raised); }
 .picks input:checked + span { background: var(--fern); border-color: var(--fern); color: var(--fern-ink); }
 .picks input:focus-visible + span { outline: 2.5px solid var(--lemon); outline-offset: 2px; }
-.err { color: var(--flag); font-weight: 700; font-size: 14px; }
+.err { color: var(--flag); font-weight: 700; font-size: 14px; display: flex; gap: 8px; align-items: flex-start; }
+.err::before { content: ""; flex: none; width: 16px; height: 16px; margin-top: 2px; background: currentColor; -webkit-mask: var(--i-alert) center / contain no-repeat; mask: var(--i-alert) center / contain no-repeat; }
 .hint { font-size: 13px; color: var(--ink-3); }
 
 /* materials */
@@ -302,6 +337,7 @@ legend { font-size: 13px; font-weight: 700; color: var(--ink-2); margin-bottom: 
 .mat { display: grid; gap: 6px; margin: 0; min-width: 0; }
 .mat figcaption { font-size: 12px; color: var(--ink-3); }
 .mat figcaption b { color: var(--ink); font-weight: 700; }
+.mat figcaption .ic, .hstrip figcaption .ic { width: 13px; height: 13px; vertical-align: -2px; margin-right: 4px; }
 .mats-h { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
 .mats-h h3 { font: 700 16px/1.3 var(--body); }
 .mats-h select { border: 1px solid var(--line-2); border-radius: 999px; padding: 5px 10px; background: var(--raised); font-size: 13px; }
@@ -313,12 +349,14 @@ legend { font-size: 13px; font-weight: 700; color: var(--ink-2); margin-bottom: 
 @media (max-width: 560px) { .mgal .w2 { grid-column: auto; } }
 .msec { display: grid; gap: 14px; margin-bottom: 40px; }
 .msec-h { display: flex; justify-content: space-between; align-items: end; gap: 12px; flex-wrap: wrap; }
-.msec-h h2 { font-size: clamp(22px, 3vw, 28px); }
+.msec-h h2 { font-size: clamp(22px, 3vw, 28px); display: inline-flex; align-items: center; gap: 10px; }
+.msec-h h2 .ic { width: .8em; height: .8em; color: var(--fern); }
 
 .fold { display: inline-flex; align-items: center; gap: 8px; border: 0; background: transparent; padding: 4px 0; cursor: pointer; font: 700 16px/1.3 var(--body); color: var(--ink); }
 .fold::before { content: ""; width: 8px; height: 8px; border-right: 2px solid var(--ink-3); border-bottom: 2px solid var(--ink-3); transform: rotate(45deg); margin: -3px 2px 0 2px; transition: transform .15s; }
 .fold[aria-expanded="false"]::before { transform: rotate(-45deg); margin-top: 0; }
 .fold .cnt { font: 400 13px/1 var(--body); color: var(--ink-3); }
+.fold .ic { color: var(--fern); }
 
 /* tasks */
 .tasks { display: grid; gap: 6px; }
@@ -351,13 +389,17 @@ legend { font-size: 13px; font-weight: 700; color: var(--ink-2); margin-bottom: 
 .whosel { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--ink-3); }
 .whosel select { border: 1px solid var(--line-2); border-radius: 999px; padding: 5px 10px; background: var(--raised); font-size: 13px; font-weight: 700; color: var(--ink); }
 /*/PROTO*/
-.perm-note { font-size: 13px; color: var(--ink-3); padding: 8px 12px; border-radius: 10px; background: var(--paper); border: 1px dashed var(--line-2); }
+.perm-note { font-size: 13px; color: var(--ink-3); padding: 8px 12px; border-radius: 10px; background: var(--paper); border: 1px dashed var(--line-2); display: flex; gap: 8px; align-items: flex-start; }
+.perm-note .ic { width: 15px; height: 15px; margin-top: 2px; }
 .team td, .team th { white-space: nowrap; }
 .team td:first-child { white-space: normal; min-width: 160px; }
 .team td.c, .team th.c { text-align: center; }
 .team input[type=checkbox] { accent-color: var(--fern); width: 16px; height: 16px; }
 .team select { border: 1px solid var(--line-2); border-radius: 8px; padding: 5px 8px; background: var(--raised); font-size: 13px; }
 .team .nm { display: flex; gap: 10px; align-items: center; }
+.team td .ic { width: 14px; height: 14px; vertical-align: -2px; margin-right: 5px; color: var(--ink-3); }
+.team th .thi { display: inline-flex; flex-direction: column; align-items: center; gap: 4px; }
+.team th .ic { width: 15px; height: 15px; }
 .warnchip { display: inline-block; margin-top: 2px; padding: 2px 8px; border-radius: 999px; background: var(--flag-soft); color: var(--flag); font-size: 12px; font-weight: 700; line-height: 1.4; white-space: nowrap; }
 .team td.vol-empty { white-space: normal; padding: 16px 14px; }
 .av { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font: 700 12px/1 var(--body); color: #1C3A2B; flex: none; }
@@ -367,7 +409,10 @@ legend { font-size: 13px; font-weight: 700; color: var(--ink-2); margin-bottom: 
 .roles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 18px; }
 @media (max-width: 760px) { .roles { grid-template-columns: 1fr; } }
 .roles div { padding: 14px; border-radius: 12px; background: var(--surface); border: 1px solid var(--line); display: grid; gap: 4px; }
-.roles b { font-size: 15px; }
+.roles b { font-size: 15px; display: flex; align-items: center; gap: 6px; }
+.roles b .ic { color: var(--fern); }
+.h2i { display: flex; align-items: center; gap: 10px; }
+.h2i .ic { width: .8em; height: .8em; color: var(--fern); }
 .roles span { font-size: 13px; color: var(--ink-2); }
 
 /* event plan */
@@ -380,7 +425,7 @@ legend { font-size: 13px; font-weight: 700; color: var(--ink-2); margin-bottom: 
 .run li.leads { background: var(--paper); }
 .run li.leads .tm { color: var(--ink-3); }
 .run .own { font-size: 12px; font-weight: 700; color: var(--ink-3); }
-.x { border: 0; background: transparent; color: var(--ink-3); cursor: pointer; font-size: 15px; padding: 0 4px; line-height: 1; }
+.x { border: 0; background: transparent; color: var(--ink-3); cursor: pointer; font-size: 15px; padding: 4px; line-height: 1; display: inline-grid; place-items: center; border-radius: 6px; }
 .x:hover { color: var(--flag); }
 .mini { display: flex; gap: 6px; flex-wrap: wrap; }
 .mini input { flex: 1; min-width: 120px; border: 1px solid var(--line-2); border-radius: 8px; padding: 6px 9px; background: var(--surface); font-size: 13px; }
@@ -393,6 +438,7 @@ legend { font-size: 13px; font-weight: 700; color: var(--ink-2); margin-bottom: 
 .pp .av { width: 24px; height: 24px; font-size: 10px; }
 .pp.pending { border-style: dashed; color: var(--ink-3); }
 .pp.open { border-style: dashed; color: var(--flag); padding-left: 10px; }
+.pp .ic { width: 14px; height: 14px; }
 .areas { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 10px; }
 .area { border: 1px solid var(--line); border-radius: 12px; background: var(--raised); padding: 12px; display: grid; gap: 7px; align-content: start; }
 .area h4 { margin: 0; font: 700 14px/1.3 var(--body); display: flex; justify-content: space-between; gap: 8px; }
@@ -469,6 +515,7 @@ legend { font-size: 13px; font-weight: 700; color: var(--ink-2); margin-bottom: 
 .tile h3 { font: 400 20px/1.15 var(--display); }
 .tile .lbl { font: 600 11px/1.3 var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--fern); }
 .tile .m { font-size: 13px; color: var(--ink-3); }
+.tile .m .ic { width: 13px; height: 13px; vertical-align: -2px; margin-right: 3px; }
 .tchips { display: flex; gap: 6px; flex-wrap: wrap; }
 .tilebar { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
 /* event pop-up + full page */
@@ -494,24 +541,31 @@ legend { font-size: 13px; font-weight: 700; color: var(--ink-2); margin-bottom: 
 .who-tbl td:nth-child(2) { width: 34%; font-weight: 700; }
 .who-tbl .rm { width: 1%; white-space: nowrap; text-align: right; }
 .who-tbl .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
-.who-tbl .needs { color: var(--flag); font-weight: 700; }
+.who-tbl .needs { color: var(--flag); font-weight: 700; display: inline-flex; align-items: center; gap: 5px; }
+.who-tbl .needs .ic { width: 14px; height: 14px; }
 .who-tbl .last { display: block; font-size: 12px; font-weight: 400; color: var(--ink-3); }
 .who-tbl tfoot td { border-bottom: 0; padding-top: 10px; }
 .who-tbl input, .who-tbl select { width: 100%; border: 1px solid var(--line-2); border-radius: 8px; padding: 7px 9px; background: var(--surface); font-size: 14px; }
 
 .osum { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 15px; color: var(--ink-2); }
 .osum b { color: var(--ink); }
+.osum .ic { margin-right: 6px; color: var(--fern); }
 .olist { list-style: none; margin: 0; padding: 0; border: 1px solid var(--line); border-radius: 12px; background: var(--raised); }
 .orow { display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 10px 14px; border-top: 1px solid var(--line); }
 .orow:first-child { border-top: 0; }
 .oname { border: 0; background: transparent; padding: 0; text-align: left; cursor: pointer; font: 700 15px/1.3 var(--body); color: var(--ink); display: grid; gap: 1px; }
 .oname .hint { font-weight: 400; font-size: 12px; }
 .oname:hover .hint { color: var(--fern); text-decoration: underline; }
-.orow .done { font-size: 13px; font-weight: 700; color: var(--fern); white-space: nowrap; }
+.orow .done { font-size: 13px; font-weight: 700; color: var(--fern); white-space: nowrap; display: inline-flex; align-items: center; gap: 4px; }
+.orow .done .ic { width: 14px; height: 14px; }
+.obody a.hint { display: inline-flex; align-items: center; gap: 4px; justify-self: start; }
+.obody a.hint .ic { width: 13px; height: 13px; }
 .obody { grid-column: 1 / -1; display: grid; gap: 6px; }
 .obody textarea { width: 100%; min-height: 130px; resize: vertical; border: 1px solid var(--line-2); border-radius: 10px; padding: 10px 12px; background: var(--surface); line-height: 1.5; font-size: 14px; }
 .obody textarea:focus { outline: none; border-color: var(--fern); }
 .addch { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.addch .hint { display: inline-flex; align-items: center; gap: 4px; }
+.addch .hint .ic { width: 14px; height: 14px; }
 .addch select { border: 1px solid var(--line-2); border-radius: 999px; padding: 6px 10px; background: var(--raised); font-size: 13px; }
 
 .plainareas { display: grid; gap: 8px; }
@@ -524,6 +578,7 @@ legend { font-size: 13px; font-weight: 700; color: var(--ink-2); margin-bottom: 
 .editdoc .fld { font-size: 13px; }
 .edit-h { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
 .edit-f { display: flex; justify-content: flex-end; padding-top: 6px; border-top: 1px solid var(--line); }
+.edit-h .grp, .edit-f .grp { display: flex; gap: 8px; flex-wrap: wrap; }
 
 .hosting { display: grid; gap: 10px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
 .hrow { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 10px; align-items: center; }
@@ -594,11 +649,13 @@ body.out .topbtns { margin-left: auto; }
 .nextup .nb { padding: 14px 16px; display: grid; gap: 2px; }
 .nextup .nb b { font: 400 19px/1.2 var(--display); }
 .nextup .nb span { font-size: 13px; color: var(--ink-3); }
+.nb .meta { display: flex; align-items: center; gap: 6px; }
+.nb .meta .ic { width: 14px; height: 14px; }
 .lcta { text-align: center; padding: 48px 20px; border-radius: 24px; background: var(--fern); color: var(--fern-ink); display: grid; gap: 14px; justify-items: center; position: relative; overflow: hidden; }
 .lcta h2 { font: 400 clamp(28px, 4vw, 40px)/1.1 var(--display); color: inherit; }
 .lcta p { opacity: .9; }
 .lcta .btn { background: var(--lemon); color: #2A2208; }
-.lcta svg { position: absolute; width: 220px; height: 220px; right: -40px; bottom: -60px; opacity: .25; --mk-bg: transparent; }
+.lcta::after { content: ""; position: absolute; width: 220px; height: 220px; right: -40px; bottom: -60px; opacity: .25; pointer-events: none; background: var(--mark-lines) center / contain no-repeat; }
 /* sign in */
 .signin { min-height: min(720px, 82vh); display: grid; place-items: center; padding-block: 24px; }
 .scard { width: min(440px, 100%); background: var(--surface); border: 1px solid var(--line); border-radius: 20px; box-shadow: var(--shadow); padding: 32px 28px; display: grid; gap: 16px; animation: up .6s cubic-bezier(.2, .7, .2, 1) both; }
@@ -633,6 +690,8 @@ body.out .topbtns { margin-left: auto; }
 .meet-kv dt { font-size: 13px; font-weight: 700; color: var(--ink-3); }
 .meet-kv dd { margin: 0; }
 .lsteps.plain li::before { content: none; }
+.ic-chip { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; background: var(--fern-soft); color: var(--fern); }
+.ic-chip .ic { width: 20px; height: 20px; }
 .partners { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
 @media (max-width: 700px) { .partners { grid-template-columns: 1fr; } }
 .partners div { padding: 22px; border-radius: 16px; background: var(--surface); border: 1px solid var(--line); display: grid; gap: 6px; }
@@ -657,7 +716,8 @@ body.out .topbtns { margin-left: auto; }
 .mday b { font: 400 30px/1 var(--display); }
 .mk { font: 600 11px/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--b-lemon); }
 .mt { font: 400 28px/1.1 var(--display); }
-.nextup .nb .rsvp, .mcard .rsvp { color: var(--fern); font-weight: 700; font-size: 13px; }
+.nextup .nb .rsvp, .mcard .rsvp { color: var(--fern); font-weight: 700; font-size: 13px; display: inline-flex; align-items: center; gap: 6px; }
+.rsvp .ic { width: 14px; height: 14px; }
 .mcard .nb { padding: 14px 16px; display: grid; gap: 2px; }
 .mcard .nb b { font: 400 19px/1.2 var(--display); }
 .mcard .nb > span { font-size: 13px; color: var(--ink-3); }
@@ -681,7 +741,8 @@ body.out .topbtns { margin-left: auto; }
 .glist .n { width: 32px; height: 32px; border-radius: 50%; background: var(--fern); color: var(--fern-ink); display: grid; place-items: center; font: 700 14px var(--mono); }
 .glist b { display: block; font: 400 19px/1.2 var(--display); }
 .glist span { font-size: 13px; color: var(--ink-3); display: block; }
-.glist .go { color: var(--fern); font-weight: 700; font-size: 13px; margin-top: 4px; }
+.glist .go { color: var(--fern); font-weight: 700; font-size: 13px; margin-top: 4px; display: inline-flex; align-items: center; gap: 6px; }
+.glist .go .ic { width: 14px; height: 14px; }
 
 .gmap-art .tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; filter: saturate(.75) sepia(.12); }
 .gmap-art .tiles i { display: block; aspect-ratio: 1; background-size: cover; }
@@ -704,7 +765,10 @@ body.out .topbtns { margin-left: auto; }
 
 .lsteps .linkcard { padding: 0; }
 .lsteps .linkcard a { display: grid; gap: 8px; padding: 22px; color: inherit; text-decoration: none; height: 100%; }
-.lsteps .linkcard .go { color: var(--fern); font-weight: 700; font-size: 14px; }
+.lsteps .linkcard .go { color: var(--fern); font-weight: 700; font-size: 14px; display: inline-flex; align-items: center; gap: 6px; }
+.lsteps .linkcard .go .ic { width: 15px; height: 15px; }
+#vj-picks span .ic { display: none; width: 13px; height: 13px; }
+#vj-picks input:checked + span .ic { display: block; }
 .join { display: grid; grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr); gap: 32px; align-items: start; padding: 32px; border-radius: 22px; background: var(--surface); border: 1px solid var(--line); scroll-margin-top: 80px; }
 @media (max-width: 800px) { .join { grid-template-columns: 1fr; padding: 20px; } }
 .join h2 { margin-bottom: 8px; }
@@ -712,7 +776,9 @@ body.out .topbtns { margin-left: auto; }
 .joinrow { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
 .joined { grid-column: 2; padding: 22px; border-radius: 16px; background: var(--fern-soft); display: grid; gap: 6px; }
 @media (max-width: 800px) { .joined { grid-column: 1; } }
-.joined b { font: 400 24px/1.2 var(--display); }
+.joined b { font: 400 24px/1.2 var(--display); display: flex; align-items: center; gap: 10px; }
+.joined b .ic-chip { width: 32px; height: 32px; background: var(--fern); color: var(--fern-ink); }
+.joined b .ic { width: 18px; height: 18px; }
 
 .lcta.combo { text-align: left; justify-items: stretch; display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); gap: 32px; align-items: center; padding: 40px; scroll-margin-top: 80px; }
 @media (max-width: 860px) { .lcta.combo { grid-template-columns: 1fr; padding: 24px; } }
@@ -793,7 +859,14 @@ td code, .code code { font: 400 13px/1.5 var(--mono); }
 .helpg .btn { justify-self: start; }
 .toast { position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%) translateY(16px); background: var(--ink); color: var(--paper); padding: 10px 16px; border-radius: 999px; font-weight: 700; font-size: 14px; opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; z-index: 60; max-width: calc(100% - 32px); text-align: center; }
 .toast.on { opacity: 1; transform: translateX(-50%) translateY(0); }
+.toast .ic { margin-right: 6px; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+/* phones: small buttons and inline action links are at least 44px tall, so they're easy to tap */
+@media (max-width: 600px) {
+  .btn.sm, .tog, .x, .obody a.hint, .dh .meta a, .doc-kv a { min-height: 44px; }
+  .dh .meta a, .doc-kv a { display: inline-flex; align-items: center; }
+  .x { min-width: 44px; }
+}
 /*PROTO*/
 /* class="live" marks what only the live hub shows (organizer code, Help, the signed-in chip). Kept last so it wins. */
 .live { display: none !important; }
@@ -810,15 +883,61 @@ td code, .code code { font: 400 13px/1.5 var(--mono); }
       <path d="M28 38 V22"/><path d="M28 27 C28 21 32.5 17.5 38 17.5 C38 23 33.5 27 28 27Z"/><path d="M28 31 C28 26 23.5 22.5 18 23 C18 28 22.5 31 28 31Z"/>
     </g>
   </symbol>
-  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></symbol>
-  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
-  <symbol id="i-out" viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9M18 14v5H5V6h5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <!-- UI icons: 24px grid, 2px round strokes, drawn after Lucide (lucide.dev, ISC license). Use them through ic(name) in the script. -->
+  <symbol id="i-plus" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></g></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></g></symbol>
+  <symbol id="i-out" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></g></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></g></symbol>
+  <symbol id="i-arrow-left" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></g></symbol>
+  <symbol id="i-arrow-down" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="m19 12-7 7-7-7"/></g></symbol>
+  <symbol id="i-log-in" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><path d="m10 17 5-5-5-5"/><path d="M15 12H3"/></g></symbol>
+  <symbol id="i-log-out" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></g></symbol>
+  <symbol id="i-calendar" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/></g></symbol>
+  <symbol id="i-calendar-plus" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4"/><path d="M16 2v4"/><path d="M21 13V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h8"/><path d="M3 10h18"/><path d="M16 19h6"/><path d="M19 16v6"/></g></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></g></symbol>
+  <symbol id="i-map-pin" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/></g></symbol>
+  <symbol id="i-users" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></g></symbol>
+  <symbol id="i-user" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></g></symbol>
+  <symbol id="i-user-plus" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6"/><path d="M22 11h-6"/></g></symbol>
+  <symbol id="i-user-minus" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 11h-6"/></g></symbol>
+  <symbol id="i-user-check" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="m16 11 2 2 4-4"/></g></symbol>
+  <symbol id="i-pencil" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/><path d="m15 5 4 4"/></g></symbol>
+  <symbol id="i-send" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z"/><path d="m21.854 2.147-10.94 10.939"/></g></symbol>
+  <symbol id="i-link" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></g></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></g></symbol>
+  <symbol id="i-share" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><path d="m16 6-4-4-4 4"/><path d="M12 2v13"/></g></symbol>
+  <symbol id="i-file-text" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></g></symbol>
+  <symbol id="i-list-ordered" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 12h11"/><path d="M10 18h11"/><path d="M10 6h11"/><path d="M4 10h2"/><path d="M4 6h1v4"/><path d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1"/></g></symbol>
+  <symbol id="i-list-checks" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 17 2 2 4-4"/><path d="m3 7 2 2 4-4"/><path d="M13 6h8"/><path d="M13 12h8"/><path d="M13 18h8"/></g></symbol>
+  <symbol id="i-package" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z"/><path d="M12 22V12"/><path d="m3.3 7 7.703 4.734a2 2 0 0 0 1.994 0L20.7 7"/><path d="m7.5 4.27 9 5.15"/></g></symbol>
+  <symbol id="i-lightbulb" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></g></symbol>
+  <symbol id="i-alert-triangle" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></g></symbol>
+  <symbol id="i-heart" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></g></symbol>
+  <symbol id="i-sprout" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 20h10"/><path d="M10 20c5.5-2.5.8-6.4 3-10"/><path d="M9.5 9.4c1.1.8 1.8 2.2 2.3 3.7-2 .4-3.5.4-4.8-.3-1.2-.6-2.3-1.9-3-4.2 2.8-.5 4.4 0 5.5.8z"/><path d="M14.1 6a7 7 0 0 0-1.1 4c1.9-.1 3.3-.6 4.3-1.4 1-1 1.6-2.3 1.7-4.6-2.7.1-4 1-4.9 2z"/></g></symbol>
+  <symbol id="i-shovel" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 22v-5l5-5 5 5-5 5z"/><path d="M9.5 14.5 16 8"/><path d="m17 2 5 5-.5.5a3.53 3.53 0 0 1-5 0a3.53 3.53 0 0 1 0-5L17 2"/></g></symbol>
+  <symbol id="i-handshake" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m11 17 2 2a1 1 0 1 0 3-3"/><path d="m14 14 2.5 2.5a1 1 0 1 0 3-3l-3.88-3.88a3 3 0 0 0-4.24 0l-.88.88a1 1 0 1 1-3-3l2.81-2.81a5.79 5.79 0 0 1 7.06-.87l.47.28a2 2 0 0 0 1.42.25L21 4"/><path d="m21 3 1 11h-2"/><path d="M3 3 2 14l6.5 6.5a1 1 0 1 0 3-3"/><path d="M3 4h8"/></g></symbol>
+  <symbol id="i-image" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></g></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></g></symbol>
+  <symbol id="i-mail" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></g></symbol>
+  <symbol id="i-phone" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></g></symbol>
+  <symbol id="i-message-circle" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></g></symbol>
+  <symbol id="i-history" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></g></symbol>
+  <symbol id="i-eye" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></g></symbol>
+  <symbol id="i-rotate-ccw" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></g></symbol>
+  <symbol id="i-printer" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6"/><rect x="6" y="14" width="12" height="8" rx="1"/></g></symbol>
+  <symbol id="i-help-circle" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></g></symbol>
+  <symbol id="i-download" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></g></symbol>
+  <symbol id="i-crown" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11.562 3.266a.5.5 0 0 1 .876 0L15.39 8.87a1 1 0 0 0 1.516.294L21.183 5.5a.5.5 0 0 1 .798.519l-2.834 10.246a1 1 0 0 1-.956.734H5.81a1 1 0 0 1-.957-.734L2.02 6.02a.5.5 0 0 1 .798-.519l4.276 3.664a1 1 0 0 0 1.516-.294z"/><path d="M5 21h14"/></g></symbol>
+  <symbol id="i-repeat" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/></g></symbol>
+  <symbol id="i-smartphone" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="20" x="5" y="2" rx="2"/><path d="M12 18h.01"/></g></symbol>
+  <symbol id="i-quote" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 3a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2 1 1 0 0 1 1 1v1a2 2 0 0 1-2 2 1 1 0 0 0-1 1v2a1 1 0 0 0 1 1 6 6 0 0 0 6-6V5a2 2 0 0 0-2-2z"/><path d="M5 3a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2 1 1 0 0 1 1 1v1a2 2 0 0 1-2 2 1 1 0 0 0-1 1v2a1 1 0 0 0 1 1 6 6 0 0 0 6-6V5a2 2 0 0 0-2-2z"/></g></symbol>
+  <symbol id="i-signpost" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 13v8"/><path d="M12 3v3"/><path d="M18 6a2 2 0 0 1 1.387.56l2.307 2.22a1 1 0 0 1 0 1.44l-2.307 2.22A2 2 0 0 1 18 13H6a2 2 0 0 1-1.387-.56l-2.306-2.22a1 1 0 0 1 0-1.44l2.306-2.22A2 2 0 0 1 6 6z"/></g></symbol>
 </defs></svg>
 
 <header class="top">
   <div class="wrap">
     <div class="lock"><svg><use href="#mark"/></svg><b>East Bay Permaculture Guild</b><span>Event Hub</span></div>
-    <nav class="tabs" aria-label="Sections"><a href="#events" data-tab="events">Events</a><a href="#team" data-tab="team">Team</a><a href="#materials" data-tab="materials">Templates</a><a class="live" href="#help" data-tab="help">Help</a>
+    <nav class="tabs" aria-label="Sections"><a href="#events" data-tab="events"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-calendar"/></svg>Events</a><a href="#team" data-tab="team"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-users"/></svg>Team</a><a href="#materials" data-tab="materials"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-image"/></svg>Templates</a><a class="live" href="#help" data-tab="help"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-help-circle"/></svg>Help</a>
 <!--PROTO-->
 <a href="#architecture" data-tab="architecture">How we'd build it</a>
 <!--/PROTO-->
@@ -826,7 +945,7 @@ td code, .code code { font: 400 13px/1.5 var(--mono); }
 <!--PROTO-->
     <label class="whosel"><span>Viewing as</span><select id="as" aria-label="Viewing as"></select></label>
 <!--/PROTO-->
-    <div class="topbtns"><span class="who live" id="who"></span><button class="btn ghost sm" type="button" id="signout">Sign out</button><button class="btn primary sm" type="button" id="signin-top">Sign in</button></div>
+    <div class="topbtns"><span class="who live" id="who"></span><button class="btn ghost sm" type="button" id="signout"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-log-out"/></svg>Sign out</button><button class="btn primary sm" type="button" id="signin-top"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-log-in"/></svg>Sign in</button></div>
   </div>
 </header>
 
@@ -838,7 +957,7 @@ td code, .code code { font: 400 13px/1.5 var(--mono); }
         <span class="k"><i></i>Oakland · Volunteer-led</span>
         <h1><span>East Bay</span><span>Permaculture Guild</span></h1>
         <p class="sub">A community for everyone interested in permaculture, from the permie-curious to new design-course graduates to longtime designers. We meet, share resources, work on projects together and teach each other.</p>
-        <div class="cta"><a class="btn primary lg" href="#meet">Come to a meeting</a><a class="btn ghost lg" href="#involved">Get involved</a></div>
+        <div class="cta"><a class="btn primary lg" href="#meet"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-calendar"/></svg>Come to a meeting</a><a class="btn ghost lg" href="#involved"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-users"/></svg>Get involved</a></div>
       </div>
       <div class="scene" aria-hidden="true">
         <svg class="land-bg" viewBox="0 0 600 540">
@@ -863,9 +982,9 @@ td code, .code code { font: 400 13px/1.5 var(--mono); }
       <h2>Get involved with the Guild</h2>
       <p>There are lots of ways in, whether you have an afternoon or a whole project.</p>
       <ul class="lsteps plain">
-        <li class="linkcard"><a href="#join"><b>Volunteer</b><span>Help set up for meetings, pitch in at a garden work day, or volunteer with a partner organization.</span><span class="go">Join the volunteer list ↓</span></a></li>
-        <li><b>Host a project</b><span>Does your permaculture or community resilience project need support? Got an idea for one? We're testing ways to help.</span></li>
-        <li><b>Become a partner</b><span>Join a growing network of groups doing land-based and social permaculture and community resilience work.</span></li>
+        <li class="linkcard"><a href="#join"><i class="ic-chip"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-shovel"/></svg></i><b>Volunteer</b><span>Help set up for meetings, pitch in at a garden work day, or volunteer with a partner organization.</span><span class="go">Join the volunteer list<svg class="ic" aria-hidden="true" focusable="false"><use href="#i-arrow-down"/></svg></span></a></li>
+        <li><i class="ic-chip"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-sprout"/></svg></i><b>Host a project</b><span>Does your permaculture or community resilience project need support? Got an idea for one? We're testing ways to help.</span></li>
+        <li><i class="ic-chip"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-handshake"/></svg></i><b>Become a partner</b><span>Join a growing network of groups doing land-based and social permaculture and community resilience work.</span></li>
       </ul>
     </section>
 
@@ -882,19 +1001,18 @@ td code, .code code { font: 400 13px/1.5 var(--mono); }
     </section>
 
     <section class="lcta combo" id="join">
-      <svg><use href="#mark"/></svg>
       <div class="combo-l">
         <h2>Join us</h2>
         <p>Get on the volunteer list and an organizer will reach out before the next meeting or work day. You can also join the listserv, follow along on Instagram, RSVP on Partiful, or donate.</p>
-        <div class="cta-row"><a class="btn lg" href="https://linktr.ee/eastbaypermacultureguild" target="_blank" rel="noopener">Listserv, Instagram, Partiful ↗</a><a class="btn lg ghostw" href="https://collectiveresiliencenow.org/east-bay-permaculture-guild/" target="_blank" rel="noopener">Donate ↗</a></div>
+        <div class="cta-row"><a class="btn lg" href="https://linktr.ee/eastbaypermacultureguild" target="_blank" rel="noopener">Listserv, Instagram, Partiful<svg class="ic" aria-hidden="true" focusable="false"><use href="#i-out"/></svg></a><a class="btn lg ghostw" href="https://collectiveresiliencenow.org/east-bay-permaculture-guild/" target="_blank" rel="noopener"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-heart"/></svg>Donate<svg class="ic" aria-hidden="true" focusable="false"><use href="#i-out"/></svg></a></div>
       </div>
       <div class="combo-r">
       <form class="joinf" id="joinf" novalidate>
         <div class="r2"><label class="fld">Name<input id="vj-name" autocomplete="name"></label><label class="fld">Email or phone<input id="vj-contact" autocomplete="email"></label></div>
         <fieldset><legend>I'd like to help with</legend><div class="picks" id="vj-picks"></div></fieldset>
         <label class="fld">Anything else? <span class="hint" style="font-weight:400">optional</span><textarea id="vj-note" rows="2" placeholder="Skills, availability, languages you speak"></textarea></label>
-        <p class="err" id="vj-err" hidden></p>
-        <div class="joinrow"><button class="btn primary lg" type="submit">Join the list</button>
+        <p class="err" id="vj-err" role="alert" hidden></p>
+        <div class="joinrow"><button class="btn primary lg" type="submit"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-user-plus"/></svg>Join the list</button>
 <!--PROTO-->
 <span class="hint">Prototype: sign-ups stay in this browser tab.</span>
 <!--/PROTO-->
@@ -915,14 +1033,14 @@ td code, .code code { font: 400 13px/1.5 var(--mono); }
       <div class="or">or choose who you are</div>
 <!--/PROTO-->
       <label class="fld live" id="si-codew">Organizer code<input id="si-code" type="password" autocomplete="off"></label>
-      <p class="err" id="si-err" hidden></p>
+      <p class="err" id="si-err" role="alert" hidden></p>
       <div class="or live" id="si-then">then choose who you are</div>
       <div class="pick" id="si-pick" aria-label="Who are you?" role="group"></div>
 <!--PROTO-->
       <p class="demo">Prototype sign-in. No password, nothing is saved.</p>
 <!--/PROTO-->
       <p class="demo live">Ask the lead organizer for the code.</p>
-      <button class="tog" type="button" id="si-back" style="justify-self:center">← Back to the home page</button>
+      <button class="tog" type="button" id="si-back" style="justify-self:center"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-arrow-left"/></svg>Back to the home page</button>
     </div>
   </div>
 
@@ -934,7 +1052,7 @@ td code, .code code { font: 400 13px/1.5 var(--mono); }
 <!--PROTO-->
 <span class="sample">Real OPC plans · sample contacts</span>
 <!--/PROTO-->
-<button class="btn primary" type="button" id="new-ev"><svg><use href="#i-plus"/></svg>New event</button></div>
+<button class="btn primary" type="button" id="new-ev"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-plus"/></svg>New event</button></div>
     </div>
     <div id="attn"></div>
     <div class="tilebar"><div class="seg" role="group" aria-label="Show"><button type="button" data-when="up" aria-pressed="true">Upcoming</button><button type="button" data-when="past" aria-pressed="false">Past</button></div><span class="hint">Click an event to open it.</span></div>
@@ -943,7 +1061,7 @@ td code, .code code { font: 400 13px/1.5 var(--mono); }
 
   <!-- ============ EVENT PAGE ============ -->
   <div id="p-event" data-page="event" hidden>
-    <div class="evbar"><button class="btn ghost sm" type="button" id="ev-back">← All events</button><div class="grp"><button class="btn ghost sm" type="button" id="ev-copy">Copy link</button></div></div>
+    <div class="evbar"><button class="btn ghost sm" type="button" id="ev-back"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-arrow-left"/></svg>All events</button><div class="grp"><button class="btn ghost sm" type="button" id="ev-copy"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-link"/></svg>Copy link</button></div></div>
     <div id="ev-host"></div>
   </div>
 
@@ -955,13 +1073,13 @@ td code, .code code { font: 400 13px/1.5 var(--mono); }
 <!--/PROTO-->
 </div>
     <div class="roles">
-      <div><b>Lead organizer</b><span>Everything, including the team.</span></div>
-      <div><b>Co-organizer</b><span>Signs in. Can do what you tick.</span></div>
-      <div><b>Volunteer</b><span>No sign-in. Gets task reminders by text or email.</span></div>
+      <div><b><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-crown"/></svg>Lead organizer</b><span>Everything, including the team.</span></div>
+      <div><b><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-user-check"/></svg>Co-organizer</b><span>Signs in. Can do what you tick.</span></div>
+      <div><b><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-heart"/></svg>Volunteer</b><span>No sign-in. Gets task reminders by text or email.</span></div>
     </div>
     <div id="team-note"></div>
     <div class="tbl"><table class="team" id="team-tbl"></table></div>
-    <h2 style="font-size:26px;margin:36px 0 6px">Volunteer list</h2><p class="muted" style="margin-bottom:12px">People who signed up on the home page.
+    <h2 class="h2i" style="font-size:26px;margin:36px 0 6px"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-heart"/></svg>Volunteer list</h2><p class="muted" style="margin-bottom:12px">People who signed up on the home page.
 <!--PROTO-->
 <span class="sample">Sample + this tab's sign-ups</span>
 <!--/PROTO-->
@@ -972,8 +1090,8 @@ td code, .code code { font: 400 13px/1.5 var(--mono); }
       <label class="fld">Phone or email<input id="ap-contact" placeholder="Phone or email"></label>
       <label class="fld">Remind by<select id="ap-via"><option>Text</option><option>Email</option></select></label>
       <label class="fld">Role<select id="ap-role"><option value="vol">Volunteer</option><option value="co">Co-organizer</option></select></label>
-      <button class="btn primary" type="submit"><svg><use href="#i-plus"/></svg>Add</button>
-      <p class="err" id="ap-err" hidden style="grid-column:1/-1"></p>
+      <button class="btn primary" type="submit"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-user-plus"/></svg>Add person</button>
+      <p class="err" id="ap-err" role="alert" hidden style="grid-column:1/-1"></p>
     </form>
   </div>
 
@@ -985,16 +1103,16 @@ td code, .code code { font: 400 13px/1.5 var(--mono); }
 <!--/PROTO-->
 </div>
     <div class="msec">
-      <div class="msec-h"><h2>For an event</h2><label class="mats-h" style="gap:8px"><span class="hint">Event</span><select id="m-ev" aria-label="Event to fill templates with"></select></label></div>
+      <div class="msec-h"><h2><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-calendar"/></svg>For an event</h2><label class="mats-h" style="gap:8px"><span class="hint">Event</span><select id="m-ev" aria-label="Event to fill templates with"></select></label></div>
       <div class="mgal" id="m-event"></div>
     </div>
     <div class="msec">
-      <div class="msec-h"><h2>Any week</h2></div>
+      <div class="msec-h"><h2><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-repeat"/></svg>Any week</h2></div>
       <div class="mgal">
-        <figure class="mat"><div class="art quote"><div class="arc"></div><div class="q">Use small and <em>slow</em> solutions.</div><div class="src"><span>Permaculture principle no. 9<br>East Bay Permaculture Guild</span><svg><use href="#mark"/></svg></div></div><figcaption><b>Quote post</b> · Instagram, quiet weeks</figcaption></figure>
-        <figure class="mat"><div class="art card5"><div class="l"><div class="c"><svg><use href="#mark"/></svg></div></div><div class="r"><h4 class="serif">Glad you came.</h4><p>Thanks for spending Sunday with us. See you at the next one.</p><span class="sig">— Rosa</span></div></div><figcaption><b>Thank-you card</b> · 5 × 7, handwritten line</figcaption></figure>
-        <figure class="mat w2"><div class="art ptag"><div class="hole"><i></i></div><div class="bd"><span class="k">Stewarded plant · no. 014</span><h4 class="serif">Big Mama</h4><span class="lat">Black Mission fig · Ficus carica</span><div class="rowx"><div><b>Planted</b>March 9, 2025</div><div><b>Steward</b>Nia T.</div><div><b>Backup</b>Rosa M.</div></div><span class="txt">Scan to follow her</span></div></div><figcaption><b>Plant tag</b> · garden stake</figcaption></figure>
-        <figure class="mat w2"><div class="art sign"><div class="l"><div class="m"><svg><use href="#mark"/></svg>East Bay Permaculture Guild</div><h4 class="serif">This garden is tended by neighbors.</h4><p>Work days are open to everyone. No experience needed.</p></div><div class="r"><span class="k">How to join</span><ol><li>Scan the code</li><li>RSVP to a work day</li><li>Come say hi</li></ol><div class="txt">2nd Sundays<small>10 AM · OAKLAND PEACE CENTER</small></div></div></div><figcaption><b>Garden sign</b> · 24 × 16 in, fence</figcaption></figure>
+        <figure class="mat"><div class="art quote"><div class="arc"></div><div class="q">Use small and <em>slow</em> solutions.</div><div class="src"><span>Permaculture principle no. 9<br>East Bay Permaculture Guild</span><svg><use href="#mark"/></svg></div></div><figcaption><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-quote"/></svg><b>Quote post</b> · Instagram, quiet weeks</figcaption></figure>
+        <figure class="mat"><div class="art card5"><div class="l"><div class="c"><svg><use href="#mark"/></svg></div></div><div class="r"><h4 class="serif">Glad you came.</h4><p>Thanks for spending Sunday with us. See you at the next one.</p><span class="sig">— Rosa</span></div></div><figcaption><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-heart"/></svg><b>Thank-you card</b> · 5 × 7, handwritten line</figcaption></figure>
+        <figure class="mat w2"><div class="art ptag"><div class="hole"><i></i></div><div class="bd"><span class="k">Stewarded plant · no. 014</span><h4 class="serif">Big Mama</h4><span class="lat">Black Mission fig · Ficus carica</span><div class="rowx"><div><b>Planted</b>March 9, 2025</div><div><b>Steward</b>Nia T.</div><div><b>Backup</b>Rosa M.</div></div><span class="txt">Scan to follow her</span></div></div><figcaption><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-sprout"/></svg><b>Plant tag</b> · garden stake</figcaption></figure>
+        <figure class="mat w2"><div class="art sign"><div class="l"><div class="m"><svg><use href="#mark"/></svg>East Bay Permaculture Guild</div><h4 class="serif">This garden is tended by neighbors.</h4><p>Work days are open to everyone. No experience needed.</p></div><div class="r"><span class="k">How to join</span><ol><li>Scan the code</li><li>RSVP to a work day</li><li>Come say hi</li></ol><div class="txt">2nd Sundays<small>10 AM · OAKLAND PEACE CENTER</small></div></div></div><figcaption><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-signpost"/></svg><b>Garden sign</b> · 24 × 16 in, fence</figcaption></figure>
       </div>
     </div>
   </div>
@@ -1370,7 +1488,7 @@ await supabase.from('volunteers').insert({
 </main>
 
 <div class="modal" id="modal" hidden><div class="mbox" role="dialog" aria-modal="true" aria-labelledby="m-title">
-  <div class="mbar"><span class="eyebrow" id="m-title">Event</span><div class="grp"><a class="btn ghost sm" id="m-tab" href="#" target="_blank" rel="noopener">New tab<svg><use href="#i-out"/></svg></a><button class="btn primary sm" type="button" id="m-x">Close</button></div></div>
+  <div class="mbar"><span class="eyebrow" id="m-title">Event</span><div class="grp"><a class="btn ghost sm" id="m-tab" href="#" target="_blank" rel="noopener">New tab<svg class="ic" aria-hidden="true" focusable="false"><use href="#i-out"/></svg></a><button class="btn primary sm" type="button" id="m-x"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-x"/></svg>Close</button></div></div>
   <div class="mbody" id="m-body"></div>
 </div></div>
 <div id="drawer"></div>
@@ -1391,7 +1509,9 @@ const shortDate = s => { const d = D(s); return d.toLocaleDateString('en-US', { 
 const t12 = t => { if (!t) return ''; let [h, m] = t.split(':').map(Number); const ap = h >= 12 ? 'PM' : 'AM'; h = h % 12 || 12; return h + ':' + String(m).padStart(2, '0') + ' ' + ap; };
 const t12s = t => t12(t).replace(':00', '').replace(' AM', 'am').replace(' PM', 'pm');
 const nowStamp = () => (window.EBPG_GAS ? new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'Oct 24') + ' · ' + new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-let tt; const toast = m => { const t = $('#toast'); t.textContent = m; t.classList.add('on'); clearTimeout(tt); tt = setTimeout(() => t.classList.remove('on'), 2600); };
+// an icon from the sprite; decorative, so screen readers skip it (icon-only buttons carry an aria-label)
+const ic = (n, cls = '') => `<svg class="ic${cls ? ' ' + cls : ''}" aria-hidden="true" focusable="false"><use href="#i-${n}"/></svg>`;
+let tt; const toast = (m, icon) => { const t = $('#toast'); t.innerHTML = (icon ? ic(icon) : '') + `<span>${esc(m)}</span>`; t.classList.add('on'); clearTimeout(tt); tt = setTimeout(() => t.classList.remove('on'), 2600); };
 
 const CHANNELS = [
   { id: 'partiful', name: 'Partiful', mode: 'copy', color: '#7B4FD6', abbr: 'Pf', url: 'https://partiful.com/' },
@@ -1406,6 +1526,7 @@ const CHANNELS = [
 const CH = Object.fromEntries(CHANNELS.map(c => [c.id, c]));
 const TAGS = [['beginner', 'Beginner friendly'], ['tools', 'Tools provided'], ['kids', 'Kids welcome'], ['potluck', 'Potluck'], ['outdoor', 'Outdoors']];
 const PERMS = [['create', 'Create events'], ['edit', 'Edit events'], ['approve', 'Post'], ['tasks', 'Assign tasks'], ['team', 'Manage team']];
+const PERM_ICON = { create: 'calendar-plus', edit: 'pencil', approve: 'send', tasks: 'list-checks', team: 'users' };
 const ROLE = { lead: 'Lead organizer', co: 'Co-organizer', vol: 'Volunteer' };
 const allPerms = v => Object.fromEntries(PERMS.map(([k]) => [k, v]));
 const CO = { create: true, edit: true, approve: false, tasks: true, team: false };
@@ -1530,12 +1651,12 @@ function mailArt(ev) {
   return `<div class="art mail"><div><span class="k">Guild Letter · ${d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</span><h4 class="serif">${esc(ev.title)}</h4><p>${esc(longDate(ev.date))}, ${t12s(ev.start)}. ${esc(ev.place)}.</p></div><div class="stamp"><i></i><b>${d.getDate()}</b><span>${d.toLocaleDateString('en-US', { month: 'short' })}<br>Oakland</span></div></div>`;
 }
 const MATS = [
-  ['flyer', 'Flyer', 'print + Partiful cover', flyerArt],
-  ['ig', 'Instagram post', 'feed', igArt],
-  ['story', 'Story', 'Instagram + WhatsApp', storyArt],
-  ['mail', 'Email header', 'Google Group', mailArt],
+  ['flyer', 'Flyer', 'print + Partiful cover', flyerArt, 'printer'],
+  ['ig', 'Instagram post', 'feed', igArt, 'image'],
+  ['story', 'Story', 'Instagram + WhatsApp', storyArt, 'smartphone'],
+  ['mail', 'Email header', 'Google Group', mailArt, 'mail'],
 ];
-const matFig = (ev, [k, name, use, fn]) => `<figure class="mat ${k === 'mail' ? 'wide' : ''}">${fn(ev)}<figcaption><b>${name}</b> · ${use}</figcaption></figure>`;
+const matFig = (ev, [k, name, use, fn, icon]) => `<figure class="mat ${k === 'mail' ? 'wide' : ''}">${fn(ev)}<figcaption>${ic(icon)}<b>${name}</b> · ${use}</figcaption></figure>`;
 
 /* events: real OPC plans */
 const MAP = 'https://maps.app.goo.gl/9jQkydC38eJrRScr6';
@@ -1701,7 +1822,7 @@ function applyPerms() {
   $$('[data-ta]', d).forEach(ta => { if (!can('approve')) ta.readOnly = true; });
   const note = $('#perm-note'), msg = cantNote(person(ME) || TEAM[0]);
   if (note) note.remove();
-  if (msg) d.insertAdjacentHTML('afterbegin', `<div class="perm-note" id="perm-note">${esc(msg)}</div>`);
+  if (msg) d.insertAdjacentHTML('afterbegin', `<div class="perm-note" id="perm-note">${ic('lock')}<span>${esc(msg)}</span></div>`);
 }
 function renderAs() {
   if (!organizers().find(o => o.name === ME)) ME = TEAM[0].name;
@@ -1717,7 +1838,7 @@ $('#as').addEventListener('change', e => { ME = e.target.value; render(); render
 function renderHelp() {
   const l = lead();
   $('#help-sheet').innerHTML = /^https:/.test(sheetUrl)
-    ? `<a class="btn ghost sm" href="${esc(sheetUrl)}" target="_blank" rel="noopener">Open the Guild Sheet<svg aria-hidden="true"><use href="#i-out"/></svg></a>`
+    ? `<a class="btn ghost sm" href="${esc(sheetUrl)}" target="_blank" rel="noopener">Open the Guild Sheet${ic('out')}</a>`
     : '<p class="hint">Ask the Sheet owner for the link.</p>';
   $('#help-lead').innerHTML = !l ? 'No lead organizer is set yet. Add one on the Team tab of the Sheet.'
     : l.name === ME ? "You're the lead organizer, so you can add people to the team and change what each person can do. Organizers will ask you for the organizer code."
@@ -1725,17 +1846,17 @@ function renderHelp() {
 }
 function renderTeam() {
   const edit = can('team');
-  $('#team-note').innerHTML = edit ? '' : `<div class="perm-note" style="margin-bottom:12px">${esc(cantNote(person(ME) || TEAM[0]))}</div>`;
+  $('#team-note').innerHTML = edit ? '' : `<div class="perm-note" style="margin-bottom:12px">${ic('lock')}<span>${esc(cantNote(person(ME) || TEAM[0]))}</span></div>`;
   renderHelp();
-  $('#team-tbl').innerHTML = `<thead><tr><th>Person</th><th>Role</th><th>Reminders</th>${PERMS.map(([, l]) => `<th class="c">${l}</th>`).join('')}<th></th></tr></thead><tbody>${TEAM.map((t, i) => {
+  $('#team-tbl').innerHTML = `<thead><tr><th>Person</th><th>Role</th><th>Reminders</th>${PERMS.map(([k, l]) => `<th class="c"><span class="thi">${ic(PERM_ICON[k])}${l}</span></th>`).join('')}<th></th></tr></thead><tbody>${TEAM.map((t, i) => {
     const lock = !edit || t.role === 'lead';
-    return `<tr><td><span class="nm">${avatar(t.name)}<span><b>${esc(t.name)}</b><br>${t.contact ? `<span class="hint">${esc(t.contact)}</span>` : '<span class="warnchip">No contact yet</span>'}</span></span></td>
+    return `<tr><td><span class="nm">${avatar(t.name)}<span><b>${esc(t.name)}</b><br>${t.contact ? `<span class="hint">${ic(t.contact.includes('@') ? 'mail' : 'phone')}${esc(t.contact)}</span>` : '<span class="warnchip">No contact yet</span>'}</span></span></td>
     <td>${t.role === 'lead' ? ROLE.lead : `<select data-role="${i}" ${edit ? '' : 'disabled'} aria-label="Role for ${esc(t.name)}"><option value="co" ${t.role === 'co' ? 'selected' : ''}>Co-organizer</option><option value="vol" ${t.role === 'vol' ? 'selected' : ''}>Volunteer</option></select>`}</td>
-    <td>${t.via ? esc(t.via) : '<span class="hint">—</span>'}</td>
+    <td>${t.via ? ic(t.via === 'Email' ? 'mail' : 'message-circle') + esc(t.via) : '<span class="hint">—</span>'}</td>
     ${PERMS.map(([k, l]) => `<td class="c">${t.role === 'vol' ? '<span class="hint">—</span>' : `<input type="checkbox" data-perm="${i}" data-k="${k}" ${t.perms[k] ? 'checked' : ''} ${lock ? 'disabled' : ''} aria-label="${esc(t.name)}: ${l}">`}</td>`).join('')}
-    <td>${t.role === 'lead' || !edit ? '' : `<button class="tog" type="button" data-rm="${i}">Remove</button>`}</td></tr>`;
+    <td>${t.role === 'lead' || !edit ? '' : `<button class="tog" type="button" data-rm="${i}" aria-label="Remove ${esc(t.name)}">${ic('user-minus')}Remove</button>`}</td></tr>`;
   }).join('')}</tbody>`;
-  $$('[data-perm]').forEach(c => c.addEventListener('change', () => { TEAM[c.dataset.perm].perms[c.dataset.k] = c.checked; toast('Permissions saved'); render(); }));
+  $$('[data-perm]').forEach(c => c.addEventListener('change', () => { TEAM[c.dataset.perm].perms[c.dataset.k] = c.checked; toast('Permissions saved', 'check'); render(); }));
   $$('[data-role]').forEach(sl => sl.addEventListener('change', () => {
     const t = TEAM[sl.dataset.role]; t.role = sl.value;
     t.perms = sl.value === 'co' ? { create: true, edit: true, approve: false, tasks: true, team: false } : allPerms(false);
@@ -1754,7 +1875,7 @@ $('#addp').addEventListener('submit', e => {
   const role = $('#ap-role').value;
   TEAM.push({ name, contact, via: $('#ap-via').value, role, perms: role === 'co' ? { create: true, edit: true, approve: false, tasks: true, team: false } : allPerms(false) });
   $('#ap-name').value = ''; $('#ap-contact').value = '';
-  toast(`${name} added as ${ROLE[role].toLowerCase()}`); renderAs(); renderTeam(); render();
+  toast(`${name} added as ${ROLE[role].toLowerCase()}`, 'check'); renderAs(); renderTeam(); render();
 });
 function renderAttn() {
   const up = EVENTS.filter(e => e.date >= TODAY);
@@ -1762,8 +1883,8 @@ function renderAttn() {
   const total = need.reduce((a, x) => a + x[1], 0);
   const ready = up.reduce((a, e) => a + counts(e).approved, 0);
   $('#attn').innerHTML = total
-    ? `<div class="attn"><span class="grow"><b>${total} posts ready to go out</b> · ${need.length} ${need.length === 1 ? 'event' : 'events'}</span><button class="btn ghost sm" type="button" id="jump">Review next</button></div>`
-    : `<div class="attn ok"><span class="grow"><b>All posted.</b></span></div>`
+    ? `<div class="attn">${ic('send')}<span class="grow"><b>${total} posts ready to go out</b> · ${need.length} ${need.length === 1 ? 'event' : 'events'}</span><button class="btn ghost sm" type="button" id="jump">Review next</button></div>`
+    : `<div class="attn ok">${ic('check')}<span class="grow"><b>All posted.</b></span></div>`
   $('#jump')?.addEventListener('click', () => { S.dtab = 'outreach'; openEvent(need[0][0].id, 'modal'); });
 }
 function renderTiles() {
@@ -1774,7 +1895,7 @@ function renderTiles() {
     return `<article class="tile ${e.date < TODAY ? 'past' : ''}" tabindex="0" role="button" data-open="${e.id}" aria-label="Open ${esc(e.title)}, ${esc(longDate(e.date))}">
       <div class="cover" aria-hidden="true">${igArt(e)}${flyerArt(e)}${storyArt(e)}</div>
       <div class="tbody"><div class="trow"><span class="cal"><span>${d.toLocaleDateString('en-US', { month: 'short' }).toUpperCase()}</span><b>${d.getDate()}</b></span>
-        <div style="min-width:0">${e.label ? `<div class="lbl">${esc(e.label)}</div>` : ''}<h3>${esc(e.title)}</h3><div class="m">${d.toLocaleDateString('en-US', { weekday: 'short' })} · ${range(e.start, e.end)} · ${esc(e.place)}</div></div></div>
+        <div style="min-width:0">${e.label ? `<div class="lbl">${esc(e.label)}</div>` : ''}<h3>${esc(e.title)}</h3><div class="m">${d.toLocaleDateString('en-US', { weekday: 'short' })} · ${range(e.start, e.end)} · ${ic('map-pin')}${esc(e.place)}</div></div></div>
         </div>
     </article>`;
   }).join('') : `<p class="muted">No ${S.when === 'up' ? 'upcoming' : 'past'} events.</p>`;
@@ -1791,15 +1912,18 @@ const SEEDED = ['w2', 'w5', 'm1', 'w6', 'w7', 'm2'];
 evLink = id => SEEDED.includes(id) ? ARTIFACT + '#ev-' + id : '';
 /*/PROTO*/
 const DETAIL = Object.assign(document.createElement('div'), { id: 'detail', className: 'detail' });
+// while the event pop-up is open, the page behind it can't be reached by Tab, a click or a screen reader
+const pageBehind = on => ['main', 'header.top'].forEach(sel => $(sel)?.toggleAttribute('inert', on));
 function openEvent(id, mode) {
   S.sel = id; S.mode = mode;
   const ev = EVENTS.find(e => e.id === id);
   if (mode === 'page') {
-    $('#modal').hidden = true; document.body.style.overflow = '';
+    $('#modal').hidden = true; document.body.style.overflow = ''; pageBehind(false);
     $('#ev-host').appendChild(DETAIL); showTab('event');
     history.replaceState(null, '', '#ev-' + id); window.scrollTo({ top: 0 });
   } else {
-    $('#m-body').appendChild(DETAIL); $('#modal').hidden = false; document.body.style.overflow = 'hidden';
+    if ($('#modal').hidden) S.back = document.activeElement; // focus goes back here on close
+    $('#m-body').appendChild(DETAIL); $('#modal').hidden = false; document.body.style.overflow = 'hidden'; pageBehind(true);
     $('#modal').scrollTop = 0;
     $('#m-title').textContent = ev.label || 'Event';
     const tab = $('#m-tab'), lk = evLink(id); tab.hidden = !lk; tab.href = lk || '#';
@@ -1811,19 +1935,30 @@ function closeEvent() {
   const cur = EVENTS.find(e => e.id === S.sel);
   if (cur?.isNew) EVENTS.splice(EVENTS.indexOf(cur), 1);
   S.editing = false;
-  $('#modal').hidden = true; document.body.style.overflow = '';
+  $('#modal').hidden = true; document.body.style.overflow = ''; pageBehind(false);
   DETAIL.remove(); S.mode = null;
-  S.lastTile?.focus();
+  // back to what opened it; tiles and the attention bar are redrawn often, so fall back to this event's tile
+  const back = [S.back, S.lastTile, $(`#tiles [data-open="${cur?.id}"]`), $('#new-ev')].find(el => el && el !== document.body && el.isConnected && !el.disabled);
+  S.back = null; back?.focus();
 }
 $('#m-x').addEventListener('click', closeEvent);
 $('#modal').addEventListener('click', e => { if (e.target.id === 'modal') closeEvent(); });
+// keep Tab inside the pop-up
+$('#modal').addEventListener('keydown', e => {
+  if (e.key !== 'Tab') return;
+  const box = $('#modal .mbox');
+  const f = $$('a[href], button, input, select, textarea, [tabindex]:not([tabindex="-1"])', box).filter(el => !el.disabled && !el.closest('[hidden]'));
+  if (!f.length) return;
+  const first = f[0], last = f[f.length - 1], cur = document.activeElement;
+  if (e.shiftKey ? cur === first || !box.contains(cur) : cur === last || !box.contains(cur)) { e.preventDefault(); (e.shiftKey ? last : first).focus(); }
+});
 $('#ev-back').addEventListener('click', () => { DETAIL.remove(); S.mode = null; showTab('events'); history.replaceState(null, '', '#events'); render(); });
 $('#ev-copy').addEventListener('click', async () => {
   const link = evLink(S.sel);
 /*PROTO*/
   if (!link) { toast('This prototype event only lives in this tab, so it has no link yet.'); return; }
 /*/PROTO*/
-  try { await navigator.clipboard.writeText(link); toast('Link copied'); } catch { toast(link); }
+  try { await navigator.clipboard.writeText(link); toast('Link copied', 'check'); } catch { toast(link); }
 });
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#modal').hidden && !$('#scrim')) closeEvent(); });
 $$('[data-when]').forEach(b => b.addEventListener('click', () => { S.when = b.dataset.when; renderTiles(); }));
@@ -1838,26 +1973,26 @@ function renderDetail() {
   const rows = CHANNELS.map(ch => chRow(ev, ch)).join('');
   const open = (ev.tasks || []).filter(t => !t.who || t.status === 'cant').length;
   $('#detail').innerHTML = `
-    <div class="hstrip" aria-label="Flyers and posts for this event">${MATS.map(([k, name, use, fn]) => `<figure>${fn(ev)}<figcaption><b>${name}</b> · ${use}</figcaption></figure>`).join('')}</div>
-    <div class="dh"><div><div class="eyebrow">${past ? 'Past event' : 'Upcoming'}</div><h2>${esc(ev.title)}</h2><div class="meta">${esc(longDate(ev.date))} · ${t12(ev.start)}–${t12(ev.end)} · ${esc(ev.place)}${ev.map ? ` · <a href="${ev.map}" target="_blank" rel="noopener">Map</a>` : ''}</div></div>
-      <div class="actions">${S.editing ? '' : `<button class="btn ghost sm" type="button" id="edit-ev">Edit event</button>`}</div></div>
+    <div class="hstrip" aria-label="Flyers and posts for this event">${MATS.map(([k, name, use, fn, icon]) => `<figure>${fn(ev)}<figcaption>${ic(icon)}<b>${name}</b> · ${use}</figcaption></figure>`).join('')}</div>
+    <div class="dh"><div><div class="eyebrow">${past ? 'Past event' : 'Upcoming'}</div><h2>${esc(ev.title)}</h2><div class="meta"><span class="fact">${ic('calendar')}${esc(longDate(ev.date))}</span><span class="fact">${ic('clock')}${t12(ev.start)}–${t12(ev.end)}</span><span class="fact">${ic('map-pin')}${esc(ev.place)}${ev.map ? ` · <a href="${esc(ev.map)}" target="_blank" rel="noopener">Map${ic('out', 'out')}</a>` : ''}</span></div></div>
+      <div class="actions">${S.editing ? '' : `<button class="btn ghost sm" type="button" id="edit-ev">${ic('pencil')}Edit event</button>`}</div></div>
     <div class="dtabs" role="tablist" aria-label="Event sections">
-      <button type="button" role="tab" id="dt-plan" aria-selected="${S.dtab === 'plan'}" aria-controls="dp-plan" data-dtab="plan">Event plan${open ? `<span class="n">${open} open</span>` : ''}</button>
-      <button type="button" role="tab" id="dt-out" aria-selected="${S.dtab === 'outreach'}" aria-controls="dp-out" data-dtab="outreach">Outreach${c.review + c.approved ? `<span class="n">${c.review + c.approved} to post</span>` : ''}</button>
+      <button type="button" role="tab" id="dt-plan" aria-selected="${S.dtab === 'plan'}" aria-controls="dp-plan" data-dtab="plan">${ic('file-text')}Event plan${open ? `<span class="n">${open} open</span>` : ''}</button>
+      <button type="button" role="tab" id="dt-out" aria-selected="${S.dtab === 'outreach'}" aria-controls="dp-out" data-dtab="outreach">${ic('send')}Outreach${c.review + c.approved ? `<span class="n">${c.review + c.approved} to post</span>` : ''}</button>
     </div>
     <div class="dpanel" id="dp-plan" role="tabpanel" aria-labelledby="dt-plan" ${S.dtab === 'plan' ? '' : 'hidden'}>${docHTML(ev)}</div>
     <div class="dpanel" id="dp-out" role="tabpanel" aria-labelledby="dt-out" ${S.dtab === 'outreach' ? '' : 'hidden'}>
-      <div class="osum"><span>${c.off === CHANNELS.length ? 'No outreach recorded for this event.' : `${c.review + c.approved ? `<b>${c.review + c.approved} ready to post</b>` : 'Everything is posted'} · ${c.posted} posted`}</span></div>
+      <div class="osum"><span>${c.off === CHANNELS.length ? 'No outreach recorded for this event.' : `${c.review + c.approved ? `${ic('send')}<b>${c.review + c.approved} ready to post</b>` : `${ic('check')}Everything is posted`} · ${c.posted} posted`}</span></div>
       ${c.off < CHANNELS.length ? `<ul class="olist">${CHANNELS.filter(ch => ev.posts[ch.id].status !== 'off').map(ch => chRow(ev, ch)).join('')}</ul>` : ''}
-      ${c.off && !past ? `<label class="addch"><span class="hint">Also post to</span><select id="add-ch" aria-label="Add a channel"><option value="">Choose a channel</option>${CHANNELS.filter(ch => ev.posts[ch.id].status === 'off').map(ch => `<option value="${ch.id}">${esc(ch.name)}</option>`).join('')}</select></label>` : ''}
-      <div class="chs"><div class="chs-h">${fold('log', 'Activity', ev.log.length)}</div><ul class="log" id="log-body" ${hid('log')}>${ev.log.slice().reverse().map(([t, w]) => `<li><span>${esc(t)}</span><span>${esc(w)}</span></li>`).join('')}</ul></div>
+      ${c.off && !past ? `<label class="addch"><span class="hint">${ic('plus')}Also post to</span><select id="add-ch" aria-label="Add a channel"><option value="">Choose a channel</option>${CHANNELS.filter(ch => ev.posts[ch.id].status === 'off').map(ch => `<option value="${ch.id}">${esc(ch.name)}</option>`).join('')}</select></label>` : ''}
+      <div class="chs"><div class="chs-h">${fold('log', 'Activity', ev.log.length, 'history')}</div><ul class="log" id="log-body" ${hid('log')}>${ev.log.slice().reverse().map(([t, w]) => `<li><span>${esc(t)}</span><span>${esc(w)}</span></li>`).join('')}</ul></div>
     </div>`;
   $$('[data-dtab]').forEach(b => b.addEventListener('click', () => { S.dtab = b.dataset.dtab; try { sessionStorage.setItem('ebpg-dtab', S.dtab); } catch {} renderDetail(); }));
   bindDetail(ev);
   applyPerms();
   sync();
 }
-const fold = (k, label, cnt) => `<button class="fold" type="button" data-fold="${k}" aria-expanded="${!S.fold[k]}" aria-controls="${k}-body">${label}${cnt !== undefined ? `<span class="cnt">${cnt}</span>` : ''}</button>`;
+const fold = (k, label, cnt, icon) => `<button class="fold" type="button" data-fold="${k}" aria-expanded="${!S.fold[k]}" aria-controls="${k}-body">${icon ? ic(icon) : ''}${label}${cnt !== undefined ? `<span class="cnt">${cnt}</span>` : ''}</button>`;
 const hid = k => S.fold[k] ? 'hidden' : '';
 const ord = n => n + (n % 10 === 1 && n !== 11 ? 'st' : n % 10 === 2 && n !== 12 ? 'nd' : n % 10 === 3 && n !== 13 ? 'rd' : 'th');
 const range = (a, b) => { const A = t12(a), B = t12(b); return A.slice(-2) === B.slice(-2) ? A.slice(0, -3) + '–' + B : A + '–' + B; };
@@ -1865,9 +2000,9 @@ const hostOf = pl => (pl.roles.find(([, ns]) => ns.length) || [, []])[1][0] || '
 const cohostsOf = pl => [...new Set(pl.roles.flatMap(([, ns]) => ns))].filter(n => n && n !== hostOf(pl));
 function hostingHTML(pl) {
   const h = hostOf(pl), cos = cohostsOf(pl);
-  return `<section class="doc-sec">${fold('host', 'Hosting', h ? `${h}${cos.length ? ` + ${cos.length} co-host${cos.length > 1 ? 's' : ''}` : ''}` : 'no host yet')}
+  return `<section class="doc-sec">${fold('host', 'Hosting', h ? `${h}${cos.length ? ` + ${cos.length} co-host${cos.length > 1 ? 's' : ''}` : ''}` : 'no host yet', 'users')}
     <div class="hosting" id="host-body" ${hid('host')}>
-      <div class="hrow"><span class="hl">Host</span>${h ? `<span class="pp">${avatar(h)}${esc(h)}</span>` : '<span class="pp open">Needs a host</span>'}</div>
+      <div class="hrow"><span class="hl">Host</span>${h ? `<span class="pp">${avatar(h)}${esc(h)}</span>` : `<span class="pp open">${ic('user-plus')}Needs a host</span>`}</div>
       <div class="hrow"><span class="hl">Co-hosts</span><span class="ppl">${cos.length ? cos.map(n => `<span class="pp">${avatar(n)}${esc(n)}</span>`).join('') : '<span class="hint">None yet</span>'}</span></div>
     </div></section>`;
 }
@@ -1883,38 +2018,39 @@ function docHTML(ev) {
     <div class="doc-title">Event: ${esc(ev.title)} (${d.toLocaleDateString('en-US', { month: 'long' })} ${ord(d.getDate())}${ev.label ? ', ' + esc(ev.label) : ''})</div>
     <dl class="doc-kv">
       ${ev.about || ev.tags.length ? `<div><dt>Details</dt><dd><p class="about" style="margin:0 0 6px">${esc(ev.about)}</p><div class="tags">${ev.tags.map(t => `<span class="tag">${esc(Object.fromEntries(TAGS)[t])}</span>`).join('')}</div></dd></div>` : ''}
-      <div><dt>Venue</dt><dd>${esc(ev.place)}${ev.map ? ` · <a href="${ev.map}" target="_blank" rel="noopener">Map</a>` : ''}</dd></div>
+      <div><dt>Venue</dt><dd>${esc(ev.place)}${ev.map ? ` · <a href="${esc(ev.map)}" target="_blank" rel="noopener">Map${ic('out', 'out')}</a>` : ''}</dd></div>
       <div><dt>Time</dt><dd>${range(ev.start, ev.end)}${pl.leadStart ? ` <span class="pend">· leads ${range(pl.leadStart, pl.leadEnd)}</span>` : ''}</dd></div>
       ${pl.notes.length ? `<div><dt>Notes</dt><dd><ul class="bul">${pl.notes.map(x => `<li>${esc(x)}</li>`).join('')}</ul></dd></div>` : ''}
     </dl>
     ${hostingHTML(pl)}
-    ${rows.length ? `<section class="doc-sec">${fold('run', 'Timeline', rows.length)}<div id="run-body" ${hid('run')}><ul class="tl">${tl}</ul></div></section>` : ''}
+    ${rows.length ? `<section class="doc-sec">${fold('run', 'Timeline', rows.length, 'list-ordered')}<div id="run-body" ${hid('run')}><ul class="tl">${tl}</ul></div></section>` : ''}
     <section class="doc-sec">${tasksHTML(ev)}</section>
-    ${!up ? `<section class="doc-sec">${fold('ideas', `${D(ev.date).getMonth() + 1}/${D(ev.date).getDate()} ${ev.series === 'meeting' ? 'Meeting' : 'Workday'} Debrief`, pl.debrief.length + ' ideas')}
+    ${!up ? `<section class="doc-sec">${fold('ideas', `${D(ev.date).getMonth() + 1}/${D(ev.date).getDate()} ${ev.series === 'meeting' ? 'Meeting' : 'Workday'} Debrief`, pl.debrief.length + ' ideas', 'lightbulb')}
       <div class="ideas" id="ideas-body" ${hid('ideas')}>${pl.debrief.map(x => `<div class="idea ${x.used ? 'used' : ''}"><span>${esc(x.text)}</span>${x.used ? '<small>Planned</small>' : ''}</div>`).join('') || '<p class="hint">No debrief notes yet.</p>'}
-        <form class="mini" id="adddeb"><input id="ad-x" placeholder="Add an idea from the debrief" aria-label="Debrief idea"><button class="btn ghost sm" type="submit">Add</button></form></div></section>` : ''}
+        <form class="mini" id="adddeb"><input id="ad-x" placeholder="Add an idea from the debrief" aria-label="Debrief idea"><button class="btn ghost sm" type="submit">${ic('plus')}Add</button></form></div></section>` : ''}
   </article>`;
 }
 function editHTML(ev) {
   const pl = ev.plan;
-  const f = (id, label, val, type = 'text') => `<label class="fld">${label}<input id="${id}" type="${type}" value="${esc(val || '')}"></label>`;
-  const ta = (id, label, val, hint, rows = 4) => `<label class="fld">${label}${hint ? ` <span class="hint" style="font-weight:400">${hint}</span>` : ''}<textarea id="${id}" rows="${rows}">${esc(val || '')}</textarea></label>`;
-  const btns = `<div class="grp"><button class="btn ghost sm" type="button" data-cancel>Cancel</button><button class="btn primary sm" type="submit">${ev.isNew ? 'Create event' : 'Save'}</button></div>`;
+  const lab = (label, icon) => icon ? `<span class="fl">${ic(icon)}${label}</span>` : label;
+  const f = (id, label, val, type = 'text', icon) => `<label class="fld">${lab(label, icon)}<input id="${id}" type="${type}" value="${esc(val || '')}"></label>`;
+  const ta = (id, label, val, hint, rows = 4, icon) => `<label class="fld">${lab(label, icon)}${hint ? ` <span class="hint" style="font-weight:400">${hint}</span>` : ''}<textarea id="${id}" rows="${rows}">${esc(val || '')}</textarea></label>`;
+  const btns = `<div class="grp"><button class="btn ghost sm" type="button" data-cancel>${ic('x')}Cancel</button><button class="btn primary sm" type="submit">${ev.isNew ? `${ic('plus')}Create event` : `${ic('check')}Save`}</button></div>`;
   return `<form class="doc editdoc" id="editf" novalidate>
     <div class="edit-h"><div class="doc-title">${ev.isNew ? 'New event' : 'Edit event'}</div>${btns}</div>
-    ${ev.isNew ? `<label class="fld">Start from<select id="ed-from"><option value="">Blank event</option>${EVENTS.filter(x => !x.isNew && x.plan).sort((a, b) => b.date.localeCompare(a.date)).map(x => `<option value="${x.id}" ${x.id === ev.copiedFrom ? 'selected' : ''}>Copy ${esc(x.label || x.title)} (${shortDate(x.date)})</option>`).join('')}</select></label>` : ''}
+    ${ev.isNew ? `<label class="fld">${lab('Start from', 'copy')}<select id="ed-from"><option value="">Blank event</option>${EVENTS.filter(x => !x.isNew && x.plan).sort((a, b) => b.date.localeCompare(a.date)).map(x => `<option value="${x.id}" ${x.id === ev.copiedFrom ? 'selected' : ''}>Copy ${esc(x.label || x.title)} (${shortDate(x.date)})</option>`).join('')}</select></label>` : ''}
     ${f('ed-title', 'Event name', ev.title)}
-    <div class="r3">${f('ed-date', 'Date', ev.date, 'date')}${f('ed-start', 'Start', ev.start, 'time')}${f('ed-end', 'End', ev.end, 'time')}</div>
-    <div class="r2">${f('ed-place', 'Venue', ev.place)}${f('ed-address', 'Address', ev.address)}</div>
+    <div class="r3">${f('ed-date', 'Date', ev.date, 'date', 'calendar')}${f('ed-start', 'Start', ev.start, 'time', 'clock')}${f('ed-end', 'End', ev.end, 'time', 'clock')}</div>
+    <div class="r2">${f('ed-place', 'Venue', ev.place, 'text', 'map-pin')}${f('ed-address', 'Address', ev.address)}</div>
     <div class="r2">${f('ed-ls', 'Leads arrive', pl.leadStart, 'time')}${f('ed-le', 'Leads leave', pl.leadEnd, 'time')}</div>
-    <div class="r2"><label class="fld">Host<select id="ed-host">${TEAM.map(t => `<option ${t.name === hostOf(pl) ? 'selected' : ''}>${esc(t.name)}</option>`).join('')}</select></label>
-      <label class="fld">Co-hosts <span class="hint" style="font-weight:400">comma separated</span><input id="ed-cos" value="${esc(cohostsOf(pl).join(', '))}"></label></div>
-    ${ta('p-tl', 'Timeline', PT.timeline(pl), 'one per line, e.g. "10:15 AM Intro"', 6)}
+    <div class="r2"><label class="fld">${lab('Host', 'user')}<select id="ed-host">${TEAM.map(t => `<option ${t.name === hostOf(pl) ? 'selected' : ''}>${esc(t.name)}</option>`).join('')}</select></label>
+      <label class="fld">${lab('Co-hosts', 'users')} <span class="hint" style="font-weight:400">comma separated</span><input id="ed-cos" value="${esc(cohostsOf(pl).join(', '))}"></label></div>
+    ${ta('p-tl', 'Timeline', PT.timeline(pl), 'one per line, e.g. "10:15 AM Intro"', 6, 'list-ordered')}
     ${ta('p-notes', 'Notes', PT.list(pl.notes), 'one per line', 4)}
     ${ta('ed-about', 'Description', ev.about, 'shown in Details and used in posts', 3)}
     <fieldset><legend>Tags</legend><div class="picks">${TAGS.map(([k, l]) => `<label><input type="checkbox" name="ed-tag" value="${k}" ${ev.tags.includes(k) ? 'checked' : ''}><span>${l}</span></label>`).join('')}</div></fieldset>
-    ${f('ed-bring', 'What to bring', ev.bring)}
-    <p class="err" id="ed-err" hidden></p>
+    ${f('ed-bring', 'What to bring', ev.bring, 'text', 'package')}
+    <p class="err" id="ed-err" role="alert" hidden></p>
     <div class="edit-f">${btns}</div>
   </form>`;
 }
@@ -1957,7 +2093,7 @@ function bindEdit(ev) {
     ev.log.push([nowStamp(), wasNew ? `${ME} created the event` : `${ME} edited the event`]);
     if (wasNew) S.when = ev.date >= TODAY ? 'up' : 'past';
     render(); renderMaterials();
-    toast(wasNew ? 'Event created. Posts are ready to go out.' : 'Saved');
+    toast(wasNew ? 'Event created. Posts are ready to go out.' : 'Saved', 'check');
   });
 }
 function bindPlan(ev) {
@@ -1967,7 +2103,7 @@ function bindPlan(ev) {
     const later = EVENTS.filter(e => e.series === ev.series && e.date > ev.date);
     const ne = planNext(later.length ? later.sort((a, b) => b.date.localeCompare(a.date))[0] : ev);
     S.when = 'up'; render(); renderMaterials(); openEvent(ne.id, S.mode || 'modal');
-    toast(`${ne.label} drafted for ${shortDate(ne.date)}`);
+    toast(`${ne.label} drafted for ${shortDate(ne.date)}`, 'check');
   });
   $('#addrow')?.addEventListener('submit', e => { e.preventDefault(); const x = $('#ar-x').value.trim(); if (!x) return; pl.timeline.push([$('#ar-t').value || '12:00', x, '']); save(`added "${x}" to the run of show`); });
   $$('[data-rmrow]').forEach(b => b.addEventListener('click', () => { const r = pl.timeline.splice(+b.dataset.rmrow, 1)[0]; save(`removed "${r[1]}" from the run of show`); }));
@@ -1978,27 +2114,27 @@ function bindPlan(ev) {
   $$('[data-sup]').forEach(b => b.addEventListener('click', () => { const x = pl.supplies[+b.dataset.sup]; x.status = NEXT[x.status]; save('', false); }));
   $('#addsup')?.addEventListener('submit', e => { e.preventDefault(); const x = $('#as-x').value.trim(); if (!x) return; pl.supplies.push(sup(x, 'need', $('#as-w').value.trim())); save(`added supply "${x}"`); });
   const ideas = ev.date >= TODAY ? seriesIdeas(ev) : [];
-  $$('[data-idea]').forEach(b => b.addEventListener('click', () => { const { d } = ideas[+b.dataset.idea]; d.used = true; pl.areas[0].items.push({ text: d.text, done: false }); save(`planned "${d.text}" from a past debrief`); toast('Added to garden tasks'); }));
+  $$('[data-idea]').forEach(b => b.addEventListener('click', () => { const { d } = ideas[+b.dataset.idea]; d.used = true; pl.areas[0].items.push({ text: d.text, done: false }); save(`planned "${d.text}" from a past debrief`); toast('Added to garden tasks', 'check'); }));
   $('#adddeb')?.addEventListener('submit', e => { e.preventDefault(); const x = $('#ad-x').value.trim(); if (!x) return; pl.debrief.push({ text: x, used: false }); save(`added debrief idea "${x}"`); });
 }
 function tasksHTML(ev) {
   const ts = ev.tasks || [];
   const up = ev.date >= TODAY;
   const people = TEAM.map(t => `<option value="${esc(t.name)}">${esc(t.name)}</option>`).join('');
-  return `<div class="chs"><div class="chs-h">${fold('tasks', "Who's bringing what", ts.length + ' items')}</div>
+  return `<div class="chs"><div class="chs-h">${fold('tasks', "Who's bringing what", ts.length + ' items', 'package')}</div>
   <div id="tasks-body" ${hid('tasks')}><table class="who-tbl">
     <thead><tr><th>What</th><th>Who</th>${up ? '<th class="sr">Remove</th>' : ''}</tr></thead>
-    <tbody>${ts.map(t => `<tr><td>${esc(t.text)}</td><td>${t.who ? esc(t.who) : '<span class="needs">Needs someone</span>'}${t.last && t.last !== t.who ? `<span class="last">Last time: ${esc(t.last)}</span>` : ''}</td>${up ? `<td class="rm"><button class="x" type="button" data-tdel="${t.id}" aria-label="Remove ${esc(t.text)}">×</button></td>` : ''}</tr>`).join('') || `<tr><td colspan="${up ? 3 : 2}" class="hint">Nothing yet.</td></tr>`}</tbody>
-    ${up ? `<tfoot><tr><td><input id="nt-text" placeholder="e.g. Plates, cups, napkins" aria-label="What"></td><td><select id="nt-who" aria-label="Who"><option value="">Needs someone</option>${people}</select></td><td class="rm"><button class="btn ghost sm" type="button" id="nt-add">Add</button></td></tr></tfoot>` : ''}
+    <tbody>${ts.map(t => `<tr><td>${esc(t.text)}</td><td>${t.who ? esc(t.who) : `<span class="needs">${ic('user-plus')}Needs someone</span>`}${t.last && t.last !== t.who ? `<span class="last">Last time: ${esc(t.last)}</span>` : ''}</td>${up ? `<td class="rm"><button class="x" type="button" data-tdel="${t.id}" aria-label="Remove ${esc(t.text)}">${ic('x')}</button></td>` : ''}</tr>`).join('') || `<tr><td colspan="${up ? 3 : 2}" class="hint">Nothing yet.</td></tr>`}</tbody>
+    ${up ? `<tfoot><tr><td><input id="nt-text" placeholder="e.g. Plates, cups, napkins" aria-label="What"></td><td><select id="nt-who" aria-label="Who"><option value="">Needs someone</option>${people}</select></td><td class="rm"><button class="btn ghost sm" type="button" id="nt-add">${ic('plus')}Add</button></td></tr></tfoot>` : ''}
   </table></div></div>`;
 }
 function chRow(ev, ch) {
   const p = ev.posts[ch.id];
-  const btn = p.status === 'posted' ? `<span class="done">Posted ✓</span>` : `<button class="btn primary sm" type="button" data-act="post" data-ch="${ch.id}">Post</button>`;
+  const btn = p.status === 'posted' ? `<span class="done">${ic('check')}Posted</span>` : `<button class="btn primary sm" type="button" data-act="post" data-ch="${ch.id}">${ic(ch.mode === 'auto' ? 'send' : 'copy')}Post</button>`;
   return `<li class="orow ${p.status}"><span class="logo" style="background:${ch.color}">${ch.abbr}</span>
     <button class="oname" type="button" data-act="toggle" data-ch="${ch.id}" aria-expanded="${!!p.open}">${esc(ch.name)}<span class="hint">${p.status !== 'posted' ? 'Read draft · ' : ''}${ch.mode === 'auto' ? 'posts automatically' : 'copy and paste'}</span></button>
     ${btn}
-    ${p.open ? `<div class="obody"><textarea id="ta-${ev.id}-${ch.id}" data-ta="${ch.id}" aria-label="${esc(ch.name)} text" ${p.status === 'posted' ? 'readonly' : ''}>${esc(p.text)}</textarea>${ch.mode === 'copy' ? `<a class="hint" href="${ch.url}" target="_blank" rel="noopener">Open ${esc(ch.name)} ↗</a>` : ''}</div>` : ''}</li>`;
+    ${p.open ? `<div class="obody"><textarea id="ta-${ev.id}-${ch.id}" data-ta="${ch.id}" aria-label="${esc(ch.name)} text" ${p.status === 'posted' ? 'readonly' : ''}>${esc(p.text)}</textarea>${ch.mode === 'copy' ? `<a class="hint" href="${esc(ch.url)}" target="_blank" rel="noopener">Open ${esc(ch.name)}${ic('out')}</a>` : ''}</div>` : ''}</li>`;
 }
 function bindTasks(ev) {
   $$('[data-tdel]', $('#detail')).forEach(b => b.addEventListener('click', () => {
@@ -2030,23 +2166,23 @@ function bindDetail(ev) {
     const ids = CHANNELS.filter(c => ev.posts[c.id].status === 'review').map(c => c.id);
     ids.forEach(id => { ev.posts[id].status = 'approved'; ev.posts[id].by = ME; });
     ev.log.push([nowStamp(), `${ME} approved ${ids.map(i => CH[i].name).join(', ')}`]);
-    render(); toast(`Approved ${ids.length} posts`);
+    render(); toast(`Approved ${ids.length} posts`, 'check');
   });
   $$('[data-act]', $('#detail')).forEach(b => b.addEventListener('click', async () => {
     const id = b.dataset.ch, p = ev.posts[id], ch = CH[id];
     switch (b.dataset.act) {
       case 'toggle': p.open = !p.open; break;
       case 'add': p.status = 'review'; p.open = true; p.text = draft(id, ev); ev.log.push([nowStamp(), `${ME} added ${ch.name}`]); break;
-      case 'approve': p.status = 'approved'; p.by = ME; p.open = false; ev.log.push([nowStamp(), `${ME} approved ${ch.name}`]); toast(`${ch.name} approved`); break;
+      case 'approve': p.status = 'approved'; p.by = ME; p.open = false; ev.log.push([nowStamp(), `${ME} approved ${ch.name}`]); toast(`${ch.name} approved`, 'check'); break;
       case 'post':
-        if (ch.mode === 'copy') { try { await navigator.clipboard.writeText(p.text); toast(`Copied. Paste it on ${ch.name}.`); } catch { toast(`Open the text and copy it for ${ch.name}.`); } ev.log.push([nowStamp(), `${ME} posted to ${ch.name}`]); }
-        else if (remote) { b.disabled = true; try { toast(await remote.post(ev, id)); } catch (er) { b.disabled = false; toast(er.message); return; } ev.log.push([nowStamp(), `${ME} posted to ${ch.name}`]); }
+        if (ch.mode === 'copy') { try { await navigator.clipboard.writeText(p.text); toast(`Copied. Paste it on ${ch.name}.`, 'check'); } catch { toast(`Open the text and copy it for ${ch.name}.`); } ev.log.push([nowStamp(), `${ME} posted to ${ch.name}`]); }
+        else if (remote) { b.disabled = true; try { toast(await remote.post(ev, id), 'check'); } catch (er) { b.disabled = false; toast(er.message); return; } ev.log.push([nowStamp(), `${ME} posted to ${ch.name}`]); }
 /*PROTO*/
         else { ev.log.push([nowStamp(), `${ME} posted to ${ch.name} (simulated)`]); toast(`Posted to ${ch.name} (simulated)`); }
 /*/PROTO*/
         p.status = 'posted'; p.by = ME; p.open = false; break;
-      case 'copy': try { await navigator.clipboard.writeText(p.text); toast('Copied. Paste it on ' + ch.name + '.'); } catch { p.open = true; renderDetail(); const ta = $(`#ta-${ev.id}-${id}`); ta?.focus(); ta?.select(); toast('Text selected. Press Ctrl+C or Cmd+C to copy.'); } return;
-      case 'mark': p.status = 'posted'; ev.log.push([nowStamp(), `${ME} marked ${ch.name} posted`]); toast(`${ch.name} marked as posted`); break;
+      case 'copy': try { await navigator.clipboard.writeText(p.text); toast('Copied. Paste it on ' + ch.name + '.', 'check'); } catch { p.open = true; renderDetail(); const ta = $(`#ta-${ev.id}-${id}`); ta?.focus(); ta?.select(); toast('Text selected. Press Ctrl+C or Cmd+C to copy.'); } return;
+      case 'mark': p.status = 'posted'; ev.log.push([nowStamp(), `${ME} marked ${ch.name} posted`]); toast(`${ch.name} marked as posted`, 'check'); break;
     }
     render();
   }));
@@ -2112,7 +2248,7 @@ function openDrawer(ev) {
   const e = ev || { title: '', date: '2026-11-22', start: '10:00', end: '14:00', place: 'Oakland Peace Center', address: '111 Fairmount Ave, Oakland', about: '', bring: 'water bottle, gloves if you have them', tags: ['beginner', 'tools'], host: ME, plan: { leadStart: '09:00', leadEnd: '14:30' } };
   const chosen = edit ? CHANNELS.filter(c => ev.posts[c.id].status !== 'off').map(c => c.id) : ['partiful', 'luma', 'ggroup', 'calendar', 'facebook', 'instagram', 'chats'];
   $('#drawer').innerHTML = `<div class="scrim" id="scrim"><div class="panel" role="dialog" aria-modal="true" aria-labelledby="dr-t">
-    <header><h2 id="dr-t">${edit ? 'Edit event' : 'New event'}</h2><button class="btn ghost sm" type="button" id="dr-x">Close</button></header>
+    <header><h2 id="dr-t">${edit ? 'Edit event' : 'New event'}</h2><button class="btn ghost sm" type="button" id="dr-x">${ic('x')}Close</button></header>
     <form id="evf" novalidate>
       ${edit ? '' : `<label class="fld">Start from<select id="f-from"><option value="">Blank event</option>${EVENTS.filter(x => x.plan).sort((a, b) => b.date.localeCompare(a.date)).map(x => `<option value="${x.id}">Copy ${esc(x.label || x.title)} (${shortDate(x.date)})</option>`).join('')}</select></label>`}
       <label class="fld">Event name<input id="f-title" value="${esc(e.title)}" placeholder="e.g. OPC Garden Work Party"></label>
@@ -2127,7 +2263,7 @@ function openDrawer(ev) {
       <fieldset><legend>Post to</legend><div class="picks">${CHANNELS.map(c => `<label><input type="checkbox" name="ch" value="${c.id}" ${chosen.includes(c.id) ? 'checked' : ''}><span>${esc(c.name)}</span></label>`).join('')}</div></fieldset>
       ${planFields(e.plan && e.plan.timeline ? e.plan : null)}
       ${edit ? '<p class="hint">Changed drafts go back for approval.</p>' : ''}
-      <p class="err" id="f-err" hidden></p>
+      <p class="err" id="f-err" role="alert" hidden></p>
     </form>
     <footer><span></span><button class="btn primary" type="submit" form="evf">${edit ? 'Save' : 'Create event'}</button></footer>
   </div></div>`;
@@ -2237,18 +2373,18 @@ function renderMap() {
     if (!(L >= 0 && L <= 100 && T >= 0 && T <= 100)) return ''; // off the map tiles: list only
     return `<a class="mpin ${L > 70 ? 'left' : ''}" style="left:${L.toFixed(2)}%;top:${T.toFixed(2)}%" href="${link(g)}" target="_blank" rel="noopener" data-g="${i}" aria-label="${esc(g.name)}, open in Google Maps"><span class="dot">${i + 1}</span><span class="lab">${esc(g.name)}</span></a>`; }).join('');
   $('#gmap-art').innerHTML = `<div class="tiles"><i class="t2627-6330"></i><i class="t2628-6330"></i><i class="t2629-6330"></i><i class="t2630-6330"></i><i class="t2627-6331"></i><i class="t2628-6331"></i><i class="t2629-6331"></i><i class="t2630-6331"></i></div>${pins}<a class="attr" href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© OpenStreetMap contributors</a>`;
-  $('#glist').innerHTML = GARDENS.map((g, i) => `<li><a href="${link(g)}" target="_blank" rel="noopener" data-gl="${i}"><span class="n">${i + 1}</span><span><b>${esc(g.name)}</b><span>${esc(g.addr.replace(', CA', ''))}</span><span>${esc(g.what)}</span><span class="go">Open in Google Maps ↗</span></span></a></li>`).join('');
+  $('#glist').innerHTML = GARDENS.map((g, i) => `<li><a href="${link(g)}" target="_blank" rel="noopener" data-gl="${i}"><span class="n">${i + 1}</span><span><b>${esc(g.name)}</b><span>${esc(g.addr.replace(', CA', ''))}</span><span>${esc(g.what)}</span><span class="go">Open in Google Maps${ic('out')}</span></span></a></li>`).join('');
   $$('[data-gl]').forEach(a => { const pin = $(`.mpin[data-g="${a.dataset.gl}"]`); a.addEventListener('mouseenter', () => pin.classList.add('on')); a.addEventListener('mouseleave', () => pin.classList.remove('on')); });
 }
 const HELP = [['setup', 'Meeting setup'], ['workdays', 'Garden work days'], ['projects', 'Partner projects'], ['outreach', 'Outreach & photos'], ['teach', 'Teaching a skill']];
 const VOLS = []; // filled by sign-ups on the home page
 function renderVols() {
   const H = Object.fromEntries(HELP);
-  $('#vol-tbl').innerHTML = `<thead><tr><th>Name</th><th>Contact</th><th>Wants to help with</th><th>Note</th><th>Signed up</th></tr></thead><tbody>${VOLS.length ? '' : '<tr><td colspan="5" class="hint vol-empty">No sign-ups yet. People who join on the home page show up here.</td></tr>'}${VOLS.slice().sort((a, b) => b.date.localeCompare(a.date)).map(v => `<tr><td><span class="nm">${avatar(v.name)}<b>${esc(v.name)}</b></span></td><td>${esc(v.contact)}</td><td>${v.help.map(h => `<span class="tag">${esc(H[h] || h)}</span>`).join(' ')}</td><td>${esc(v.note) || '<span class="hint">—</span>'}</td><td>${esc(mdy(v.date))}</td></tr>`).join('')}</tbody>`;
+  $('#vol-tbl').innerHTML = `<thead><tr><th>Name</th><th>Contact</th><th>Wants to help with</th><th>Note</th><th>Signed up</th></tr></thead><tbody>${VOLS.length ? '' : '<tr><td colspan="5" class="hint vol-empty">No sign-ups yet. People who join on the home page show up here.</td></tr>'}${VOLS.slice().sort((a, b) => b.date.localeCompare(a.date)).map(v => `<tr><td><span class="nm">${avatar(v.name)}<b>${esc(v.name)}</b></span></td><td>${ic(String(v.contact).includes('@') ? 'mail' : 'phone')}${esc(v.contact)}</td><td>${v.help.map(h => `<span class="tag">${esc(H[h] || h)}</span>`).join(' ')}</td><td>${esc(v.note) || '<span class="hint">—</span>'}</td><td>${esc(mdy(v.date))}</td></tr>`).join('')}</tbody>`;
 }
 const mdy = s => D(s).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 function bindJoin() {
-  $('#vj-picks').innerHTML = HELP.map(([k, l]) => `<label><input type="checkbox" name="vj-help" value="${k}"><span>${l}</span></label>`).join('');
+  $('#vj-picks').innerHTML = HELP.map(([k, l]) => `<label><input type="checkbox" name="vj-help" value="${k}"><span>${ic('check')}${l}</span></label>`).join('');
   $('#joinf').addEventListener('submit', e => {
     e.preventDefault();
     const name = $('#vj-name').value.trim(), contact = $('#vj-contact').value.trim(), help = $$('input[name=vj-help]:checked').map(i => i.value), err = $('#vj-err');
@@ -2260,7 +2396,7 @@ function bindJoin() {
     renderVols();
     $('#joinf').hidden = true;
     $('#joined').hidden = false;
-    $('#joined').innerHTML = `<b>Thanks, ${esc(name.split(' ')[0])}!</b><span>You're on the volunteer list. An organizer will reach out before the next meeting or work day.</span><button class="tog" type="button" id="vj-again" style="justify-self:start">Sign up someone else</button>`;
+    $('#joined').innerHTML = `<b><i class="ic-chip">${ic('check')}</i>Thanks, ${esc(name.split(' ')[0])}!</b><span>You're on the volunteer list. An organizer will reach out before the next meeting or work day.</span><button class="tog" type="button" id="vj-again" style="justify-self:start">Sign up someone else</button>`;
     $('#vj-again').addEventListener('click', () => { $('#joinf').reset(); err.hidden = true; $('#joinf').hidden = false; $('#joined').hidden = true; });
   });
 }
@@ -2268,11 +2404,11 @@ function renderLanding() {
   renderMap();
   const nm = nextSecondMonday(TODAY);
   const meetIso = `${nm.getFullYear()}-${String(nm.getMonth() + 1).padStart(2, '0')}-${String(nm.getDate()).padStart(2, '0')}`;
-  const meetCard = `<a class="mcard" href="https://linktr.ee/eastbaypermacultureguild" target="_blank" rel="noopener"><span class="mtop"><span class="mday"><span>${nm.toLocaleDateString('en-US', { month: 'short' })}</span><b>${nm.getDate()}</b></span><span class="mk">Monthly meeting</span><b class="mt">Potluck, speakers and community</b></span><span class="nb"><b>Guild Monthly Meeting</b><span>${esc(longDate(meetIso))} · 6:00 PM · Grace Room, Oakland Peace Center</span><span class="rsvp">Bring a dish to share. RSVP on Partiful ↗</span></span></a>`;
+  const meetCard = `<a class="mcard" href="https://linktr.ee/eastbaypermacultureguild" target="_blank" rel="noopener"><span class="mtop"><span class="mday"><span>${nm.toLocaleDateString('en-US', { month: 'short' })}</span><b>${nm.getDate()}</b></span><span class="mk">Monthly meeting</span><b class="mt">Potluck, speakers and community</b></span><span class="nb"><b>Guild Monthly Meeting</b><span class="meta">${ic('calendar')}${esc(longDate(meetIso))} · 6:00 PM</span><span class="meta">${ic('map-pin')}Grace Room, Oakland Peace Center</span><span class="rsvp">Bring a dish to share. RSVP on Partiful${ic('out')}</span></span></a>`;
   const nx = EVENTS.filter(e => !e.isNew && e.date >= TODAY).sort((a, b) => a.date.localeCompare(b.date));
   const hero = nx[0] || EVENTS[0];
   $('#hero-cards').innerHTML = flyerArt(hero).replace('art flyer', 'art flyer c1') + igArt(hero).replace('art ig', 'art ig c2') + storyArt(hero).replace('art story', 'art story c3');
-  const evCards = nx.filter(e => e.series === 'workday').slice(0, 2).map(e => [e.date, `<button type="button" data-signin title="Organizers can sign in to see the plan">${igArt(e)}<span class="nb"><b>${esc(e.title)}</b><span>${esc(longDate(e.date))} · ${t12(e.start)} · ${esc(e.place)}</span></span></button>`]);
+  const evCards = nx.filter(e => e.series === 'workday').slice(0, 2).map(e => [e.date, `<button type="button" data-signin title="Organizers can sign in to see the plan">${igArt(e)}<span class="nb"><b>${esc(e.title)}</b><span class="meta">${ic('calendar')}${esc(longDate(e.date))} · ${t12(e.start)}</span><span class="meta">${ic('map-pin')}${esc(e.place)}</span></span></button>`]);
   $('#nextup').innerHTML = evCards.concat([[meetIso, meetCard]]).sort((a, b) => a[0].localeCompare(b[0])).map(x => x[1]).join('');
   $('#si-pick').innerHTML = organizers().map(o => `<button type="button" data-as="${esc(o.name)}">${avatar(o.name)}<span>${esc(o.name)}<small>${ROLE[o.role]}</small></span></button>`).join('');
   $$('[data-as]').forEach(b => b.addEventListener('click', () => signIn(b.dataset.as)));
@@ -2282,7 +2418,7 @@ function signIn(name) { if (remote) return remote.signIn(name); finishSignIn(nam
 function finishSignIn(name) {
   ME = name; AUTH.set(name); document.body.classList.remove('out');
   renderAs(); render(); renderTeam(); showTab('events'); history.replaceState(null, '', '#events'); window.scrollTo({ top: 0 });
-  toast(`Signed in as ${name}`);
+  toast(`Signed in as ${name}`, 'check');
 }
 function signOut() {
   if (!$('#modal').hidden) closeEvent();
