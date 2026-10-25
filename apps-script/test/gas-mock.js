@@ -63,9 +63,18 @@ class Sheet {
   table() { return Array.from({ length: this.getLastRow() }, (_, i) => Array.from(this.cells[i] || [], display)); }
 }
 
-/* activeUser: who is running the code. The owner when run from the script editor; '' for an anonymous web-app visitor. */
-function makeGas({ page, now, url = 'http://localhost:8766/', activeUser = 'owner@example.com' } = {}) {
+/* activeUser: who is running the code. The owner when run from the script editor; '' for an anonymous web-app visitor.
+   settings: rows for the Settings tab before Code.js first runs, e.g. { ORGANIZER_CODE: 'garden-test-2468' }.
+   The code starts blank (nobody can sign in), so a test that signs in sets one here.
+   quota: emails left today (MailApp.getRemainingDailyQuota); change it later through g.mailbox.quota.
+   g.mailbox.fail(to, subject, n) can return an error message to make the nth sendEmail call throw. */
+function makeGas({ page, now, url = 'http://localhost:8766/', activeUser = 'owner@example.com', settings, quota = 100 } = {}) {
   const sheets = new Map([['Sheet1', new Sheet('Sheet1')]]);
+  if (settings) {
+    const s = new Sheet('Settings');
+    [['setting', 'value', 'what it does'], ...Object.entries(settings).map(([k, v]) => [k, v, ''])].forEach((row, i) => row.forEach((v, j) => s.set(i + 1, j + 1, v)));
+    sheets.set('Settings', s);
+  }
   const ss = {
     getId: () => 'sheet-1',
     getUrl: () => 'https://docs.google.com/spreadsheets/d/sheet-1/edit',
@@ -75,7 +84,7 @@ function makeGas({ page, now, url = 'http://localhost:8766/', activeUser = 'owne
     deleteSheet: s => sheets.delete(s.name),
   };
   const props = {}, cache = {};
-  const mail = [], calendar = [];
+  const mail = [], calendar = [], mailbox = { quota, fail: null, calls: 0 };
   const RealDate = Date;
   const clock = { now: now ? new RealDate(now).getTime() : null };
   class FakeDate extends RealDate {
@@ -99,17 +108,35 @@ function makeGas({ page, now, url = 'http://localhost:8766/', activeUser = 'owne
       const p = parts(new RealDate(want)), asLocal = RealDate.UTC(+p.year, p.month - 1, +p.day, +p.hour, +p.minute);
       return new RealDate(want + (want - asLocal));
     },
+    getUuid: () => require('crypto').randomUUID(),
   };
+  // values expire after their seconds (the mock clock counts), like the real CacheService
+  const clockNow = () => (clock.now != null ? clock.now : RealDate.now());
+  const scriptCache = {
+    get: k => { const c = cache[k]; if (!c || c.until <= clockNow()) { delete cache[k]; return null; } return c.v; },
+    put: (k, v, secs = 600) => { cache[k] = { v: String(v), until: clockNow() + secs * 1000 }; },
+    remove: k => { delete cache[k]; },
+  };
+  const logs = []; // console.log from Code.js (the Execution log in the script editor)
   const ctx = {
-    console, JSON, Math, Number, String, Object, Array, Set, Map, Error, RegExp, isNaN, Intl,
+    console: { ...console, log: (...a) => logs.push(a.join(' ')) }, JSON, Math, Number, String, Object, Array, Set, Map, Error, RegExp, isNaN, Intl,
     Date: FakeDate,
     SpreadsheetApp: { getActiveSpreadsheet: () => ss, openById: () => ss, create: () => ss },
     PropertiesService: { getScriptProperties: () => ({ getProperty: k => props[k] || null, setProperty: (k, v) => { props[k] = v; } }) },
-    CacheService: { getScriptCache: () => ({ get: k => cache[k] || null, put: (k, v) => { cache[k] = v; } }) },
+    CacheService: { getScriptCache: () => scriptCache },
     LockService: { getScriptLock: () => ({ waitLock() {}, releaseLock() {} }) },
     Session: { getScriptTimeZone: () => TZ, getEffectiveUser: () => ({ getEmail: () => 'owner@example.com' }), getActiveUser: () => ({ getEmail: () => activeUser }) },
     Utilities,
-    MailApp: { sendEmail: (to, subject, body, opts) => mail.push({ to, subject, body, opts }) },
+    MailApp: {
+      sendEmail: (to, subject, body, opts) => {
+        const why = mailbox.fail && mailbox.fail(to, subject, ++mailbox.calls);
+        if (why) throw new Error(why);
+        if (mailbox.quota < 1) throw new Error('Service invoked too many times for one day: email.');
+        mailbox.quota--;
+        mail.push({ to, subject, body, opts });
+      },
+      getRemainingDailyQuota: () => mailbox.quota,
+    },
     CalendarApp: {
       getDefaultCalendar: () => ({ getName: () => 'Owner calendar', createEvent: (title, start, end, o) => calendar.push({ cal: 'default', title, start, end, ...o }) }),
       getCalendarById: id => ({ getName: () => 'Guild calendar', createEvent: (title, start, end, o) => calendar.push({ cal: id, title, start, end, ...o }) }),
@@ -129,7 +156,7 @@ function makeGas({ page, now, url = 'http://localhost:8766/', activeUser = 'owne
   };
   vm.createContext(ctx);
   vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'dist', 'Code.js'), 'utf8'), ctx, { filename: 'Code.js' });
-  return { ctx, sheets, mail, calendar, clock, tab: n => sheets.get(n).table() };
+  return { ctx, sheets, mail, mailbox, calendar, clock, cache, logs, tab: n => sheets.get(n).table() };
 }
 
 module.exports = { makeGas };

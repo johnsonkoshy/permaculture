@@ -16,7 +16,7 @@ const TABS = {
   Settings: ['setting', 'value', 'what it does'],
 };
 const DEFAULTS = [
-  ['ORGANIZER_CODE', 'sprout-4821-bay', 'Organizers type this to sign in. Change it any time.'],
+  ['ORGANIZER_CODE', '', 'Organizers type this to sign in. At least 8 characters. Running setup fills it in when blank. Change it any time.'],
   ['TEST_MODE', 'TRUE', 'TRUE: every email goes only to the owner of this Sheet. Set FALSE to go live.'],
   ['GROUP_EMAIL', '', 'Google Group address the Post button emails, e.g. eastbaypermaculture@googlegroups.com'],
   ['CALENDAR_ID', '', "Calendar for events. Blank: the owner's main calendar."],
@@ -24,9 +24,20 @@ const DEFAULTS = [
   ['WELCOME_EMAILS', 'TRUE', 'Email new volunteers a thank-you and tell the lead organizer.'],
   ['SITE_URL', '', 'Where the Event Hub page lives, e.g. https://ebpg-event-hub.netlify.app. When set, this Google link sends people there.'],
   ['SEEDED', '', 'Set to TRUE by the app after the first sign-in fills the Sheet. Leave it.'],
+  ['REPLY_TO', '', "Where replies to the hub's emails go. Blank: the lead organizer's email on the Team tab."],
+  ['MAIL_RESERVE', '30', 'Welcome and new-volunteer emails wait when fewer than this many emails are left for the day, so reminders can still go out.'],
 ];
 const ROLES = { lead: 'Lead organizer', co: 'Co-organizer', vol: 'Volunteer' };
 const PERM_KEYS = ['create', 'edit', 'approve', 'tasks', 'team'];
+/* What a saved event may hold. The page only sends these, so anything else is a hand-made request. */
+const ID_RE = /^[A-Za-z0-9_-]{1,40}$/;
+const PHOTOS = ['trellis', 'moat', 'pantry', 'none'];
+const TAG_KEYS = ['beginner', 'tools', 'kids', 'potluck', 'outdoor'];
+const TAG_WORDS = /^[\p{L}\p{N}][\p{L}\p{N} '\u2019&.()\/+!?-]{0,29}$/u; // a tag typed by hand: plain words, 30 characters at most
+const CHANNELS = ['partiful', 'luma', 'ggroup', 'calendar', 'meetup', 'facebook', 'instagram', 'chats'];
+const MAX_LEN = { title: 200, about: 4000, bring: 500 };
+/* Emails that can wait. They go out only while more than MAIL_RESERVE of the day's quota is left, so reminders still can. */
+const CAN_WAIT = ['welcome', 'lead-alert', 'thanks', 'steward', 'invite'];
 
 /* ---------- page ---------- */
 function doGet(e) {
@@ -89,7 +100,19 @@ function setup() {
   ensure_();
   ScriptApp.getProjectTriggers().forEach(t => { if (t.getHandlerFunction() === 'hourly') ScriptApp.deleteTrigger(t); });
   ScriptApp.newTrigger('hourly').timeBased().everyHours(1).create();
-  return 'Ready. Web app: ' + ScriptApp.getService().getUrl();
+  let out = 'Ready. Web app: ' + ScriptApp.getService().getUrl();
+  // a blank code, or the one the first version shipped with (it was printed in its README), gets a new one nobody has seen
+  const code = setting_('ORGANIZER_CODE');
+  if (!code || code === ['sprout', '4821', 'bay'].join('-')) {
+    const hex = Utilities.getUuid().replace(/[^0-9a-f]/gi, '').toLowerCase();
+    const fresh = 'garden-' + hex.slice(0, 4) + '-' + hex.slice(4, 8);
+    setSetting_('ORGANIZER_CODE', fresh);
+    out += '\nNew organizer code: ' + fresh + ' (the ORGANIZER_CODE row on the Settings tab). Share it with the other organizers.';
+  } else if (code.length < 8) {
+    out += '\nThe organizer code on the Settings tab is shorter than 8 characters, so nobody can sign in. Make it longer.';
+  }
+  console.log(out); // the script editor shows this in the Execution log (it doesn't show return values)
+  return out;
 }
 
 /* Run from the editor (not callable from the page): empties the data tabs, keeping their headers and
@@ -129,6 +152,11 @@ function signIn(code) {
   const st = readAll_();
   st.empty = !on_('SEEDED') && !st.events.length;
   st.sheetUrl = book_().getUrl(); // for the Help page's "Open the Guild Sheet" link
+  // for the test-mode banner, and so organizers can tell whether emails really go out
+  st.testMode = on_('TEST_MODE');
+  st.owner = owner_();
+  st.groupEmailSet = /@/.test(setting_('GROUP_EMAIL'));
+  st.quota = quota_();
   return st;
 }
 
@@ -168,14 +196,15 @@ function addVolunteer(v) {
   cache.put('joins', String(n + 1), 600);
   locked_(() => append_('Volunteers', [volRow_({ date: today_(), name: name, contact: contact, help: help, note: note })]));
   if (on_('WELCOME_EMAILS')) {
+    // the sign-up is saved already, so an email that fails is noted on the Reminders tab instead of failing the sign-up
+    const tryMail = (to, subject, body, kind) => { try { mail_(to, subject, body, kind); } catch (e) { log_(kind, to, 'failed: ' + msg_(e)); } };
     const next = upcoming_()[0];
-    if (/@/.test(contact)) mail_(contact, 'Welcome to the East Bay Permaculture Guild',
+    if (/@/.test(contact)) tryMail(contact, 'Welcome to the East Bay Permaculture Guild',
       'Hi ' + name.split(' ')[0] + ',\n\nThanks for signing up to help' + (help.length ? ' with ' + help.join(', ').toLowerCase() : '') + '. An organizer will reach out soon.' +
       (next ? '\n\nOur next gathering: ' + next.title + ', ' + niceDate_(next.date) + ' at ' + niceTime_(next.start) + ', ' + next.place + '.' : '') +
-      '\n\nSee you in the garden,\nThe East Bay Permaculture Guild');
-    const lead = readTeam_().find(t => t.role === 'lead');
-    mail_(lead && /@/.test(lead.contact) ? lead.contact : owner_(), 'New volunteer: ' + name,
-      name + ' signed up.\nContact: ' + contact + '\nWants to help with: ' + (help.join(', ') || '-') + (note ? '\nNote: ' + note : '') + '\n\nThey are on the Volunteers tab of the Event Hub Sheet.');
+      '\n\nSee you in the garden,\nThe East Bay Permaculture Guild', 'welcome');
+    tryMail(leadEmail_() || owner_(), 'New volunteer: ' + name,
+      name + ' signed up.\nContact: ' + contact + '\nWants to help with: ' + (help.join(', ') || '-') + (note ? '\nNote: ' + note : '') + '\n\nThey are on the Volunteers tab of the Event Hub Sheet.', 'lead-alert');
   }
   return true;
 }
@@ -192,7 +221,7 @@ function postTo(code, eventId, channel, text) {
     const lines = String(text || '').split('\n'), first = lines[0] || '';
     const subject = /^subject:/i.test(first) ? first.replace(/^subject:\s*/i, '') : c.title + ', ' + niceDate_(c.date);
     const body = (/^subject:/i.test(first) ? lines.slice(1) : lines).join('\n').replace(/^\s+/, '');
-    mail_(to || 'the Google Group', subject, body);
+    mail_(to || 'the Google Group', subject, body, 'post');
     return on_('TEST_MODE') ? 'Test mode: the Google Group email went to you only.' : 'Emailed the Google Group.';
   }
   if (channel === 'calendar') {
@@ -207,7 +236,9 @@ function postTo(code, eventId, channel, text) {
   throw new Error('That channel is copy and paste.');
 }
 
-/* Hourly trigger: reminders the evening before (6 PM on) and the morning of (8 AM to noon). */
+/* Hourly trigger: reminders the evening before (6 PM on) and the morning of (8 AM to noon).
+   A send that fails is logged as "failed: ..." under a key that doesn't count as sent, so it's tried again next
+   hour, and the rest still go out. If any failed, the lead gets one email about it (once a day). */
 function hourly() {
   if (!on_('REMINDERS')) return 0;
   const tz = Session.getScriptTimeZone(), now = new Date();
@@ -215,6 +246,15 @@ function hourly() {
   const today = today_(), tomorrow = Utilities.formatDate(new Date(now.getTime() + 864e5), tz, 'yyyy-MM-dd');
   const team = readTeam_(), sent = new Set(rows_('Reminders').map(r => r[1]));
   const bringing = rows_('Bringing');
+  const failed = [];
+  const send = (key, to, subject, body, kind) => {
+    try { mail_(to, subject, body, kind); return true; } catch (e) {
+      const m = msg_(e);
+      log_('failed|' + key, to, 'failed: ' + m);
+      failed.push(subject + ' (to ' + to + '): ' + m);
+      return false;
+    }
+  };
   let count = 0;
   readEvents_().forEach(({ cols: c }) => {
     const kind = c.date === tomorrow && hour >= 18 ? 'evening before' : c.date === today && hour >= 8 && hour < 12 ? 'morning of' : '';
@@ -227,18 +267,29 @@ function hourly() {
       const p = team.find(t => t.name === r[2]);
       if (p && /@/.test(p.contact)) {
         const subject = 'Reminder: ' + r[1] + ' for ' + c.title;
-        mail_(p.contact, subject, 'Hi ' + p.name.split(' ')[0] + ",\n\nIt's the East Bay Permaculture Guild. You're on \"" + r[1] + '" for ' + c.title + ' ' + when + ".\n\nIf you can't make it, reply and we'll find someone. Thank you!");
-        log_(key, p.contact, subject); count++;
+        if (send(key, p.contact, subject, 'Hi ' + p.name.split(' ')[0] + ",\n\nIt's the East Bay Permaculture Guild. You're on \"" + r[1] + '" for ' + c.title + ' ' + when + ".\n\nIf you can't make it, reply and we'll find someone. Thank you!", 'reminder')) {
+          log_(key, p.contact, subject); count++;
+        }
       } else toText.push([key, r[2] + (p && p.contact ? ' (' + p.contact + ')' : '') + ': ' + r[1]]);
     });
     if (toText.length) {
       const host = team.find(t => t.name === c.host), lead = team.find(t => t.role === 'lead');
       const to = [host, lead].map(t => t && t.contact).find(x => /@/.test(x || '')) || owner_();
       const subject = 'Text these people for ' + c.title;
-      mail_(to, subject, c.title + ' is ' + when + '.\nThese people have no email on the Team tab, so please text them a reminder:\n\n' + toText.map(x => '• ' + x[1]).join('\n'));
-      toText.forEach(x => log_(x[0], to, subject)); count++;
+      if (send([c.id, 'text list', kind].join('|'), to, subject, c.title + ' is ' + when + '.\nThese people have no email on the Team tab, so please text them a reminder:\n\n' + toText.map(x => '\u2022 ' + x[1]).join('\n'), 'text-list')) {
+        toText.forEach(x => log_(x[0], to, subject)); count++;
+      }
     }
   });
+  const key = 'failed summary|' + today;
+  if (failed.length && !sent.has(key) && quota_() > 0) {
+    const to = leadEmail_() || owner_(), subject = "Some reminders didn't go out";
+    try {
+      mail_(to, subject, 'The Event Hub tried to send these reminders and Gmail said no:\n\n' + failed.map(x => '\u2022 ' + x).join('\n') +
+        "\n\nIt will try again every hour while it's still time to remind people. Each one is on the Reminders tab of the Event Hub Sheet.", 'summary');
+      log_(key, to, subject);
+    } catch (e) { /* no quota left today: the failed rows are on the Reminders tab */ }
+  }
   return count;
 }
 
@@ -375,8 +426,18 @@ function locked_(fn) {
   lock.waitLock(20000);
   try { return fn(); } finally { lock.releaseLock(); }
 }
+/* Every organizer call checks the code. A blank or short code lets nobody in. Wrong codes are counted per
+   10 minutes; after 20 of them, every organizer call waits until the next 10 minutes, whatever code it brings. */
 function check_(code) {
-  if (String(code || '').trim() !== setting_('ORGANIZER_CODE')) throw new Error("That organizer code isn't right.");
+  const want = setting_('ORGANIZER_CODE');
+  if (want.length < 8) throw new Error("The organizer code isn't set up yet. Ask the Sheet owner.");
+  const cache = CacheService.getScriptCache(), key = 'fail:' + Math.floor(Date.now() / 6e5);
+  const tries = Number(cache.get(key) || 0);
+  const busy = () => new Error('Too many tries. Wait 10 minutes and try again.');
+  if (tries > 20) throw busy();
+  if (String(code == null ? '' : code).trim() === want) return;
+  cache.put(key, String(tries + 1), 600);
+  throw tries + 1 > 20 ? busy() : new Error("That organizer code isn't right.");
 }
 function setting_(k) { const r = rows_('Settings').find(x => x[0] === k); return r ? String(r[1]).trim() : ''; }
 function setSetting_(k, v) {
@@ -388,11 +449,35 @@ function on_(k) { return /^(true|yes|on|1)$/i.test(setting_(k)); }
 function owner_() { return Session.getEffectiveUser().getEmail(); }
 function today_() { return Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd'); }
 
-/* In test mode every email goes to the owner, with the real recipient in the subject. */
-function mail_(to, subject, body) {
-  const test = on_('TEST_MODE');
-  MailApp.sendEmail(test ? owner_() : to, (test ? '[TEST to ' + to + '] ' : '') + subject, body, { name: 'East Bay Permaculture Guild' });
+/* In test mode every email goes to the owner, with the real recipient in the subject. Replies go to REPLY_TO,
+   or else the lead organizer. kind: what the email is ('welcome', 'reminder', ...); see CAN_WAIT.
+   Returns false when an email that can wait was held back to save the day's quota (it's noted on the Reminders tab). */
+function mail_(to, subject, body, kind) {
+  if (!mailOk_(kind)) { log_(kind || 'email', to, 'skipped (quota): ' + subject); return false; }
+  const test = on_('TEST_MODE'), opts = { name: 'East Bay Permaculture Guild' }, reply = replyTo_();
+  if (reply) opts.replyTo = reply;
+  MailApp.sendEmail(test ? owner_() : to, (test ? '[TEST to ' + to + '] ' : '') + subject, body, opts);
+  return true;
 }
+/* Emails that can wait go out only while more than MAIL_RESERVE (30 when blank) are left for the day. */
+function mailOk_(kind) {
+  if (CAN_WAIT.indexOf(kind) < 0) return true;
+  const typed = setting_('MAIL_RESERVE'), reserve = typed === '' || isNaN(Number(typed)) ? 30 : Number(typed);
+  return quota_() > reserve;
+}
+function quota_() {
+  try { return MailApp.getRemainingDailyQuota(); } catch (e) { return 0; }
+}
+function replyTo_() {
+  const set = setting_('REPLY_TO');
+  return /@/.test(set) ? set : leadEmail_();
+}
+/* the lead organizer's email on the Team tab, or '' */
+function leadEmail_() {
+  const lead = readTeam_().find(t => t.role === 'lead'), c = String((lead && lead.contact) || '').trim();
+  return /@/.test(c) ? c : '';
+}
+function msg_(e) { return String((e && e.message) || e).replace(/^Exception:\s*/, '').slice(0, 300); }
 function log_(key, to, subject) { append_('Reminders', [[new Date().toISOString(), key, to, subject]]); }
 
 /* ---------- rows <-> objects ---------- */
@@ -456,6 +541,10 @@ function readEvents_(problems) {
     const cols = {};
     EV_COLS.forEach((k, j) => { cols[k] = r[j]; });
     if (!cols.id) return;
+    if (!ID_RE.test(cols.id)) {
+      if (problems) problems.push({ tab: 'Events', row: i + 2, what: 'the id can only use letters, numbers, - and _ (40 at most)' });
+      return;
+    }
     cols.date = normDate_(cols.date); cols.start = normTime_(cols.start); cols.end = normTime_(cols.end);
     if (!isDate_(cols.date)) {
       const typed = cols.date.length > 40 ? cols.date.slice(0, 40) + '\u2026' : cols.date;
@@ -475,10 +564,25 @@ function upcoming_() {
 }
 
 function saveEvent_(p) {
-  const c = p.cols || {}, id = String(p.id || c.id || '').slice(0, 40);
+  p = p || {};
+  const c = Object.assign({}, p.cols || {}), id = String(p.id || c.id || '');
   if (!id) throw new Error('Event has no id.');
+  if (!ID_RE.test(id)) throw new Error('An event id can only use letters, numbers, - and _ (40 at most).');
+  (p.tasks || []).forEach(t => { if (!ID_RE.test(String((t && t.id) || ''))) throw new Error('A task id can only use letters, numbers, - and _ (40 at most).'); });
+  (p.posts || []).forEach(x => { if (CHANNELS.indexOf(x && x.channel) < 0) throw new Error('Unknown channel.'); });
+  const data = p.data && typeof p.data === 'object' && !Array.isArray(p.data) ? Object.assign({}, p.data) : {};
+  data.id = id;
+  if (data.photo !== undefined && PHOTOS.indexOf(data.photo) < 0) data.photo = 'none';
+  ['map', 'rsvp'].forEach(k => { if (data[k] !== undefined && !/^https:\/\/\S+$/.test(String(data[k]))) delete data[k]; });
+  const tagOk = t => TAG_KEYS.indexOf(t) >= 0 || TAG_WORDS.test(t);
+  if (data.tags !== undefined) data.tags = (Array.isArray(data.tags) ? data.tags : []).map(t => String(t).trim()).filter(tagOk);
+  c.tags = String(c.tags == null ? '' : c.tags).split(',').map(t => t.trim()).filter(tagOk).join(', ');
+  Object.keys(MAX_LEN).forEach(k => {
+    if (c[k] != null) c[k] = String(c[k]).slice(0, MAX_LEN[k]);
+    if (typeof data[k] === 'string') data[k] = data[k].slice(0, MAX_LEN[k]);
+  });
   // a cell holds 50,000 characters; never cut the plan short, since a cut-off plan can't be read back
-  const json = JSON.stringify(p.data || {});
+  const json = JSON.stringify(data);
   if (json.length > 45000) throw new Error("This event's plan is too long to save. Shorten the notes.");
   const row = [id].concat(EV_COLS.slice(1).map(k => c[k] == null ? '' : c[k]));
   row[TABS.Events.indexOf(DATA_HEAD)] = json;

@@ -3,7 +3,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 
 test('dev server: /_ctl slows /_api calls and fails the ones named with an HTML page; one call can carry its own', async t => {
-  const { server } = require('./dev-server');
+  const { server, CODE, gas } = require('./dev-server');
   await new Promise(r => server.listen(0, '127.0.0.1', r));
   t.after(() => { server.closeAllConnections(); server.close(); });
   const base = `http://127.0.0.1:${server.address().port}`;
@@ -34,6 +34,19 @@ test('dev server: /_ctl slows /_api calls and fails the ones named with an HTML 
   r = await call('saveEvent', ['nope', {}]);
   assert.equal(r.status, 200);
   assert.deepEqual(await r.json(), { error: "That organizer code isn't right." }, 'back to normal');
+
+  // organizers sign in with the dev Sheet's code, and are told test mode is on and who gets the emails
+  assert.equal(CODE, 'garden-dev-1234');
+  const st = (await (await call('signIn', [CODE])).json()).value;
+  assert.deepEqual([st.testMode, st.owner, st.quota], [true, 'owner@example.com', 100]);
+  // /_ctl?quota= sets the emails left today: at 20, a welcome email waits
+  await ctl('?quota=20');
+  assert.equal(gas.mailbox.quota, 20);
+  const sent = gas.mail.length;
+  assert.equal((await (await call('addVolunteer', [{ name: 'Sam Lee', contact: 'sam@example.org', help: [], note: '' }])).json()).value, true);
+  assert.equal(gas.mail.length, sent, 'held back');
+  assert.ok(gas.tab('Reminders').some(r => r[3] === 'skipped (quota): Welcome to the East Bay Permaculture Guild'));
+  await ctl('?quota=100');
 
   const html = await (await fetch(base + '/site')).text();
   assert.ok(html.includes(`"${base}/_api"`), 'the page calls this server');

@@ -11,8 +11,8 @@ The Event Hub prototype, now saving to a real Google Sheet. The page is hosted o
 
 ## Morning: 5 minutes to turn it on
 
-1. **Approve it once.** Open the script editor link and pick **setup** in the function menu at the top. Click **Run**, then **Review permissions**, and choose your account. Google will say *"Google hasn't verified this app"*. That's normal for a script you wrote yourself: click **Advanced → Go to EBPG Event Hub (unsafe) → Allow**. This sets up the Sheet tabs and the hourly reminder check.
-2. **Open the site and sign in.** Go to https://ebpg-event-hub.netlify.app and you'll see the Guild's landing page. Click **Sign in**, type the organizer code `sprout-4821-bay`, and pick your name. The first sign-in on an empty Sheet fills it with the Guild's six events from the OPC planning notes and the team's names, roles and permissions. Contacts start blank, the volunteer list starts empty, and Workday #7 and Community Meeting #2 are drafts: their posts wait for review and their tasks need someone. This happens only once. Afterwards `SEEDED` on the Settings tab says TRUE, so emptying a tab by hand never brings the starter events back.
+1. **Approve it once.** Open the script editor link and pick **setup** in the function menu at the top. Click **Run**, then **Review permissions**, and choose your account. Google will say *"Google hasn't verified this app"*. That's normal for a script you wrote yourself: click **Advanced → Go to EBPG Event Hub (unsafe) → Allow**. This sets up the Sheet tabs and the hourly reminder check. If the organizer code is blank (a new Sheet) or still the one the first version shipped with, setup makes a new one, writes it to the Settings tab and prints it in the Execution log under the code. Share it only with organizers.
+2. **Open the site and sign in.** Go to https://ebpg-event-hub.netlify.app and you'll see the Guild's landing page. Click **Sign in**, type the organizer code (see the ORGANIZER_CODE row on the Settings tab), and pick your name. The first sign-in on an empty Sheet fills it with the Guild's six events from the OPC planning notes and the team's names, roles and permissions. Contacts start blank, the volunteer list starts empty, and Workday #7 and Community Meeting #2 are drafts: their posts wait for review and their tasks need someone. This happens only once. Afterwards `SEEDED` on the Settings tab says TRUE, so emptying a tab by hand never brings the starter events back.
 3. **If the link still says "Access Denied":** in the script editor go to **Deploy → Manage deployments → ✏️**. Set *Execute as* to **Me** and *Who has access* to **Anyone**, then click **Deploy**. Or just tell Claude, and it will redeploy.
 
 ## Before the demo
@@ -36,7 +36,8 @@ The Event Hub prototype, now saving to a real Google Sheet. The page is hosted o
 ## What works
 
 - **Landing page** for the public: upcoming events, a garden map and the volunteer sign-up. Sign-ups go to the **Volunteers** tab. The volunteer gets a welcome email and the lead organizer gets a "new volunteer" email.
-- **Organizer sign-in** with the organizer code. You can change the code on the **Settings** tab at any time. The header shows who is signed in.
+- **Organizer sign-in** with the organizer code. You can change the code on the **Settings** tab at any time; it needs at least 8 characters, and a blank or shorter one lets nobody in ("The organizer code isn't set up yet. Ask the Sheet owner."). After 20 wrong codes in 10 minutes, every organizer call says "Too many tries. Wait 10 minutes and try again." until the 10 minutes are up, so the code can't be guessed. The header shows who is signed in.
+- **Test-mode banner:** while `TEST_MODE` is TRUE, every organizer page has a yellow note: "Test mode: every email goes only to *the owner*. Turn it off on the Settings tab when you're ready to go live.", with an **Open the Sheet** link. It goes away within two minutes of setting `TEST_MODE` to FALSE.
 - **Saving you can see:** a note under the top bar (or under the event pop-up's own bar, while one is open) says *Saving…*, then *All changes saved*. If the Sheet doesn't answer (Apps Script can take a few seconds to wake up, or a phone loses signal), it says *Not saved* with a **Retry** button, retries on its own after 2, 5 and 15 seconds and then every minute (and right away when you come back to the tab or press Save again), and marks the event's tile *Not saved*. Saves of one event go out one at a time, newest last. "Saved" and "added" messages appear only once the Sheet has the change, and the browser asks before closing a tab with unsaved changes.
 - **Staying current:** when you come back to the tab, and every 2 minutes while it's open, the page reads the Sheet again and says *Updated with the latest changes* if someone else changed something. Events with unsaved changes here, or being edited, are left alone.
 - **Signing in:** the name you pick says *Signing in…* while the Sheet wakes up (the very first sign-in, which fills an empty Sheet, can take up to a minute). Tick **Remember this device for 30 days** to stay signed in on that phone or laptop; otherwise the code is forgotten when the tab closes. Sign out forgets it either way.
@@ -46,13 +47,15 @@ The Event Hub prototype, now saving to a real Google Sheet. The page is hosted o
   - **Google Group:** sends the email.
   - **Calendar:** adds the event.
   - **Partiful, Luma, Meetup, Facebook, Instagram and chats:** stay copy and paste. Luma's API needs a paid plan, and Partiful has none.
-- **Reminders:** every hour the script checks for events. The evening before and the morning of, it emails each person bringing something. People with only a phone number go on a "text these people" email to the host.
+- **Reminders:** every hour the script checks for events. The evening before and the morning of, it emails each person bringing something. People with only a phone number go on a "text these people" email to the host. If Gmail refuses one, the Reminders tab gets a `failed: ...` line, the others still go out, it's tried again the next hour, and the lead organizer gets one email a day listing what failed.
+- **Email limits and replies:** replies to every email go to `REPLY_TO` on the Settings tab, or to the lead organizer's email on the Team tab when that's blank. When fewer than `MAIL_RESERVE` (30) emails are left for the day, welcome and new-volunteer emails wait so reminders can still go out; each one held back is a `skipped (quota): ...` line on the Reminders tab.
+- **Safe values:** the server keeps only the four known photos, `https://` map and RSVP links, known tags or plain words up to 30 characters, titles up to 200 characters, descriptions up to 4,000 and "what to bring" up to 500. Event and task ids can use only letters, numbers, `-` and `_`; an Events row with any other id is listed on the Events page as a row to fix. The page escapes everything it shows from the Sheet.
 - **Hand edits:** an organizer can fix the title, date, times, place, host, co-hosts, description, notes or timeline straight in the Sheet. The app shows the change on the next load. Dates can be typed as `2026-10-31`, `10/31/2026`, `10/31`, `Oct 31, 2026` or `October 31, 2026`, and times as `10:30 AM`, `10am` or `noon`. If a date still can't be read, that event is left off the Events page and a note there says which row to fix.
 - **Columns:** the app finds each column by its header in row 1, so you can move columns or add your own between them. Don't rename or delete the headers the app made. When an update needs a new column, the app adds it at the right end of the tab. Bringing, Posts and Activity are rewritten by the app on every save, so personal notes belong on a separate tab, not in new columns there. Activity keeps the newest 100 lines per event.
 
 ## Safe testing
 
-`TEST_MODE` is **TRUE** on the Settings tab, so **every email goes only to gistparent@gmail.com**, with the real recipient shown in the subject. Calendar events go on your own calendar. Nothing reaches the Google Group or the team.
+`TEST_MODE` is **TRUE** on the Settings tab, so **every email goes only to gistparent@gmail.com**, with the real recipient shown in the subject, and organizers see a yellow test-mode note on every page. Calendar events go on your own calendar. Nothing reaches the Google Group or the team.
 
 To go live:
 1. Put the Group's address in `GROUP_EMAIL`.
@@ -65,10 +68,10 @@ Sign in to the Guild account and open the Sheet. Use **File → Make a copy**, w
 
 ## Known limits (fine for a pilot)
 
-- The organizer code is one shared password. Permissions inside the app, such as who can post, are honor-system; the server checks only the code.
+- The organizer code is one shared password. Permissions inside the app, such as who can post, are honor-system; the server checks only the code. Someone guessing wrong 20 times pauses sign-in for everyone for up to 10 minutes.
 - If two people save the same event in the same second, the last save wins. Different events are fine.
 - An event's whole plan has to fit in one cell (45,000 characters). A save over that says "This event's plan is too long to save. Shorten the notes." and the Sheet keeps the last saved version.
-- Gmail allows about 100 emails a day from a free account.
+- Gmail allows about 100 emails a day from a free account. `MAIL_RESERVE` keeps the last 30 for reminders.
 - Texts aren't sent automatically. The host gets a list of people to text instead.
 - There's also an empty test project called "ebpg-api-check" in Drive. Claude made it to check access, and you can delete it.
 
@@ -81,9 +84,10 @@ node --test test/                # all tests (or: npm test, which builds first)
                                  #   server.test.js: backend against a mock of Google's services
                                  #   smoke.test.js: the built site/ page in jsdom against that mock
                                  #   (landing, sign-in, saving an edit, volunteer sign-up, honest starter data)
-node test/dev-server.js          # the real page + mock backend at http://localhost:8766/
+node test/dev-server.js          # the real page + mock backend at http://localhost:8766/ (organizer code: garden-dev-1234)
                                  #   curl 'localhost:8766/_ctl?latency=3000&fail=saveEvent' makes the mock Sheet slow,
                                  #   and saveEvent answer with an HTML error page; '_ctl?latency=0&fail=' undoes it
+                                 #   '_ctl?quota=20' leaves the mock Gmail 20 emails for the day
 clasp push --force               # upload dist/ (after build.py)
 netlify deploy --dir site --prod # publish site/ to https://ebpg-event-hub.netlify.app
 clasp redeploy AKfycbxy4le3b-fRgH9BjhSZrcPf3TDcSgzMZ0sDnZEeRiZsCnPoX5jPVy6GU5DPtyoUjERf -d "update"

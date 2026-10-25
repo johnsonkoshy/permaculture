@@ -8,13 +8,16 @@
      GET /_ctl?latency=0&fail=               back to normal (fail takes a comma-separated list of functions)
      GET /_ctl                               shows the current settings
    One call can also carry its own: POST /_api?latency=500&fail=signIn
-   PORT=9000 node test/dev-server.js serves on another port. */
+   PORT=9000 node test/dev-server.js serves on another port. The organizer code is garden-dev-1234 (CODE=... to change it).
+   GET /_ctl?quota=20 sets how many emails the mock Gmail has left today. */
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const { makeGas } = require('./gas-mock');
 
-const g = makeGas({ page: path.join(__dirname, '..', 'dist', 'index.html') });
+// a new Sheet's organizer code is blank (nobody can sign in), so the dev Sheet gets this one
+const CODE = process.env.CODE || 'garden-dev-1234';
+const g = makeGas({ page: path.join(__dirname, '..', 'dist', 'index.html'), settings: { ORGANIZER_CODE: CODE } });
 const ctl = { latency: 0, fail: '' };
 const SHIM = `<script>(() => {
   const runner = (ok, no) => new Proxy({}, { get: (_, fn) => {
@@ -45,6 +48,7 @@ const server = http.createServer((req, res) => {
   if (url.pathname === '/_ctl') {
     if (url.searchParams.has('latency')) ctl.latency = latencyOf(url.searchParams.get('latency'));
     if (url.searchParams.has('fail')) ctl.fail = url.searchParams.get('fail');
+    if (url.searchParams.has('quota')) g.mailbox.quota = Math.max(0, Number(url.searchParams.get('quota')) || 0);
     return send(200, 'application/json', JSON.stringify(ctl));
   }
   if (url.pathname === '/_api' && req.method === 'POST') {
@@ -86,6 +90,6 @@ const server = http.createServer((req, res) => {
 
 if (require.main === module) {
   const port = Number(process.env.PORT) || 8766;
-  server.listen(port, () => console.log(`dev server on http://localhost:${port}/`));
+  server.listen(port, () => console.log(`dev server on http://localhost:${port}/ (organizer code: ${CODE})`));
 }
-module.exports = { server, ctl, gas: g };
+module.exports = { server, ctl, gas: g, CODE };

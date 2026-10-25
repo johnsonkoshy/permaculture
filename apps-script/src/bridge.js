@@ -82,6 +82,7 @@ if (window.EBPG_GAS) {
       log: log || [],
     };
   };
+  const ID_OK = /^[A-Za-z0-9_-]{1,40}$/; // the ids the Sheet accepts (ID_RE in Code.js)
   const BLANK_PLAN = () => ({ leadStart: '', leadEnd: '', leadNote: '', roles: [], pending: [], setup: [], supplies: [], food: null, timeline: [], icebreaker: '', questions: [], notes: [], areas: [], debrief: [] });
   function fromRows(r) {
     const c = r.cols, ev = Object.assign({ tags: [], photo: 'trellis' }, r.data);
@@ -94,11 +95,12 @@ if (window.EBPG_GAS) {
     if (c.notes !== (pl.notes || []).join('\n')) pl.notes = lns(c.notes);
     if (c.timeline !== PT.timeline(pl)) pl.timeline = parseTimeline(c.timeline);
     ev.host = hostOf(pl) || ev.host || '';
-    ev.tasks = r.tasks.map(t => Object.assign(mkTask('other', t.what, t.who, t.status || (t.who ? 'asked' : 'open')), t.id ? { id: t.id } : {}, t.last ? { last: t.last } : {}));
+    // a task id typed by hand that the Sheet wouldn't take back gets a new one
+    ev.tasks = r.tasks.map(t => Object.assign(mkTask('other', t.what, t.who, t.status || (t.who ? 'asked' : 'open')), ID_OK.test(t.id || '') ? { id: t.id } : {}, t.last ? { last: t.last } : {}));
     ev.posts = {};
     CHANNELS.forEach(ch => {
       const p = r.posts[ch.id];
-      ev.posts[ch.id] = p ? { status: p.status || 'review', text: p.text || draft(ch.id, ev), edited: !!p.edited, by: p.by || '', open: false }
+      ev.posts[ch.id] = p ? { status: STATUS[p.status] ? p.status : 'review', text: p.text || draft(ch.id, ev), edited: !!p.edited, by: p.by || '', open: false }
         : { status: 'off', text: draft(ch.id, ev), edited: false, by: '', open: false };
     });
     ev.log = r.log;
@@ -254,6 +256,7 @@ if (window.EBPG_GAS) {
     lastRead = t0;
     try {
       const st = await run('signIn', code);
+      if (g === gen && live) testBar(st); // TEST_MODE may have been turned off on the Settings tab
       if (g === gen && live && !st.empty && merge(st, t0)) toast('Updated with the latest changes', 'check');
       // the Sheet is answering again: send what didn't go through now, not at the next retry (up to a minute away)
       if (g === gen && live && failedKeys().length) retryNow(false);
@@ -317,6 +320,18 @@ if (window.EBPG_GAS) {
     else { if (failedKeys().length) retryNow(false); refresh(); } // back on the tab: try failed saves again now
   });
 
+  /* ---------- test mode ----------
+     While TEST_MODE is on, every page an organizer sees says where the emails go, with a link to the Sheet. */
+  function testBar(st) {
+    const bar = $('#testbar'), on = !!(st && st.testMode);
+    bar.hidden = !on;
+    if (!on) { bar.innerHTML = ''; return; }
+    const link = safeUrl(st.sheetUrl);
+    const html = `${ic('mail')}<span class="grow"><b>Test mode:</b> every email goes only to ${esc(st.owner || 'the Sheet owner')}. Turn it off on the Settings tab when you're ready to go live.</span>`
+      + (link ? `<a class="btn ghost sm" href="${esc(link)}" target="_blank" rel="noopener">Open the Sheet${ic('out')}</a>` : '');
+    if (bar.innerHTML !== html) bar.innerHTML = html; // redrawn only when it changes, so a focused link keeps focus
+  }
+
   /* ---------- signing in and out ---------- */
   // while a sign-in is going: who it's for, and the line under the name picker
   let signing = false, signingAs = '', waitLine = '';
@@ -353,12 +368,13 @@ if (window.EBPG_GAS) {
       try {
         let st = await run('signIn', c);
         sheetUrl = st.sheetUrl || '';
+        const info = st; // seed's answer has no test-mode details
         if (st.empty) {
           waitLine = 'Setting up the Guild Sheet for the first time. This can take up to a minute.';
           showSigning();
           st = await run('seed', c, SEED);
         }
-        code = c; reset(); load(st); live = true;
+        code = c; reset(); load(st); live = true; testBar(info);
         renderVols(); renderMaterials(); renderLanding();
         if (!person(name) || person(name).role === 'vol') name = (organizers()[0] || TEAM[0]).name;
         store.keep(c, name, resume ? undefined : $('#si-rem').checked);
@@ -366,8 +382,9 @@ if (window.EBPG_GAS) {
         if (G.ev && EVENTS.find(e => e.id === G.ev)) openEvent(G.ev, 'page');
         G.ev = '';
       } catch (er) {
-        // a wrong code is forgotten; when the Sheet just didn't answer, the stored code is kept for another try
-        if (!er.net) { store.clear(); code = ''; }
+        // a wrong code is forgotten; when the Sheet just didn't answer, or sign-in is paused after too many
+        // wrong codes (someone else's), the stored code is kept for another try
+        if (!er.net && !/^Too many tries/.test(er.message)) { store.clear(); code = ''; }
         err.textContent = er.net ? "The Guild Sheet didn't answer. Check your internet, then pick your name to try again." : er.message;
         err.hidden = false;
         if (!$('#p-signin').hidden || !typed) goSignIn();
@@ -406,7 +423,7 @@ if (window.EBPG_GAS) {
     if (!live) return true;
     flush();
     if (failedKeys().length && !confirm("Some changes haven't reached the Guild Sheet yet. Sign out anyway and lose them?")) return false;
-    live = false; code = ''; sheetUrl = ''; problems = []; store.clear(); reset();
+    live = false; code = ''; sheetUrl = ''; problems = []; store.clear(); reset(); testBar(null);
     $('#si-rem').checked = false; // this device is forgotten, so the box starts unticked for whoever signs in next
     return true;
   };

@@ -83,7 +83,7 @@ const onScreen = (w, el) => { for (; el && el.nodeType === 1; el = el.parentElem
 
 /* load a page in a fresh jsdom with a fresh mock Sheet; before(w, g) runs before the page's scripts */
 function loadPage(t, file, url, before) {
-  const g = makeGas({ page: undefined, now: START });
+  const g = makeGas({ page: undefined, now: START, settings: { ORGANIZER_CODE: 'garden-test-2468' } }); // the code starts blank, so set one
   const api = { errors: [], calls: [], sent: [], done: [], out: {}, most: {}, latency: 0, fail: '', pending: 0, copied: [], opened: [], toasts: [] };
   const vc = new VirtualConsole();
   vc.on('error', (...a) => api.errors.push('console.error: ' + a.map(x => (x && x.stack) || String(x)).join(' ')));
@@ -963,4 +963,115 @@ test('the status chip and the Not saved mark are live-only: the artifact never s
   assert.match(src, /<div class="savest live" id="m-savest" role="status"/);
   assert.match(src, /<label class="chk live" id="si-remw">/);
   assert.match(src, /<div id="p-resume" data-page="resume" class="signin live" hidden>/);
+});
+
+/* ---------- server hardening: the test-mode banner, and Sheet values that try to become page markup ---------- */
+test('in test mode organizers see a lemon banner naming who gets every email, with a link to the Sheet; it goes when test mode is off', async t => {
+  const p = await openPage(t);
+  assert.ok(!p.visible('#testbar'), 'no banner on the public page');
+  await signIn(p, 'Jessie');
+  const bar = p.$('#testbar');
+  assert.ok(p.visible(bar), 'the banner is shown');
+  assert.equal(bar.getAttribute('role'), 'note');
+  assert.equal(bar.querySelector('.grow').textContent, "Test mode: every email goes only to owner@example.com. Turn it off on the Settings tab when you're ready to go live.");
+  const link = bar.querySelector('a');
+  assert.equal(link.textContent, 'Open the Sheet');
+  assert.equal(link.href, 'https://docs.google.com/spreadsheets/d/sheet-1/edit');
+  assert.deepEqual([link.target, link.rel], ['_blank', 'noopener']);
+  for (const tab of ['team', 'materials', 'help', 'events']) {
+    p.$(`.tabs a[data-tab=${tab}]`).click();
+    assert.ok(p.visible(bar), 'still shown on ' + tab);
+  }
+  p.$('#tiles [data-open]').click();
+  assert.ok(p.visible(bar), 'and behind an open event');
+  p.$('#m-x').click();
+  checkIcons(p, 'the test-mode banner');
+
+  // turned off on the Settings tab: gone on the next read of the Sheet
+  const s = p.g.sheets.get('Settings'), row = p.g.tab('Settings').findIndex(r => r[0] === 'TEST_MODE') + 1;
+  s.set(row, 2, 'FALSE');
+  const reads = p.api.calls.filter(c => c === 'signIn').length;
+  p.d.dispatchEvent(new p.w.Event('visibilitychange'));
+  await waitFor(() => p.api.calls.filter(c => c === 'signIn').length > reads && p.idle(), 3000, 'the Sheet to be read again');
+  assert.ok(bar.hidden && !p.visible(bar), 'the banner is gone');
+  // on again, then signing out hides it
+  s.set(row, 2, 'TRUE');
+  p.$('#signout').click();
+  assert.ok(!p.visible(bar), 'hidden after signing out');
+  await signIn(p, 'Phil');
+  assert.ok(p.visible(bar), 'back for the next organizer');
+  assert.match(fs.readFileSync(ARTIFACT, 'utf8'), /<div class="testbar live" id="testbar"/, 'the artifact never shows it');
+  await waitFor(p.idle, 2000, 'calls to finish');
+  p.noErrors();
+});
+
+test('values typed into the Sheet never become page markup: photos, links, names, statuses, task ids and sign-ups', async t => {
+  const CODE = 'garden-test-2468';
+  const ev = {
+    id: 'w9',
+    data: { id: 'w9', series: 'workday', num: 9, label: 'Workday #9', photo: 'trellis', tags: ['beginner'], map: 'https://maps.app.goo.gl/9jQkydC38eJrRScr6', plan: { roles: [['Host', ['Jessie']]], notes: [], timeline: [] } },
+    cols: { label: 'Workday #9', title: 'OPC Garden Work Party', date: '2026-10-31', start: '10:00', end: '14:00', place: 'Oakland Peace Center', address: '', host: 'Jessie', cohosts: '', about: 'Dig day.', bring: 'water', tags: 'beginner', notes: '', timeline: '' },
+    tasks: [{ id: 't1', what: 'Plates', who: 'Jessie', status: 'asked' }],
+    posts: [{ channel: 'partiful', status: 'review', by: '', text: 'Come dig', edited: false }],
+    log: [],
+  };
+  const lead = { name: 'Jessie', role: 'lead', contact: '', via: '', perms: { create: true, edit: true, approve: true, tasks: true, team: true } };
+  const p = await openPage(t, (w, g) => {
+    g.ctx.doGet({});
+    g.ctx.seed(CODE, { events: [ev], team: [lead, { name: 'Phil', role: 'co', contact: '', via: '', perms: {} }], vols: [], gardens: [] });
+    // then someone types markup into the Sheet by hand
+    const cell = (tab, row, head, v) => g.sheets.get(tab).set(row, g.tab(tab)[0].indexOf(head) + 1, v);
+    const data = JSON.parse(g.tab('Events')[1][g.tab('Events')[0].indexOf("data (don't edit)")]);
+    cell('Events', 2, "data (don't edit)", JSON.stringify({ ...data, photo: '"><img src=x id=pwn-photo>', map: 'javascript:alert(1)' }));
+    cell('Events', 2, 'host', 'Jessie<img src=x id=pwn-host>');
+    cell('Posts', 2, 'status', 'review"><img src=x id=pwn-status>');
+    cell('Bringing', 2, 'task id', 't1"><img src=x id=pwn-task>');
+    cell('Team', 3, 'name', 'Phil<img src=x id=pwn-team>');
+    g.sheets.get('Volunteers').set(2, 1, '2026-10-20');
+    ['<img src=x id=pwn-vol>', '<img src=x id=pwn-contact>@x', '<img src=x id=pwn-help>', '<img src=x id=pwn-note>'].forEach((v, i) => g.sheets.get('Volunteers').set(2, i + 2, v));
+  });
+  const pwned = () => p.$$('[id^=pwn]').map(el => el.id);
+  const photos = () => p.$$('.photo').map(el => el.className);
+  assert.deepEqual(pwned(), [], 'nothing injected on the public page');
+  assert.ok(photos().length && photos().every(c => /^photo ph-(trellis|moat|pantry|none)$/.test(c)), photos().join(' | '));
+  assert.ok(p.$$('#si-pick button').some(b => b.textContent.includes('Phil<img src=x id=pwn-team>')), 'the name shows as typed');
+
+  await signIn(p, 'Jessie');
+  p.$('#tiles [data-open="w9"]').click();
+  await waitFor(() => p.$('#detail #dp-plan'), 2000, 'the event to open');
+  assert.match(p.$('#detail [data-fold=host]').textContent, /Jessie<img src=x id=pwn-host>/, 'the host shows as typed in the Hosting count');
+  assert.ok(!p.$('#detail a[href^="javascript"]') && !p.$$('#detail a').some(a => /^Map/.test(a.textContent)), 'no Map link for a javascript: URL');
+  p.$('#detail [data-dtab="outreach"]').click();
+  const row = await waitFor(() => p.$('#dp-out .orow'), 2000, 'the Outreach tab');
+  assert.equal(row.className, 'orow review', 'an unknown status reads as a draft');
+  row.querySelector('[data-act=toggle]').click();
+  const ta = await waitFor(() => p.$('#dp-out textarea[data-ta=partiful]'), 2000, 'the open draft');
+  assert.equal(ta.id, 'ta-w9-partiful');
+  assert.equal(p.$('#dp-out .obody a').href, 'https://partiful.com/');
+  const del = p.$('#detail [data-tdel]');
+  assert.match(del.dataset.tdel, /^t\d+$/, 'a task id the Sheet would refuse gets a new one');
+  p.$('#m-x').click();
+  p.$('.tabs a[data-tab=team]').click();
+  assert.match(p.$('#vol-tbl').textContent, /<img src=x id=pwn-vol>/, 'the sign-up shows as typed');
+  assert.deepEqual(pwned(), [], 'nothing injected anywhere on the organizer pages');
+  assert.ok(photos().every(c => /^photo ph-(trellis|moat|pantry|none)$/.test(c)));
+  assert.ok(!p.$$('a[href]').some(a => /^\s*javascript:/i.test(a.getAttribute('href'))), 'no javascript: links');
+  await waitFor(p.idle, 2000, 'calls to finish');
+  p.noErrors();
+});
+
+test("after too many wrong codes the sign-in page says to wait, and a remembered device keeps its code for later", async t => {
+  const p = loadPage(t, SITE, 'http://localhost:8766/site', (w, g, api) => {
+    withCode('device', 'Kalynn', 864e5)(w, g, api);
+    for (let i = 0; i < 21; i++) try { g.ctx.signIn('guess-' + i); } catch {} // someone else guessing
+  });
+  const err = await waitFor(() => p.shown('#p-signin') && p.shown('#si-err') && p.$('#si-err'), 4000, 'the sign-in card');
+  assert.equal(err.textContent, 'Too many tries. Wait 10 minutes and try again.');
+  assert.equal(JSON.parse(p.w.localStorage.getItem('ebpg-remember')).code, p.code(), 'the device keeps the code');
+  // once the 10 minutes are up (the mock's count is cleared), the remembered code works again
+  for (const k of Object.keys(p.g.cache)) if (k.startsWith('fail:')) delete p.g.cache[k];
+  p.$('#si-pick button[data-as="Kalynn"]').click();
+  await waitFor(() => p.shown('#p-events') && !p.d.body.classList.contains('out'), 4000, 'the events page');
+  await waitFor(p.idle, 2000, 'calls to finish');
+  assert.deepEqual(p.api.errors, []);
 });
