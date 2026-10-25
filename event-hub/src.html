@@ -402,10 +402,37 @@ legend { font-size: 13px; font-weight: 700; color: var(--ink-2); margin-bottom: 
 .mats { display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1.15fr) minmax(0, .64fr); gap: 14px; align-items: start; }
 .mats .wide { grid-column: 1 / -1; max-width: 560px; }
 @media (max-width: 700px) { .mats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-.mat { display: grid; gap: 6px; margin: 0; min-width: 0; }
+.mat { display: grid; gap: 8px; margin: 0; min-width: 0; align-content: start; }
+.mat > figure { margin: 0; display: grid; gap: 6px; min-width: 0; }
 .mat figcaption { font-size: 12px; color: var(--ink-3); }
 .mat figcaption b { color: var(--ink); font-weight: 700; }
 .mat figcaption .ic, .hstrip figcaption .ic { width: 13px; height: 13px; vertical-align: -2px; margin-right: 4px; }
+/* Download and Print under each piece */
+.xacts { display: flex; flex-wrap: wrap; gap: 6px; }
+.xacts .btn { background: var(--raised); }
+.xacts .btn .ic { width: 15px; height: 15px; }
+.xacts .btn[aria-busy="true"] { cursor: progress; border-color: var(--fern); color: var(--fern); }
+.xacts .btn[aria-busy="true"] .ic { animation: spin 1s linear infinite; }
+@media (prefers-reduced-motion: reduce) { .xacts .ic { animation: none !important; } }
+/* Download draws a copy of the piece at its real size here, off screen, and turns it into a PNG */
+.xstage { position: fixed; top: 0; left: -20000px; pointer-events: none; }
+.xstage .art { border-radius: 0; box-shadow: none; max-width: none; margin: 0; }
+/* Print copies the piece into #print-sheet, and only that prints: on US Letter (the page size is set as it prints),
+   the flyer across the page, the garden sign across a landscape page, two thank-you cards with cut lines between */
+#print-sheet { display: none; }
+@media print {
+  body.printing { background: #fff !important; margin: 0 !important; padding: 0 !important; }
+  body.printing::before { display: none !important; }
+  body.printing > :not(#print-sheet) { display: none !important; }
+  body.printing #print-sheet { display: block; }
+  #print-sheet * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  #print-sheet .art { box-shadow: none; border-radius: 0; max-width: none; margin: 0 auto; break-inside: avoid; }
+  #print-sheet.ps-letter .art { width: 7.68in; }
+  #print-sheet.ps-landscape .art { width: 10.16in; }
+  #print-sheet.ps-cards .ps-cell { width: max-content; margin: 0 auto; border: 1px dashed #767676; break-inside: avoid; }
+  #print-sheet.ps-cards .ps-cell + .ps-cell { border-top: 0; }
+  #print-sheet.ps-cards .art { width: 7in; }
+}
 .mats-h { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
 .mats-h h3 { font: 700 16px/1.3 var(--body); }
 .mats-h select { border: 1px solid var(--line-2); border-radius: 999px; padding: 5px 10px; background: var(--raised); font-size: 13px; }
@@ -604,7 +631,9 @@ legend { font-size: 13px; font-weight: 700; color: var(--ink-2); margin-bottom: 
 .mbar .grp, .evbar .grp { display: flex; gap: 6px; flex-wrap: wrap; }
 .mbody .detail { border: 0; border-radius: 0; background: transparent; }
 .hstrip { display: flex; gap: 16px; align-items: flex-end; overflow-x: auto; padding: 20px 18px 16px; border-radius: 14px; background: linear-gradient(160deg, var(--fern-soft), var(--paper)); }
-.hstrip figure { margin: 0; display: grid; gap: 6px; flex: none; }
+.hstrip .hfig { display: grid; gap: 8px; flex: none; }
+.hstrip figure { margin: 0; display: grid; gap: 6px; }
+.hstrip .xacts { width: 0; min-width: 100%; } /* the buttons wrap under a narrow piece rather than widening it */
 .hstrip figcaption { font-size: 12px; color: var(--ink-3); }
 .hstrip figcaption b { color: var(--ink); }
 .hstrip .flyer { width: 210px; }
@@ -1721,6 +1750,7 @@ await supabase.from('volunteers').insert({
 </div></div>
 <div id="drawer"></div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
+<div id="print-sheet" aria-hidden="true"></div>
 
 <script>
 (() => {
@@ -1957,7 +1987,7 @@ const MATS = [
   ['story', 'Story', 'Instagram + WhatsApp', storyArt, 'smartphone'],
   ['mail', 'Email header', 'Google Group', mailArt, 'mail'],
 ];
-const matFig = (ev, [k, name, use, fn, icon]) => `<figure class="mat ${k === 'mail' ? 'wide' : ''}">${fn(ev)}<figcaption>${ic(icon)}<b>${name}</b> · ${use}</figcaption></figure>`;
+const matFig = (ev, [k, name, use, fn, icon]) => `<div class="mat ${k === 'mail' ? 'w2' : ''}"><figure>${fn(ev)}<figcaption>${ic(icon)}<b>${name}</b> · ${use}</figcaption></figure>${outBtns(k, name, ev)}</div>`;
 /* Any week: a quote post; a thank-you card from the host of the event picked above, for the day it fell on; and the
    garden sign, with WORKDAY_SCHEDULE from the Settings tab and a QR code to the volunteer form on the home page */
 const quoteArt = () => `<div class="art quote"><div class="arc"></div><div class="q">Use small and <em>slow</em> solutions.</div><div class="src"><span>Permaculture principle no. 9<br>East Bay Permaculture Guild</span><svg><use href="#mark"/></svg></div></div>`;
@@ -1974,7 +2004,31 @@ function signArt() {
     + `<div class="r"><span class="k">How to join</span><ol>${steps.map(t => `<li>${t}</li>`).join('')}</ol>${qr}`
     + `<div class="txt${when.length > 24 ? ' long' : ''}">${when ? `${esc(when)}<small><span class="vh"> · </span>Oakland Peace Center</small>` : 'Oakland Peace Center'}</div></div></div>`;
 }
-const anyFig = (art, icon, name, use, cls = '') => `<figure class="mat ${cls}">${art}<figcaption>${ic(icon)}<b>${name}</b> · ${use}</figcaption></figure>`;
+const anyFig = (k, ev, art, icon, name, use, cls = '') => `<div class="mat ${cls}"><figure>${art}<figcaption>${ic(icon)}<b>${name}</b> · ${use}</figcaption></figure>${outBtns(k, name, ev)}</div>`;
+/* What each piece becomes: a PNG of w × h pixels, its name in the file, and how it prints (none: it's for screens).
+   The flyer is US Letter at 200 dpi, the thank-you card 7 × 5 in at 300 dpi, the garden sign 24 × 16 in at 150 dpi. */
+const OUTS = {
+  flyer: { file: 'flyer', w: 1700, h: 2200, print: 'letter' },
+  ig: { file: 'instagram-post', w: 1080, h: 1080 },
+  story: { file: 'story', w: 1080, h: 1920 },
+  mail: { file: 'email-header', w: 1200, h: 400 },
+  quote: { file: 'quote-post', w: 1080, h: 1080 },
+  thanks: { file: 'thank-you-card', w: 2100, h: 1500, print: 'cards' },
+  sign: { file: 'garden-sign', w: 3600, h: 2400, print: 'landscape' },
+};
+const PRINTS = { letter: 'US Letter, full page', landscape: 'US Letter, sideways', cards: 'Two to a Letter page, with cut lines' };
+// Download (and Print, for the printed pieces) under a piece. The event's id names the file; the any-week pieces have none.
+function outBtns(k, name, ev) {
+  const o = OUTS[k], id = ev ? esc(ev.id) : '', vh = `<span class="vh"> ${esc(name)}</span>`;
+  return `<div class="xacts"><button class="btn ghost sm" type="button" data-dl="${k}" data-ev="${id}" title="PNG, ${o.w} × ${o.h} pixels">${ic('download')}Download${vh}</button>`
+    + (o.print ? `<button class="btn ghost sm" type="button" data-print="${k}" data-ev="${id}" title="${PRINTS[o.print]}">${ic('printer')}Print${vh}</button>` : '') + '</div>';
+}
+const slug = s => String(s || '').normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+/, '').slice(0, 48).replace(/-+$/, '');
+// ebpg-<event title>-<YYYY-MM-DD>-<piece> (ebpg-<piece> for the any-week pieces), without the extension
+function outName(k, id) {
+  const ev = id ? EVENTS.find(e => e.id === id) : null;
+  return ['ebpg', ev && (slug(ev.title) || 'event'), ev && /^\d{4}-\d{2}-\d{2}$/.test(ev.date) ? ev.date : '', OUTS[k].file].filter(Boolean).join('-');
+}
 
 /* events: real OPC plans */
 const MAP = 'https://maps.app.goo.gl/9jQkydC38eJrRScr6';
@@ -2331,7 +2385,7 @@ function renderDetail() {
   const rows = CHANNELS.map(ch => chRow(ev, ch)).join('');
   const open = (ev.tasks || []).filter(t => !t.who || t.status === 'cant').length;
   $('#detail').innerHTML = `
-    <div class="hstrip" aria-label="Flyers and posts for this event">${MATS.map(([k, name, use, fn, icon]) => `<figure>${fn(ev)}<figcaption>${ic(icon)}<b>${name}</b> · ${use}</figcaption></figure>`).join('')}</div>
+    <div class="hstrip" aria-label="Flyers and posts for this event">${MATS.map(([k, name, use, fn, icon]) => `<div class="hfig"><figure>${fn(ev)}<figcaption>${ic(icon)}<b>${name}</b> · ${use}</figcaption></figure>${outBtns(k, name, ev)}</div>`).join('')}</div>
     <div class="dh"><div><div class="dk"><span class="eyebrow">${past ? 'Past event' : 'Upcoming'}</span>${evPill(ev)}</div><h2>${esc(ev.title)}</h2><div class="meta"><span class="fact">${ic('calendar')}${esc(longDate(ev.date))}</span><span class="fact">${ic('clock')}${t12(ev.start)}–${t12(ev.end)}</span><span class="fact">${ic('map-pin')}${esc(ev.place)}${safeUrl(ev.map) ? ` · <a href="${esc(safeUrl(ev.map))}" target="_blank" rel="noopener">Map${ic('out', 'out')}</a>` : ''}</span></div></div>
       <div class="actions">${S.editing ? '' : `${ev.status === 'draft' ? `<button class="btn primary sm" type="button" id="publish-ev" title="Put it on the public site">${ic('eye')}Publish</button>` : ''}<button class="btn ghost sm" type="button" id="edit-ev">${ic('pencil')}Edit event</button>`}</div></div>
     <div class="dtabs" role="tablist" aria-label="Event sections">
@@ -2824,12 +2878,140 @@ function renderMaterials() {
   const up = EVENTS.slice().sort((a, b) => a.date.localeCompare(b.date));
   sel.innerHTML = up.map(e => `<option value="${esc(e.id)}" ${e.id === cur ? 'selected' : ''}>${esc(shortDate(e.date))} · ${esc(e.title)}</option>`).join('');
   const ev = EVENTS.find(e => e.id === sel.value) || up[0];
-  $('#m-event').innerHTML = ev ? MATS.map(m => matFig(ev, m).replace('mat wide', 'mat w2')).join('') : '<p class="hint">No events yet. Create one on the Events page.</p>';
-  $('#m-any').innerHTML = anyFig(quoteArt(), 'quote', 'Quote post', 'Instagram, quiet weeks')
-    + anyFig(thanksArt(ev), 'heart', 'Thank-you card', '5 × 7, from the event picked above')
-    + anyFig(signArt(), 'signpost', 'Garden sign', '24 × 16 in, fence', 'w2');
+  $('#m-event').innerHTML = ev ? MATS.map(m => matFig(ev, m)).join('') : '<p class="hint">No events yet. Create one on the Events page.</p>';
+  $('#m-any').innerHTML = anyFig('quote', null, quoteArt(), 'quote', 'Quote post', 'Instagram, quiet weeks')
+    + anyFig('thanks', ev, thanksArt(ev), 'heart', 'Thank-you card', '5 × 7, from the event picked above')
+    + anyFig('sign', null, signArt(), 'signpost', 'Garden sign', '24 × 16 in, fence', 'w2');
 }
 $('#m-ev').addEventListener('change', renderMaterials);
+
+/* Download: html-to-image 1.11.13 (MIT) from cdnjs, loaded the first time someone clicks Download. It draws a copy
+   of the piece at its real size (the pieces are laid out in cqw, so they scale) and gives back a PNG. */
+const H2I_SRC = 'https://cdnjs.cloudflare.com/ajax/libs/html-to-image/1.11.13/html-to-image.min.js';
+const H2I_SRI = 'sha512-iZ2ORl595Wx6miw+GuadDet4WQbdSWS3JLMoNfY8cRGoEFy6oT3G9IbcrBeL6AfkgpA51ETt/faX6yLV+/gFJg==';
+const inTime = (pr, ms) => Promise.race([pr, new Promise((_, no) => setTimeout(() => no(new Error('timed out')), ms))]);
+let h2i = null;
+function loadH2I() {
+  if (window.htmlToImage) return Promise.resolve(window.htmlToImage);
+  if (h2i) return h2i;
+  const s = document.createElement('script');
+  h2i = inTime(new Promise((ok, no) => {
+    s.src = H2I_SRC; s.async = true;
+    s.setAttribute('integrity', H2I_SRI); s.setAttribute('crossorigin', 'anonymous'); s.setAttribute('referrerpolicy', 'no-referrer');
+    s.onload = () => window.htmlToImage ? ok(window.htmlToImage) : no(new Error('html-to-image is missing'));
+    s.onerror = () => no(new Error("html-to-image didn't load"));
+    document.head.appendChild(s);
+  }), 20000).catch(e => { h2i = null; s.remove(); throw e; });
+  return h2i;
+}
+/* The page's Google Fonts as @font-face rules with the font files inside, so the image is in the Guild's type. Worked
+   out once. If they can't be fetched, the image still comes, in the browser's own fonts. */
+let fontCss = null;
+const asDataUrl = blob => new Promise((ok, no) => { const r = new FileReader(); r.onload = () => ok(r.result); r.onerror = () => no(r.error); r.readAsDataURL(blob); });
+function fontCSS() {
+  const link = $$('link[rel="stylesheet"]').find(l => l.href.startsWith('https://fonts.googleapis.com/'));
+  if (!link) return Promise.resolve('');
+  if (!fontCss) fontCss = inTime((async () => {
+    const r = await fetch(link.href);
+    if (!r.ok) throw new Error('fonts: ' + r.status);
+    const faces = (await r.text()).match(/@font-face\s*\{[^}]*\}/g) || [];
+    const urls = [...new Set(faces.join('\n').match(/https:\/\/fonts\.gstatic\.com\/[^)'"\s]+/g) || [])];
+    const files = await Promise.all(urls.map(async u => { const f = await fetch(u); if (!f.ok) throw new Error('font: ' + f.status); return asDataUrl(await f.blob()); }));
+    return faces.map(f => urls.reduce((t, u, i) => t.split(u).join(files[i]), f)).join('\n');
+  })(), 15000).catch(e => { console.warn('Download: the fonts could not be fetched, so the image uses the browser\'s own', e); fontCss = null; return ''; });
+  return fontCss;
+}
+/* The copy is drawn as an image on its own, where the icon sprite can't be reached, so each <use> becomes the drawing
+   it points at, with its colors worked out here (they come from CSS variables the image wouldn't have) */
+function inlineUses(root) {
+  for (const u of root.querySelectorAll('use')) {
+    const sym = document.getElementById((u.getAttribute('href') || '').replace(/^#/, '')), svg = u.closest('svg');
+    if (!sym || !svg) continue;
+    const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    for (const c of sym.childNodes) g.appendChild(c.cloneNode(true));
+    if (!svg.getAttribute('viewBox') && sym.getAttribute('viewBox')) svg.setAttribute('viewBox', sym.getAttribute('viewBox'));
+    u.replaceWith(g);
+    for (const el of [g, ...g.querySelectorAll('*')]) { const cs = getComputedStyle(el); if (cs.fill) el.style.fill = cs.fill; if (cs.stroke) el.style.stroke = cs.stroke; }
+  }
+}
+const dataBlob = url => {
+  const [head, b64] = String(url).split(','), bin = atob(b64 || ''), bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return new Blob([bytes], { type: (head.match(/^data:([^;,]+)/) || [])[1] || 'image/png' });
+};
+function saveBlob(blob, name) {
+  const a = document.createElement('a'), href = URL.createObjectURL(blob);
+  a.href = href; a.download = name; a.hidden = true;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => { try { URL.revokeObjectURL(href); } catch {} }, 30000);
+}
+// Safari (and every browser on an iPhone) draws the fonts and photos into the image only on the second try
+const WEBKIT = /AppleWebKit/.test(navigator.userAgent) && /Safari\/[0-9]/.test(navigator.userAgent) && !/Chrome\/|Chromium\/|Edg\/[0-9]|Android/.test(navigator.userAgent);
+async function downloadArt(b) {
+  const k = b.dataset.dl, o = OUTS[k], art = b.closest('.mat, .hfig')?.querySelector('.art');
+  if (!o || !art || b.getAttribute('aria-busy') === 'true') return;
+  const label = b.innerHTML, file = outName(k, b.dataset.ev) + '.png';
+  b.setAttribute('aria-busy', 'true'); b.setAttribute('aria-disabled', 'true');
+  b.innerHTML = ic('loader') + 'Preparing…' + (b.querySelector('.vh')?.outerHTML || '');
+  const stage = document.createElement('div'), node = art.cloneNode(true);
+  stage.className = 'xstage'; stage.setAttribute('aria-hidden', 'true'); stage.style.width = o.w + 'px';
+  node.style.width = o.w + 'px'; node.style.height = o.h + 'px';
+  stage.appendChild(node); document.body.appendChild(stage);
+  try {
+    inlineUses(node);
+    const lib = await loadH2I();
+    if (document.fonts && document.fonts.ready) await document.fonts.ready;
+    await Promise.all([...node.querySelectorAll('img')].map(i => i.decode ? i.decode().catch(() => {}) : null));
+    const opts = { width: o.w, height: o.h, pixelRatio: 1, fontEmbedCSS: await fontCSS() };
+    const draw = async op => { if (WEBKIT) await lib.toPng(node, op); return lib.toPng(node, op); };
+    let png;
+    try { png = await draw(opts); } catch (e) { console.warn('Download: drawing with the fonts failed, so trying without them', e); png = await draw({ ...opts, fontEmbedCSS: undefined, skipFonts: true }); }
+    saveBlob(dataBlob(png), file);
+    toast('Downloaded ' + file, 'download');
+  } catch (e) {
+    console.warn('Download failed', e);
+    toast(o.print ? "Couldn't make the image. Try Print instead." : "Couldn't make the image. Check your connection and try again.", 'alert-triangle');
+  } finally {
+    stage.remove();
+    b.innerHTML = label; b.removeAttribute('aria-busy'); b.removeAttribute('aria-disabled');
+  }
+}
+/* Print: a copy of the piece goes into #print-sheet and the print CSS shows only that. The page size is set for this
+   print only, and the tab's title (the name Save as PDF suggests) is the file name. Both go back once it's printed,
+   or, where the browser doesn't say so, at the next click or key press. */
+let unprint = null;
+function printArt(b) {
+  const k = b.dataset.print, o = OUTS[k], art = b.closest('.mat, .hfig')?.querySelector('.art');
+  if (!o || !o.print || !art) return;
+  if (unprint) unprint();
+  const sheet = $('#print-sheet'), page = document.createElement('style'), title = document.title;
+  sheet.className = 'ps-' + o.print;
+  sheet.replaceChildren(...Array.from({ length: o.print === 'cards' ? 2 : 1 }, () => {
+    const cell = document.createElement('div');
+    cell.className = 'ps-cell'; cell.appendChild(art.cloneNode(true));
+    return cell;
+  }));
+  page.id = 'print-page';
+  page.textContent = `@page { size: letter ${o.print === 'landscape' ? 'landscape' : 'portrait'}; margin: 0.4in; }`;
+  document.head.appendChild(page);
+  document.title = outName(k, b.dataset.ev);
+  document.body.classList.add('printing');
+  const done = () => {
+    if (unprint !== done) return;
+    unprint = null;
+    for (const ev of ['afterprint', 'pointerdown', 'keydown']) window.removeEventListener(ev, done, true);
+    document.body.classList.remove('printing'); sheet.replaceChildren(); sheet.className = ''; page.remove(); document.title = title;
+  };
+  unprint = done;
+  window.addEventListener('afterprint', done, true);
+  try { window.print(); } catch (e) { console.warn('Print failed', e); done(); toast("Couldn't open printing here. Download the image and print that.", 'alert-triangle'); return; }
+  setTimeout(() => { if (unprint === done) for (const ev of ['pointerdown', 'keydown']) window.addEventListener(ev, done, true); }, 0);
+}
+document.addEventListener('click', e => {
+  const b = e.target.closest && e.target.closest('button[data-dl], button[data-print]');
+  if (!b) return;
+  if (b.dataset.dl) downloadArt(b); else printArt(b);
+});
 
 /*PROTO*/
 /* build options */

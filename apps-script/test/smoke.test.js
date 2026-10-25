@@ -2592,3 +2592,299 @@ test("the prototype artifact's flyers and sign point at the public site", async 
   assert.deepEqual(p.api.calls, [], 'the artifact calls no server');
   p.noErrors();
 });
+
+/* ---------- Download (PNG) and Print, on Flyers & posts and in an event's strip of pieces ---------- */
+// html-to-image is loaded from cdnjs on the first Download; jsdom loads no outside scripts and can't draw, so a test
+// answers the script's load itself with a stand-in that keeps what it was asked to draw and returns a 1-pixel PNG
+const H2I_SRC = 'https://cdnjs.cloudflare.com/ajax/libs/html-to-image/1.11.13/html-to-image.min.js';
+const H2I_SRI = 'sha512-iZ2ORl595Wx6miw+GuadDet4WQbdSWS3JLMoNfY8cRGoEFy6oT3G9IbcrBeL6AfkgpA51ETt/faX6yLV+/gFJg==';
+const PNG_1PX = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+const FONT_URL = 'https://fonts.gstatic.com/s/youngserif/v2/young.woff2';
+const FONTS_CSS = `/* latin */\n@font-face {\n  font-family: 'Young Serif';\n  font-style: normal;\n  font-weight: 400;\n  src: url(${FONT_URL}) format('woff2');\n}\n`
+  + `/* latin */\n@font-face {\n  font-family: 'Atkinson Hyperlegible Next';\n  font-weight: 700;\n  src: url(${FONT_URL}) format('woff2');\n}\n`;
+/* what the page has set up at the moment it calls window.print() */
+const printSnap = w => {
+  const d = w.document, s = d.getElementById('print-sheet');
+  return { body: d.body.className, sheet: s.className, arts: [...s.querySelectorAll('.ps-cell > .art')].map(a => a.className), page: (d.getElementById('print-page') || {}).textContent,
+    title: d.title, qr: [...s.querySelectorAll('svg.qrc')].map(q => q.getAttribute('aria-label')) };
+};
+// the Google Fonts stylesheet and its font file, the stand-in drawer, and window.print
+const withExport = (w, g, api) => {
+  api.gets = []; api.printed = []; api.drawn = [];
+  const post = w.fetch;
+  w.fetch = (url, opts = {}) => {
+    const u = String(url);
+    if (String(opts.method || 'GET').toUpperCase() !== 'GET' || !/^https:\/\/fonts\.(googleapis|gstatic)\.com\//.test(u)) return post(url, opts);
+    api.gets.push(u);
+    if (api.fontsDown) return w.Promise.reject(new w.TypeError('Failed to fetch'));
+    if (u.includes('googleapis')) return w.Promise.resolve({ ok: true, status: 200, text: async () => FONTS_CSS });
+    return w.Promise.resolve({ ok: true, status: 200, blob: async () => new w.Blob([new w.Uint8Array([119, 79, 70, 50])], { type: 'font/woff2' }) });
+  };
+  w.print = () => { api.printed.push(printSnap(w)); };
+  api.drawer = {
+    toPng: async (node, opts) => {
+      api.drawn.push({ node, opts, cls: node.className, staged: !!node.closest('.xstage'), width: node.style.width, height: node.style.height, uses: node.querySelectorAll('use').length,
+        qr: [...node.querySelectorAll('svg.qrc')].map(q => q.getAttribute('aria-label')) });
+      if (api.drawFails && (api.drawFails === 'all' || !opts.skipFonts)) throw new w.Error('tainted canvas');
+      return PNG_1PX;
+    },
+  };
+};
+const withQRExport = (w, g, api) => { withQR(w, g, api); withExport(w, g, api); };
+// the html-to-image script the page put in, answered as if cdnjs had sent it
+function loadDrawer(p) {
+  const s = p.$(`script[src="${H2I_SRC}"]`);
+  assert.ok(s, 'the page asked cdnjs for html-to-image');
+  p.w.htmlToImage = p.api.drawer;
+  s.dispatchEvent(new p.w.Event('load'));
+  return s;
+}
+const label = b => [...b.childNodes].filter(n => !(n.nodeType === 1 && (n.classList.contains('vh') || n.tagName.toLowerCase() === 'svg'))).map(n => n.textContent).join('').trim();
+
+test('Flyers & posts: every piece has a Download button, the flyer, thank-you card and garden sign a Print button, and so does the event\'s strip', async t => {
+  const p = await openPage(t, withQRExport, await seededSheet(t));
+  await signIn(p);
+  await openFlyers(p, 'w7');
+  const dl = sel => p.$$(sel + ' button[data-dl]'), pr = sel => p.$$(sel + ' button[data-print]');
+  assert.deepEqual(dl('#m-event').map(b => b.dataset.dl), ['flyer', 'ig', 'story', 'mail']);
+  assert.deepEqual(dl('#m-any').map(b => b.dataset.dl), ['quote', 'thanks', 'sign']);
+  assert.deepEqual(pr('#p-materials').map(b => b.dataset.print), ['flyer', 'thanks', 'sign'], 'the printed pieces');
+  for (const b of dl('#p-materials')) {
+    assert.equal(label(b), 'Download', 'the visible word');
+    assert.ok(b.querySelector('svg.ic[aria-hidden="true"] use[href="#i-download"]'), 'a download icon');
+    assert.equal(b.type, 'button');
+    assert.ok(p.visible(b), 'shown');
+  }
+  for (const b of pr('#p-materials')) { assert.equal(label(b), 'Print'); assert.ok(b.querySelector('use[href="#i-printer"]'), 'a printer icon'); }
+  // a screen reader hears which piece each one is for
+  assert.deepEqual(dl('#p-materials').map(b => b.textContent), ['Download Flyer', 'Download Instagram post', 'Download Story', 'Download Email header', 'Download Quote post', 'Download Thank-you card', 'Download Garden sign']);
+  assert.deepEqual(pr('#p-materials').map(b => b.textContent), ['Print Flyer', 'Print Thank-you card', 'Print Garden sign']);
+  assert.equal(p.$('#m-event [data-dl=ig]').title, 'PNG, 1080 × 1080 pixels');
+  assert.equal(p.$('#m-event [data-print=flyer]').title, 'US Letter, full page');
+  // each sits under its own piece, and the event's pieces carry its id (the file name comes from it)
+  for (const b of dl('#p-materials')) assert.ok(b.closest('.mat').querySelector('figure > .art'), b.textContent + ' is under its piece');
+  assert.deepEqual(dl('#p-materials').map(b => b.dataset.ev), ['w7', 'w7', 'w7', 'w7', '', 'w7', '']);
+  assert.ok(!p.$(`script[src*="html-to-image"]`), 'html-to-image is only loaded on the first Download');
+  assert.ok(p.$('#print-sheet[aria-hidden="true"]') && !p.visible('#print-sheet'), 'the print sheet is empty and hidden on screen');
+  checkIcons(p, 'Flyers & posts with Download and Print');
+  // the event's own strip of pieces
+  p.$('.tabs a[data-tab=events]').click();
+  p.$('#tiles [data-open="w7"]').click();
+  await waitFor(() => p.$('#detail .hstrip'), 2000, 'Workday #7 to open');
+  assert.deepEqual(dl('#detail .hstrip').map(b => b.dataset.dl), ['flyer', 'ig', 'story', 'mail']);
+  assert.deepEqual(pr('#detail .hstrip').map(b => b.dataset.print), ['flyer']);
+  assert.ok(dl('#detail .hstrip').every(b => b.closest('.hfig').querySelector('figure > .art') && label(b) === 'Download'));
+  checkIcons(p, 'the event strip');
+  p.noErrors();
+});
+
+test('Download: html-to-image comes from cdnjs on the first click and draws a copy of the Instagram post at 1080 × 1080, saved as ebpg-<title>-<date>-instagram-post.png', async t => {
+  const p = await openPage(t, withQRExport, await seededSheet(t));
+  await signIn(p);
+  const gal = await openFlyers(p, 'w7');
+  const ev = p.g.tab('Events'), h = ev[0], row = ev.find(r => r[0] === 'w7');
+  assert.equal(row[h.indexOf('title')], 'OPC Garden Work Party');
+  const date = dateOf(p, 'w7'), art = gal.querySelector('.art.ig');
+  const btn = p.$('#m-event [data-dl=ig]');
+  btn.click();
+  // busy while it works
+  assert.equal(btn.getAttribute('aria-busy'), 'true');
+  assert.equal(label(btn), 'Preparing…');
+  assert.ok(btn.querySelector('use[href="#i-loader"]'), 'a spinning loader');
+  btn.click(); // a second click while busy does nothing
+  const s = await waitFor(() => p.$(`script[src="${H2I_SRC}"]`), 2000, 'the html-to-image script');
+  assert.equal(p.$$('script[src*="html-to-image"]').length, 1, 'asked for once');
+  assert.equal(s.getAttribute('integrity'), H2I_SRI, 'pinned with its integrity hash');
+  assert.equal(s.getAttribute('crossorigin'), 'anonymous');
+  assert.equal(s.parentNode, p.d.head);
+  loadDrawer(p);
+  await waitFor(() => p.api.downloads.length === 1, 3000, 'the PNG download');
+  const [d] = p.api.downloads;
+  assert.equal(d.name, `ebpg-opc-garden-work-party-${date}-instagram-post.png`);
+  assert.equal(date, '2026-10-25');
+  assert.ok(d.blob && d.blob.type === 'image/png' && d.blob.size > 60, 'a PNG file');
+  assert.equal(p.api.drawn.length, 1, 'drawn once');
+  const [draw] = p.api.drawn;
+  assert.equal(draw.opts.width, 1080); assert.equal(draw.opts.height, 1080); assert.equal(draw.opts.pixelRatio, 1);
+  assert.equal(draw.cls, 'art ig');
+  assert.ok(draw.node !== art && art.isConnected, 'a copy, so the page is left as it was');
+  assert.ok(draw.staged, 'drawn off screen');
+  assert.equal(draw.width, '1080px'); assert.equal(draw.height, '1080px');
+  assert.equal(draw.uses, 0, 'the logo is drawn into the copy, since the image can\'t reach the icon sprite');
+  assert.ok(draw.node.querySelector('.gs svg g circle'), 'the Guild mark is in the copy');
+  // the Guild's fonts go into the image, each file fetched once
+  assert.match(draw.opts.fontEmbedCSS, /@font-face/);
+  assert.ok(draw.opts.fontEmbedCSS.includes('url(data:font/woff2;base64,d09GMg==)') && !draw.opts.fontEmbedCSS.includes(FONT_URL), 'the font files are inside');
+  assert.deepEqual(p.api.gets.filter(u => u === FONT_URL).length, 1);
+  await waitFor(() => !btn.hasAttribute('aria-busy'), 2000, 'the button to be ready again');
+  assert.equal(label(btn), 'Download');
+  assert.ok(!p.$('.xstage'), 'the copy is gone');
+  assert.equal(p.$('#toast').textContent, `Downloaded ebpg-opc-garden-work-party-${date}-instagram-post.png`);
+  // the flyer: US Letter at 200 dpi, with the QR code to the event's public page; the library and fonts aren't fetched again
+  const gets = p.api.gets.length;
+  p.$('#m-event [data-dl=flyer]').click();
+  await waitFor(() => p.api.downloads.length === 2, 3000, 'the flyer');
+  const fly = p.api.drawn[1];
+  assert.deepEqual([fly.opts.width, fly.opts.height], [1700, 2200]);
+  assert.deepEqual(fly.qr, ['QR code for ' + URL_SITE + '?ev=w7'], 'the QR code opens the event page');
+  assert.equal(p.api.downloads[1].name, `ebpg-opc-garden-work-party-${date}-flyer.png`);
+  assert.equal(p.$$('script[src*="html-to-image"]').length, 1);
+  assert.equal(p.api.gets.length, gets, 'the fonts are fetched once');
+  // the rest, at their real sizes
+  const want = { story: [1080, 1920, `-${date}-story`], mail: [1200, 400, `-${date}-email-header`], quote: [1080, 1080, 'quote-post'], thanks: [2100, 1500, `-${date}-thank-you-card`], sign: [3600, 2400, 'garden-sign'] };
+  for (const [k, [wd, ht, name]] of Object.entries(want)) {
+    const n = p.api.downloads.length;
+    await waitFor(() => !p.$(`#p-materials [data-dl=${k}]`).hasAttribute('aria-busy'), 2000, k + ' ready');
+    p.$(`#p-materials [data-dl=${k}]`).click();
+    await waitFor(() => p.api.downloads.length === n + 1, 3000, k);
+    assert.deepEqual([p.api.drawn.at(-1).opts.width, p.api.drawn.at(-1).opts.height], [wd, ht], k + ' size');
+    assert.equal(p.api.downloads.at(-1).name, name.startsWith('-') ? `ebpg-opc-garden-work-party${name}.png` : `ebpg-${name}.png`);
+  }
+  assert.ok(QR_IN(p.api.drawn.at(-1).qr, URL_SITE + '#join'), 'the garden sign\'s code goes to the volunteer form');
+  // from the event's strip too
+  p.$('.tabs a[data-tab=events]').click();
+  p.$('#tiles [data-open="w7"]').click();
+  await waitFor(() => p.$('#detail .hstrip [data-dl=story]'), 2000, 'Workday #7');
+  const n = p.api.downloads.length;
+  p.$('#detail .hstrip [data-dl=story]').click();
+  await waitFor(() => p.api.downloads.length === n + 1, 3000, 'the story from the strip');
+  assert.equal(p.api.downloads.at(-1).name, `ebpg-opc-garden-work-party-${date}-story.png`);
+  assert.equal(p.api.drawn.at(-1).cls, 'art story');
+  await waitFor(p.idle, 2000, 'calls to finish');
+  p.noErrors();
+});
+const QR_IN = (labels, link) => labels.includes('QR code for ' + link);
+
+test("Download: when the image can't be made the button comes back and says to Print instead; without the fonts the image still comes", async t => {
+  const p = await openPage(t, withQRExport, await seededSheet(t));
+  await signIn(p);
+  await openFlyers(p, 'w7');
+  p.w.htmlToImage = p.api.drawer; // already loaded
+  p.api.drawFails = 'all';
+  const btn = p.$('#m-event [data-dl=flyer]');
+  btn.click();
+  await waitFor(() => !btn.hasAttribute('aria-busy'), 3000, 'the button to come back');
+  assert.equal(p.$('#toast').textContent, "Couldn't make the image. Try Print instead.");
+  assert.ok(p.$('#toast use[href="#i-alert-triangle"]'));
+  assert.equal(label(btn), 'Download');
+  assert.deepEqual(p.api.drawn.map(d => !!d.opts.skipFonts), [false, true], 'tried again without the fonts');
+  assert.equal(p.api.downloads.length, 0);
+  assert.ok(!p.$('.xstage'), 'the copy is gone');
+  // the Instagram post has no Print
+  p.$('#m-event [data-dl=ig]').click();
+  await waitFor(() => p.api.drawn.length === 4, 3000, 'the second try');
+  await waitFor(() => /Check your connection/.test(p.$('#toast').textContent), 2000, 'the toast');
+  assert.equal(p.$('#toast').textContent, "Couldn't make the image. Check your connection and try again.");
+  // drawing with the fonts fails, without them it works
+  p.api.drawFails = 'fonts';
+  p.$('#m-event [data-dl=story]').click();
+  await waitFor(() => p.api.downloads.length === 1, 3000, 'the story, without the fonts');
+  // the fonts can't be fetched at all: the image comes in the browser's own
+  p.api.drawFails = '';
+  const q = await openPage(t, withQRExport, p.g);
+  await signIn(q);
+  await openFlyers(q, 'w7');
+  q.w.htmlToImage = q.api.drawer;
+  q.api.fontsDown = true;
+  q.$('#m-event [data-dl=mail]').click();
+  await waitFor(() => q.api.downloads.length === 1, 3000, 'the email header');
+  assert.equal(q.api.drawn[0].opts.fontEmbedCSS, '', 'no fonts to put in');
+  q.$('#m-event [data-dl=mail]').click();
+  await waitFor(() => q.api.downloads.length === 2, 3000, 'the email header again');
+  assert.equal(q.api.gets.filter(u => u.includes('googleapis')).length, 2, 'the fonts are tried again next time');
+  // html-to-image doesn't load (offline, or cdnjs blocked)
+  const r = await openPage(t, withQRExport, p.g);
+  await signIn(r);
+  await openFlyers(r, 'w7');
+  const rb = r.$('#m-any [data-dl=sign]');
+  rb.click();
+  const s = await waitFor(() => r.$(`script[src="${H2I_SRC}"]`), 2000, 'the script');
+  s.dispatchEvent(new r.w.Event('error'));
+  await waitFor(() => !rb.hasAttribute('aria-busy'), 2000, 'the button to come back');
+  assert.equal(r.$('#toast').textContent, "Couldn't make the image. Try Print instead.");
+  assert.ok(!r.$(`script[src="${H2I_SRC}"]`), 'the failed script is taken out, so the next click asks again');
+  rb.click();
+  await waitFor(() => r.$(`script[src="${H2I_SRC}"]`), 2000, 'a new try');
+  loadDrawer(r);
+  await waitFor(() => r.api.downloads.length === 1, 3000, 'the sign');
+  for (const x of [p, q, r]) { await waitFor(x.idle, 2000, 'calls to finish'); assert.deepEqual(x.api.errors, [], 'no script errors'); }
+});
+
+test('Print: the flyer alone on a US Letter page with its QR code, two thank-you cards with cut lines, the sign sideways; everything goes back after printing', async t => {
+  const sheet = await seededSheet(t);
+  // a title with accents and punctuation still makes a plain file name
+  const ev = sheet.tab('Events'), h = ev[0];
+  sheet.sheets.get('Events').set(ev.findIndex(r => r[0] === 'w7') + 1, h.indexOf('title') + 1, 'Café & Compost: Día 2!');
+  const p = await openPage(t, withQRExport, sheet);
+  await signIn(p);
+  await openFlyers(p, 'w7');
+  const date = dateOf(p, 'w7'), title = p.d.title;
+  const css = fs.readFileSync(SITE, 'utf8').match(/<style>([\s\S]*?)<\/style>/)[1];
+  assert.match(css, /@media print \{[\s\S]*body\.printing > :not\(#print-sheet\) \{ display: none !important; \}/, 'only the print sheet prints');
+  assert.match(css, /#print-sheet \* \{ -webkit-print-color-adjust: exact; print-color-adjust: exact; \}/, 'with its colors');
+  p.$('#m-event [data-print=flyer]').click();
+  assert.equal(p.api.printed.length, 1, 'window.print() was called');
+  assert.deepEqual(p.api.printed[0], { body: 'printing', sheet: 'ps-letter', arts: ['art flyer'], page: '@page { size: letter portrait; margin: 0.4in; }',
+    title: `ebpg-cafe-compost-dia-2-${date}-flyer`, qr: ['QR code for ' + URL_SITE + '?ev=w7'] });
+  // the copy stays until the browser says it has printed
+  assert.ok(p.$('#print-sheet .ps-cell > .art.flyer .qr svg.qrc'), 'a copy of the flyer is in #print-sheet');
+  assert.ok(p.$('#m-event .art.flyer'), 'and the flyer is still on the page');
+  p.w.dispatchEvent(new p.w.Event('afterprint'));
+  assert.equal(p.$('#print-sheet').children.length, 0, 'the print sheet is emptied');
+  assert.ok(!p.d.body.classList.contains('printing') && !p.$('#print-page'), 'the page and its size go back');
+  assert.equal(p.d.title, title, 'the tab title goes back');
+  // two thank-you cards to a page
+  p.$('#m-any [data-print=thanks]').click();
+  assert.deepEqual(p.api.printed[1], { body: 'printing', sheet: 'ps-cards', arts: ['art card5', 'art card5'], page: '@page { size: letter portrait; margin: 0.4in; }',
+    title: `ebpg-cafe-compost-dia-2-${date}-thank-you-card`, qr: [] });
+  assert.match(css, /#print-sheet\.ps-cards \.ps-cell \{[^}]*border: 1px dashed/, 'with cut lines');
+  // a browser that doesn't say when it has printed: the next key press puts things back
+  await sleep(10);
+  p.w.dispatchEvent(new p.w.KeyboardEvent('keydown', { key: 'Tab' }));
+  assert.equal(p.$('#print-sheet').children.length, 0);
+  assert.equal(p.d.title, title);
+  // the garden sign, sideways
+  p.$('#m-any [data-print=sign]').click();
+  assert.deepEqual(p.api.printed[2], { body: 'printing', sheet: 'ps-landscape', arts: ['art sign'], page: '@page { size: letter landscape; margin: 0.4in; }',
+    title: 'ebpg-garden-sign', qr: ['QR code for ' + URL_SITE + '#join'] });
+  // Print again before the last one finished: the old copy goes first
+  p.$('#m-event [data-print=flyer]').click();
+  assert.deepEqual(p.api.printed[3].arts, ['art flyer']);
+  assert.equal(p.$$('#print-page').length, 1, 'one page size');
+  p.w.dispatchEvent(new p.w.Event('afterprint'));
+  assert.equal(p.d.title, title);
+  // from the event's strip
+  p.$('.tabs a[data-tab=events]').click();
+  p.$('#tiles [data-open="w7"]').click();
+  await waitFor(() => p.$('#detail .hstrip [data-print=flyer]'), 2000, 'Workday #7');
+  const before = p.d.title;
+  p.$('#detail .hstrip [data-print=flyer]').click();
+  assert.deepEqual(p.api.printed[4].arts, ['art flyer']);
+  assert.deepEqual(p.api.printed[4].qr, ['QR code for ' + URL_SITE + '?ev=w7']);
+  p.w.dispatchEvent(new p.w.Event('afterprint'));
+  assert.equal(p.d.title, before);
+  await waitFor(p.idle, 2000, 'calls to finish');
+  p.noErrors();
+});
+
+const IPHONE = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.5 Mobile/15E148 Safari/604.1';
+test('the prototype artifact downloads and prints its pieces too, with codes to the public site; on an iPhone the image is drawn twice', async t => {
+  const p = loadPage(t, ARTIFACT, 'http://localhost/artifact', (w, g, api) => { withQRExport(w, g, api); Object.defineProperty(w.navigator, 'userAgent', { configurable: true, get: () => IPHONE }); });
+  await waitFor(() => p.shown('#p-landing'), 2000, 'the artifact landing page');
+  p.$('#signin-top').click();
+  p.$('#si-google').click();
+  await openFlyers(p, 'w7');
+  assert.deepEqual(p.$$('#p-materials [data-dl]').length, 7);
+  p.$('#m-event [data-print=flyer]').click();
+  assert.deepEqual(p.api.printed[0].qr, ['QR code for https://ebpg-event-hub.netlify.app/?ev=w7']);
+  p.w.dispatchEvent(new p.w.Event('afterprint'));
+  p.$('#m-event [data-dl=ig]').click();
+  await waitFor(() => p.$(`script[src="${H2I_SRC}"]`), 2000, 'the script');
+  loadDrawer(p);
+  await waitFor(() => p.api.downloads.length === 1, 3000, 'the Instagram post');
+  assert.deepEqual([p.api.drawn[0].opts.width, p.api.drawn[0].opts.height], [1080, 1080]);
+  assert.equal(p.api.drawn.length, 2, 'Safari puts the fonts and photos in only on the second try, so it draws twice and keeps the second');
+  assert.match(p.api.downloads[0].name, /^ebpg-opc-garden-work-party-\d{4}-\d{2}-\d{2}-instagram-post\.png$/);
+  assert.deepEqual(p.api.calls, [], 'the artifact calls no server');
+  p.noErrors();
+});
