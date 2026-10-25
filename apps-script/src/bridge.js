@@ -164,7 +164,7 @@ if (window.EBPG_GAS) {
     EVENTS.length = 0; st.events.forEach(e => EVENTS.push(fromPublic(e)));
     CANCELLED.clear(); (Array.isArray(st.cancelled) ? st.cancelled : []).forEach(id => CANCELLED.add(String(id).slice(0, 40)));
     TEAM.splice(0, TEAM.length, ...namesOnly(st.team));
-    if (st.gardens?.length) GARDENS.splice(0, GARDENS.length, ...st.gardens);
+    if (Array.isArray(st.gardens)) takeGardens(st.gardens); // none: the home page hides its map
     pubSettings(st.settings);
     if (!EVENTS.find(e => e.id === S.sel)) S.sel = nextEvent()?.id;
     pubState = 'ready';
@@ -363,7 +363,7 @@ if (window.EBPG_GAS) {
     EVENTS.length = 0; st.events.forEach(r => EVENTS.push(fromRows(r))); // the public copies go: these are the Sheet's own rows
     if (st.team?.length) TEAM.splice(0, TEAM.length, ...st.team);
     if (st.vols) VOLS.splice(0, VOLS.length, ...vols(st.vols));
-    if (st.gardens?.length) GARDENS.splice(0, GARDENS.length, ...st.gardens);
+    if (Array.isArray(st.gardens)) { takeGardens(st.gardens); baseGardens = JSON.stringify(st.gardens); }
     takePlants(st.plants || []); basePlants = JSON.stringify(st.plants || []);
     problems = st.problems || []; // only signIn and seed send these, so the public page never has any
     taskSeq = Math.max(taskSeq, ...EVENTS.flatMap(e => e.tasks.map(t => +String(t.id).replace(/\D/g, '') || 0)));
@@ -405,7 +405,7 @@ if (window.EBPG_GAS) {
     // a save that started or ended after this read began may be newer than what the read saw
     const held = k => dirty(k) || busy(k) || !!(Q[k] && Q[k].failed) || touched[k] >= t0;
     const editing = ev => ev.id === open && (S.editing || typing());
-    let news = false, evs = false, openRedo = false, team = false, vl = false, pl = false;
+    let news = false, evs = false, openRedo = false, team = false, vl = false, pl = false, gd = false;
     const seen = new Set();
     st.events.forEach(r => {
       const id = r.cols.id, k = 'e:' + id, raw = JSON.stringify(r);
@@ -443,6 +443,9 @@ if (window.EBPG_GAS) {
     // the plants, unless a change from here is on its way or came back after this read began (then it's newer)
     const rawPlants = JSON.stringify(st.plants || []);
     if (Array.isArray(st.plants) && rawPlants !== basePlants && !PL_BUSY.size && plantsAt < t0) { basePlants = rawPlants; takePlants(st.plants); pl = news = true; }
+    // the gardens, the same way (typed into the Gardens tab, or changed from another tab)
+    const rawGardens = JSON.stringify(st.gardens || []);
+    if (Array.isArray(st.gardens) && rawGardens !== baseGardens && !GD_BUSY.size && gardensAt < t0) { baseGardens = rawGardens; takeGardens(st.gardens); gd = news = true; }
     problems = st.problems || [];
     renderProblems();
     // the Channels tab changed: the attention bar, and the open event unless something in it is being typed
@@ -457,6 +460,7 @@ if (window.EBPG_GAS) {
     if (team) { renderAs(); renderTeam(); }
     if (vl) renderVols();
     if (pl) renderPlants();
+    if (gd) { renderGardens(); renderMap(); }
     // the open event's Who lists, Ask links and reminder lines go by the team and the sign-ups
     if ((team || vl) && open && !openRedo && !S.editing && !typing()) renderDetail();
     status();
@@ -495,6 +499,26 @@ if (window.EBPG_GAS) {
     } finally { plantsAt = Date.now(); }
     if (g !== gen) throw new Error('You signed out before the Guild Sheet answered.');
     if (out && Array.isArray(out.plants)) basePlants = JSON.stringify(out.plants);
+    return out;
+  };
+
+  /* ---------- gardens ----------
+     Like the plants: each change on the Gardens page goes to the Sheet at once (saveGarden, deleteGarden), and the page
+     takes the gardens as the Sheet answers with them. */
+  let baseGardens = '', gardensAt = 0;
+  gardenCall = async (fn, arg) => {
+    if (stale) throw new Error(STALE);
+    if (!live) throw new Error('Sign in again to change the gardens.');
+    const g = gen;
+    let out;
+    try { out = await run(fn, code, arg); }
+    catch (er) {
+      if (codeGone(er)) { staleCode(); throw new Error(STALE); }
+      if (!er.net) setTimeout(() => refresh(true), 0); // the Sheet said no (another organizer got there first, say): show what it has now
+      throw er.net ? new Error("The Guild Sheet didn't answer. Try again in a minute.") : er;
+    } finally { gardensAt = Date.now(); }
+    if (g !== gen) throw new Error('You signed out before the Guild Sheet answered.');
+    if (out && Array.isArray(out.gardens)) baseGardens = JSON.stringify(out.gardens);
     return out;
   };
 

@@ -512,6 +512,12 @@ legend { font-size: 13px; font-weight: 700; color: var(--ink-2); margin-bottom: 
 .team .prm { display: inline-flex; align-items: center; gap: 8px; font-weight: 700; font-size: 13px; }
 .warnchip { display: inline-block; margin-top: 2px; padding: 2px 8px; border-radius: 999px; background: var(--flag-soft); color: var(--flag); font-size: 12px; font-weight: 700; line-height: 1.4; white-space: nowrap; }
 .team td.vol-empty { white-space: normal; padding: 16px 14px; }
+/* the team table's Organizers and Members headings, and a volunteer's Make member or On the team */
+.team tr.grp th { text-align: left; padding: 14px 14px 6px; font: 700 12px/1.2 var(--body); letter-spacing: .06em; text-transform: uppercase; color: var(--ink-2); background: transparent; }
+.team tr.grp th .ic { width: 14px; height: 14px; vertical-align: -2px; margin-right: 6px; color: var(--fern); }
+.team td.grp-empty { white-space: normal; }
+.onteam { display: inline-flex; align-items: center; gap: 5px; font-size: 13px; font-weight: 700; color: var(--fern); white-space: nowrap; }
+.onteam .ic { color: inherit !important; margin: 0 !important; }
 /* the Volunteer list: how to reach them, and their note, one line each */
 .team td.vcell { white-space: normal; min-width: 180px; }
 .vcell > span { display: block; }
@@ -523,7 +529,8 @@ legend { font-size: 13px; font-weight: 700; color: var(--ink-2); margin-bottom: 
 .addp { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.2fr) minmax(0, .8fr) minmax(0, 1fr) auto; gap: 8px; align-items: end; margin-top: 14px; }
 @media (max-width: 760px) { .addp { grid-template-columns: 1fr 1fr; } }
 .addp .fld input, .addp .fld select { padding: 7px 9px; font-size: 14px; }
-.roles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 18px; }
+.roles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 18px; }
+@media (max-width: 1080px) { .roles { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 760px) { .roles { grid-template-columns: 1fr; } }
 .roles div { padding: 14px; border-radius: 12px; background: var(--surface); border: 1px solid var(--line); display: grid; gap: 4px; }
 .roles b { font-size: 15px; display: flex; align-items: center; gap: 6px; }
@@ -1130,8 +1137,8 @@ a.nxcard:hover { transform: translateY(-3px); box-shadow: var(--shadow); }
 .glist .go { color: var(--fern); font-weight: 700; font-size: 13px; margin-top: 4px; display: inline-flex; align-items: center; gap: 6px; }
 .glist .go .ic { width: 14px; height: 14px; }
 
-.gmap-art .tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; filter: saturate(.75) sepia(.12); }
-.gmap-art .tiles i { display: block; aspect-ratio: 1; background-size: cover; }
+.gmap-art .tiles { position: relative; aspect-ratio: 2; overflow: hidden; filter: saturate(.75) sepia(.12); }
+.gmap-art .tiles i, .gmap-art .tiles img { position: absolute; display: block; width: calc(25% + 1px); height: calc(50% + 1px); background-size: cover; }
 .gmap-art .t2627-6330 { background-image: url(__IMG_TILE_2627_6330__); }
 .gmap-art .t2628-6330 { background-image: url(__IMG_TILE_2628_6330__); }
 .gmap-art .t2629-6330 { background-image: url(__IMG_TILE_2629_6330__); }
@@ -1146,6 +1153,9 @@ a.nxcard:hover { transform: translateY(-3px); box-shadow: var(--shadow); }
 .mpin .lab { order: 1; background: #fff; color: #1C3A2B; font: 700 12px/1.2 var(--body); padding: 5px 9px; border-radius: 999px; box-shadow: 0 4px 12px rgba(20, 35, 25, .2); white-space: nowrap; }
 .mpin:hover .dot, .mpin.on .dot { transform: rotate(-45deg) scale(1.15); background: var(--b-lemon); color: #1C3A2B; }
 .mpin::after { content: ""; position: absolute; bottom: -6px; width: 22px; height: 8px; border-radius: 50%; background: rgba(0, 0, 0, .18); z-index: -1; }
+.gd-map { margin-bottom: 24px; max-width: 760px; }
+.gd-map .mpin { pointer-events: none; }
+.gdcard .plc-acts .btn, .gdcard .plc-acts .tog { text-decoration: none; }
 .gmap-art .attr { position: absolute; right: 0; bottom: 0; background: rgba(255, 255, 255, .85); color: #333; font-size: 11px; padding: 2px 6px; text-decoration: none; }
 @media (max-width: 600px) { .mpin .lab { display: none; } }
 
@@ -1153,8 +1163,8 @@ a.nxcard:hover { transform: translateY(-3px); box-shadow: var(--shadow); }
 .lsteps .linkcard a { display: grid; gap: 8px; padding: 22px; color: inherit; text-decoration: none; height: 100%; }
 .lsteps .linkcard .go { color: var(--fern); font-weight: 700; font-size: 14px; display: inline-flex; align-items: center; gap: 6px; }
 .lsteps .linkcard .go .ic { width: 15px; height: 15px; }
-#vj-picks span .ic, #vj-free span .ic { display: none; width: 13px; height: 13px; }
-#vj-picks input:checked + span .ic, #vj-free input:checked + span .ic { display: block; }
+#vj-picks span .ic { display: none; width: 13px; height: 13px; }
+#vj-picks input:checked + span .ic { display: block; }
 #vj-best span .ic { width: 14px; height: 14px; }
 .join { display: grid; grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr); gap: 32px; align-items: start; padding: 32px; border-radius: 22px; background: var(--surface); border: 1px solid var(--line); scroll-margin-top: 80px; }
 @media (max-width: 800px) { .join { grid-template-columns: 1fr; padding: 20px; } }
@@ -1361,7 +1371,7 @@ td code, .code code { font: 400 13px/1.5 var(--mono); }
 <header class="top">
   <div class="wrap">
     <div class="lock"><svg><use href="#mark"/></svg><b>East Bay Permaculture Guild</b><span>Event Hub</span></div>
-    <nav class="tabs" aria-label="Sections"><a href="#events" data-tab="events"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-calendar"/></svg>Events</a><a href="#team" data-tab="team"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-users"/></svg>Team</a><a href="#plants" data-tab="plants"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-sprout"/></svg>Plants<span class="tabn" id="pl-tabn"></span></a><a href="#materials" data-tab="materials"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-image"/></svg>Flyers &amp; posts</a><a class="live" href="#help" data-tab="help"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-help-circle"/></svg>Help</a>
+    <nav class="tabs" aria-label="Sections"><a href="#events" data-tab="events"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-calendar"/></svg>Events</a><a href="#team" data-tab="team"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-users"/></svg>Team</a><a href="#plants" data-tab="plants"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-sprout"/></svg>Plants<span class="tabn" id="pl-tabn"></span></a><a href="#gardens" data-tab="gardens"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-map-pin"/></svg>Gardens</a><a href="#materials" data-tab="materials"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-image"/></svg>Flyers &amp; posts</a><a class="live" href="#help" data-tab="help"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-help-circle"/></svg>Help</a>
 <!--PROTO-->
 <a href="#architecture" data-tab="architecture">How we'd build it</a>
 <!--/PROTO-->
@@ -1411,8 +1421,8 @@ td code, .code code { font: 400 13px/1.5 var(--mono); }
       <p>There are lots of ways in, whether you have an afternoon or a whole project.</p>
       <ul class="lsteps plain">
         <li class="linkcard"><a href="#join"><i class="ic-chip"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-shovel"/></svg></i><b>Volunteer</b><span>Help set up for meetings, pitch in at a garden work day, or volunteer with a partner organization.</span><span class="go">Join the volunteer list<svg class="ic" aria-hidden="true" focusable="false"><use href="#i-arrow-down"/></svg></span></a></li>
-        <li class="linkcard"><a href="#join" data-join="host"><i class="ic-chip"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-sprout"/></svg></i><b>Host a project</b><span>Does your permaculture or community resilience project need support? Got an idea for one? Tell us about it and we'll see how the Guild can help.</span><span class="go">Tell us about your project<svg class="ic" aria-hidden="true" focusable="false"><use href="#i-arrow-down"/></svg></span></a></li>
-        <li class="linkcard"><a href="#join" data-join="partner"><i class="ic-chip"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-handshake"/></svg></i><b>Become a partner</b><span>Join a growing network of groups doing land-based and social permaculture and community resilience work.</span><span class="go">Tell us about your group<svg class="ic" aria-hidden="true" focusable="false"><use href="#i-arrow-down"/></svg></span></a></li>
+        <li class="linkcard"><a href="#join" data-join="host"><i class="ic-chip"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-sprout"/></svg></i><b>Host a project</b><span>Does your permaculture or community resilience project need support? Got an idea for one? Sign up and an organizer will get in touch to see how the Guild can help.</span><span class="go">Sign up to host<svg class="ic" aria-hidden="true" focusable="false"><use href="#i-arrow-down"/></svg></span></a></li>
+        <li class="linkcard"><a href="#join" data-join="partner"><i class="ic-chip"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-handshake"/></svg></i><b>Become a partner</b><span>Join a growing network of groups doing land-based and social permaculture and community resilience work.</span><span class="go">Sign up as a partner<svg class="ic" aria-hidden="true" focusable="false"><use href="#i-arrow-down"/></svg></span></a></li>
       </ul>
     </section>
 
@@ -1447,9 +1457,7 @@ td code, .code code { font: 400 13px/1.5 var(--mono); }
         </fieldset>
         <fieldset><legend>Best way to reach you</legend><div class="picks" id="vj-best"><label><input type="radio" name="vj-best" value="Email"><span><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-mail"/></svg>Email</span></label><label><input type="radio" name="vj-best" value="Text"><span><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-message-circle"/></svg>Text</span></label></div></fieldset>
         <fieldset><legend>I'd like to help with</legend><div class="picks" id="vj-picks"></div></fieldset>
-        <fieldset><legend>When are you usually free? <span class="hint">optional</span></legend><div class="picks" id="vj-free"></div></fieldset>
         <label class="fld">How did you hear about us? <span class="hint">optional</span><select id="vj-heard" name="heard"><option value="">Choose one</option></select></label>
-        <label class="fld">Anything else? <span class="hint">optional</span><textarea id="vj-note" name="note" rows="2" maxlength="1000" placeholder="Skills, languages you speak, anything we should know"></textarea></label>
         <label class="chk vj-list"><input type="checkbox" id="vj-list" name="list"><span>Add me to the Guild email list<span class="hint">News about work days and meetings.</span></span></label>
         <p class="err" id="vj-err" role="alert" hidden></p>
         <p class="vh" id="vj-status" role="status"></p>
@@ -1522,7 +1530,7 @@ td code, .code code { font: 400 13px/1.5 var(--mono); }
 
   <!-- ============ TEAM ============ -->
   <div id="p-team" data-page="team" hidden>
-    <div class="pagehead"><div><h1>Team</h1><p>Who organizes, who helps, and what each person can do.</p></div>
+    <div class="pagehead"><div><h1>Team</h1><p>Organizers, members and volunteers, and what each person can do.</p></div>
 <!--PROTO-->
 <span class="sample">Sample data</span>
 <!--/PROTO-->
@@ -1530,24 +1538,25 @@ td code, .code code { font: 400 13px/1.5 var(--mono); }
     <div class="roles">
       <div><b><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-crown"/></svg>Lead organizer</b><span>Everything, including the team.</span></div>
       <div><b><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-user-check"/></svg>Co-organizer</b><span>Signs in. Can do what you tick.</span></div>
-      <div><b><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-heart"/></svg>Volunteer</b><span>No sign-in. Gets reminders by email. If they only have a phone, the host gets a list to text.</span></div>
+      <div><b><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-users"/></svg>Member</b><span>On the team, no sign-in. Can be given tasks and gets reminders by email. If they only have a phone, the host gets a list to text.</span></div>
+      <div><b><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-heart"/></svg>Volunteer</b><span>Signed up on the home page. Make them a member to bring them onto the team.</span></div>
     </div>
     <div id="team-note"></div>
     <div class="tbl"><table class="team" id="team-tbl"></table></div>
-    <h2 class="h2i" style="font-size:26px;margin:36px 0 6px"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-heart"/></svg>Volunteer list</h2><p class="muted" style="margin-bottom:12px">People who signed up on the home page.
+    <form class="addp" id="addp" novalidate>
+      <label class="fld">Name<input id="ap-name" placeholder="Name"></label>
+      <label class="fld">Phone or email<input id="ap-contact" placeholder="Phone or email"></label>
+      <label class="fld">Remind by<select id="ap-via"><option>Text</option><option>Email</option></select></label>
+      <label class="fld">Role<select id="ap-role"><option value="vol">Member</option><option value="co">Co-organizer</option></select></label>
+      <button class="btn primary" type="submit"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-user-plus"/></svg>Add person</button>
+      <p class="err" id="ap-err" role="alert" hidden style="grid-column:1/-1"></p>
+    </form>
+    <h2 class="h2i" style="font-size:26px;margin:36px 0 6px"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-heart"/></svg>Volunteers</h2><p class="muted" style="margin-bottom:12px">People who signed up on the home page. <b>Make member</b> brings someone onto the team, so they can be given tasks.
 <!--PROTO-->
 <span class="sample">Sample + this tab's sign-ups</span>
 <!--/PROTO-->
 </p>
     <div class="tbl"><table class="team" id="vol-tbl"></table></div>
-    <form class="addp" id="addp" novalidate>
-      <label class="fld">Name<input id="ap-name" placeholder="Name"></label>
-      <label class="fld">Phone or email<input id="ap-contact" placeholder="Phone or email"></label>
-      <label class="fld">Remind by<select id="ap-via"><option>Text</option><option>Email</option></select></label>
-      <label class="fld">Role<select id="ap-role"><option value="vol">Volunteer</option><option value="co">Co-organizer</option></select></label>
-      <button class="btn primary" type="submit"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-user-plus"/></svg>Add person</button>
-      <p class="err" id="ap-err" role="alert" hidden style="grid-column:1/-1"></p>
-    </form>
   </div>
 
   <!-- ============ PLANTS (Adopt a plant) ============ -->
@@ -1574,6 +1583,25 @@ td code, .code code { font: 400 13px/1.5 var(--mono); }
       <div class="omark-b"><button class="btn primary" type="submit" id="pl-save"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-check"/></svg><span>Add plant</span></button><button class="btn ghost" type="button" id="pl-cancel"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-x"/></svg>Cancel</button></div>
     </form>
     <div id="pl-list"></div>
+  </div>
+
+  <!-- ============ GARDENS ============ -->
+  <div id="p-gardens" data-page="gardens" hidden>
+    <div class="pagehead"><div><h1>Gardens</h1><p>The gardens on the home page's map. A new address gets its pin as soon as it's saved, and the map zooms out to fit every garden.</p></div>
+      <button class="btn primary" type="button" id="gd-add"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-plus"/></svg>Add a garden</button></div>
+    <div id="gd-note"></div>
+    <form class="plf" id="gdf" novalidate hidden aria-labelledby="gdf-t">
+      <h2 id="gdf-t">Add a garden</h2>
+      <div class="plf-g">
+        <label class="fld">Name<input id="gd-name" name="name" maxlength="80" autocomplete="off" required aria-required="true" placeholder="e.g. Dimond Park garden"></label>
+        <label class="fld">Address<input id="gd-addr" name="addr" maxlength="160" autocomplete="off" required aria-required="true" placeholder="e.g. 3860 Hanly Rd, Oakland, CA"></label>
+        <label class="fld wide"><span class="fl">What happens there <span class="hint">optional</span></span><input id="gd-what" name="what" maxlength="160" autocomplete="off" placeholder="e.g. Monthly work days and a seed library"></label>
+      </div>
+      <p class="err" id="gd-err" role="alert" hidden></p>
+      <div class="omark-b"><button class="btn primary" type="submit" id="gd-save"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-check"/></svg><span>Add garden</span></button><button class="btn ghost" type="button" id="gd-cancel"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-x"/></svg>Cancel</button></div>
+    </form>
+    <div class="gmap-art gd-map" id="gd-map" aria-label="How the gardens look on the home page's map" role="img"></div>
+    <div id="gd-list"></div>
   </div>
 
   <!-- ============ MATERIALS ============ -->
@@ -1962,8 +1990,12 @@ await supabase.from('volunteers').insert({
       </section>
       <section aria-labelledby="hp-vols">
         <h2 id="hp-vols">Volunteer sign-ups</h2>
-        <p>The form on the home page asks for a name, an email or phone (and which is best), how they'd like to help, when they're usually free, how they heard about the Guild and whether to add them to the Guild email list. Each sign-up is a row on the <b>Volunteers</b> tab, with an <code>event</code> column when they signed up from an event's page. The <b>Volunteer list</b> on the Team page shows them all.</p>
+        <p>The form on the home page asks for a name, an email or phone (and which is best), how they'd like to help, how they heard about the Guild and whether to add them to the Guild email list. Each sign-up is a row on the <b>Volunteers</b> tab, with an <code>event</code> column when they signed up from an event's page. The <b>Volunteers</b> list on the Team page shows them all, and <b>Make member</b> there puts someone on the team as a member, so they can be given tasks.</p>
         <p>The volunteer gets a welcome email about the next event (replies go to <code>REPLY_TO</code>), and the lead organizer gets one with every answer. Someone who signs up again with the same email or phone and the same first name gets their row updated, with <i>Signed up again</i> and the date in the note, and no second welcome. Someone else on a shared email or phone (a household, a group's address) gets a row of their own. People who ask for the email list aren't added to the Google Group automatically: add them there by hand.</p>
+      </section>
+      <section aria-labelledby="hp-gardens">
+        <h2 id="hp-gardens">Gardens on the map</h2>
+        <p>The <b>Gardens</b> page lists the gardens on the home page's map. Add one with its name, address and what happens there; the address is looked up as soon as it's saved, so its pin is on the map for the next visitor. The map zooms out to fit every garden, wherever it is. If Google can't find an address, the garden is still listed under the map with <b>Not on the map</b> on its card: fix the address and save again. You need <b>Edit events</b> to add, edit or remove gardens. They're kept on the Sheet's Gardens tab, where you can also type them in.</p>
       </section>
       <section aria-labelledby="hp-plants">
         <h2 id="hp-plants">Adopt a plant</h2>
@@ -2071,7 +2103,8 @@ const newChannels = () => CHANNELS.filter(c => c.used && c.onNew).map(c => c.id)
 const TAGS = [['beginner', 'Beginner friendly'], ['tools', 'Tools provided'], ['kids', 'Kids welcome'], ['potluck', 'Potluck'], ['outdoor', 'Outdoors']];
 const PERMS = [['create', 'Create events'], ['edit', 'Edit events'], ['approve', 'Approve & post'], ['tasks', 'Assign tasks'], ['team', 'Manage team']];
 const PERM_ICON = { create: 'calendar-plus', edit: 'pencil', approve: 'send', tasks: 'list-checks', team: 'users' };
-const ROLE = { lead: 'Lead organizer', co: 'Co-organizer', vol: 'Volunteer' };
+// 'vol' is a member: on the team without signing in (the Sheet's Team tab says Member). Volunteers are the sign-ups (VOLS).
+const ROLE = { lead: 'Lead organizer', co: 'Co-organizer', vol: 'Member' };
 const allPerms = v => Object.fromEntries(PERMS.map(([k]) => [k, v]));
 const CO = { create: true, edit: true, approve: false, tasks: true, team: false };
 const TEAM = [ // real names, roles and permissions; contacts are blank until an organizer adds them
@@ -2548,7 +2581,7 @@ function showTab(t) {
 $$('.tabs a').forEach(a => a.addEventListener('click', e => { e.preventDefault(); showTab(a.dataset.tab); history.replaceState(null, '', '#' + a.dataset.tab); window.scrollTo({ top: 0 }); }));
 
 /* render */
-function render() { renderProblems(); renderAttn(); renderTiles(); if ($('#detail')) renderDetail(); else applyPerms(); sync(); }
+function render() { renderProblems(); renderAttn(); renderTiles(); if ($('#detail')) renderDetail(); else applyPerms(); renderGardens(); sync(); }
 function gate(sel, k, root = document) { $$(sel, root).forEach(el => { if (!can(k)) { el.disabled = true; el.title = NOPE[k]; el.setAttribute('aria-disabled', 'true'); if (el.tagName === 'A') { el.removeAttribute('href'); el.style.opacity = .4; } } }); }
 function applyPerms() {
   const d = $('#detail');
@@ -2611,24 +2644,33 @@ function renderTeam() {
   if (S.prm && !person(S.prm)) S.prm = null;
   $('#team-note').innerHTML = edit ? '' : `<div class="perm-note" style="margin-bottom:12px">${ic('lock')}<span>${esc(cantNote(person(ME) || TEAM[0]))}</span></div>`;
   renderHelp();
-  $('#team-tbl').innerHTML = `<thead><tr><th>Person</th><th>Role</th><th>Reminders</th>${PERMS.map(([k, l]) => `<th class="c"><span class="thi">${ic(PERM_ICON[k])}${esc(l)}</span></th>`).join('')}<th></th></tr></thead><tbody>${TEAM.map((t, i) => {
+  /* Organizers (the lead, then co-organizers) and Members, each under its own heading; the volunteers who signed up
+     are in their own table below. Rows keep their place in TEAM as i, which the controls go by. */
+  const cols = PERMS.length + 4, rows = TEAM.map((t, i) => [t, i]);
+  const orgs = rows.filter(([t]) => t.role !== 'vol').sort(([a], [b]) => (b.role === 'lead') - (a.role === 'lead')), mems = rows.filter(([t]) => t.role === 'vol');
+  const grp = (icon, label, n) => `<tr class="grp"><th colspan="${cols}" scope="rowgroup">${ic(icon)}${label} (${n})</th></tr>`;
+  const noMems = `<tr><td colspan="${cols}" class="hint grp-empty">No members yet.${edit ? ' Add someone below, or use <b>Make member</b> on a volunteer.' : ''}</td></tr>`;
+  $('#team-tbl').innerHTML = `<thead><tr><th>Person</th><th>Role</th><th>Reminders</th>${PERMS.map(([k, l]) => `<th class="c"><span class="thi">${ic(PERM_ICON[k])}${esc(l)}</span></th>`).join('')}<th></th></tr></thead><tbody>${
+    grp('user-check', 'Organizers', orgs.length) + orgs.map(row).join('')}</tbody><tbody>${grp('users', 'Members', mems.length) + (mems.length ? mems.map(row).join('') : noMems)}</tbody>`;
+  function row([t, i]) {
     const lock = !edit || t.role === 'lead', open = edit && S.pedit === t.name, asking = edit && S.prm === t.name && t.role !== 'lead';
     const reach = t.contact ? `<span class="hint">${ic(String(t.contact).includes('@') ? 'mail' : 'phone')}${esc(t.contact)}</span>` : '<span class="warnchip">No contact yet</span>';
     const contact = open ? peditHTML(t) : edit ? `<button class="pcon" type="button" data-pedit="${i}"><span class="vh">Change how to reach ${esc(t.name)}: </span>${reach}${ic('pencil')}</button>` : reach;
     return `<tr${edit && !open ? ` class="tap" data-prow="${i}"` : ''}><td><span class="nm">${avatar(t.name)}<span><b>${esc(t.name)}</b><br>${contact}</span></span></td>
-    <td>${t.role === 'lead' ? esc(ROLE.lead) : `<select data-role="${i}" ${edit ? '' : 'disabled'} aria-label="Role for ${esc(t.name)}"><option value="co" ${t.role === 'co' ? 'selected' : ''}>Co-organizer</option><option value="vol" ${t.role === 'vol' ? 'selected' : ''}>Volunteer</option></select>`}</td>
+    <td>${t.role === 'lead' ? esc(ROLE.lead) : `<select data-role="${i}" ${edit ? '' : 'disabled'} aria-label="Role for ${esc(t.name)}"><option value="co" ${t.role === 'co' ? 'selected' : ''}>Co-organizer</option><option value="vol" ${t.role === 'vol' ? 'selected' : ''}>Member</option></select>`}</td>
     <td>${t.via ? ic(t.via === 'Email' ? 'mail' : 'message-circle') + esc(t.via) : '<span class="hint">—</span>'}</td>
     ${PERMS.map(([k, l]) => `<td class="c">${t.role === 'vol' ? '<span class="hint">—</span>' : `<input type="checkbox" data-perm="${i}" data-k="${k}" ${t.perms[k] ? 'checked' : ''} ${lock ? 'disabled' : ''} aria-label="${esc(t.name)}: ${esc(l)}">`}</td>`).join('')}
     <td>${t.role === 'lead' || !edit ? '' : asking ? `<span class="prm" role="group" aria-labelledby="prm-q"><span id="prm-q">Remove ${esc(t.name)}?</span><button class="btn warn sm" type="button" data-rmyes="${i}">${ic('user-minus')}Remove</button><button class="btn ghost sm" type="button" data-rmno="${i}">${ic('x')}Cancel</button></span>`
       : `<button class="tog" type="button" data-rm="${i}" aria-label="Remove ${esc(t.name)}">${ic('user-minus')}Remove</button>`}</td></tr>`;
-  }).join('')}</tbody>`;
+  }
   $$('[data-perm]').forEach(c => c.addEventListener('change', () => { TEAM[c.dataset.perm].perms[c.dataset.k] = c.checked; whenSaved(() => toast('Permissions saved', 'check')); render(); }));
+  const focusIn = (attr, name) => $$(`#team-tbl [${attr}]`).find(b => TEAM[b.getAttribute(attr)]?.name === name)?.focus();
+  // a new role moves the row to Organizers or Members; focus follows it there
   $$('[data-role]').forEach(sl => sl.addEventListener('change', () => {
     const t = TEAM[sl.dataset.role]; t.role = sl.value;
     t.perms = sl.value === 'co' ? { create: true, edit: true, approve: false, tasks: true, team: false } : allPerms(false);
-    whenSaved(() => toast(`${t.name} is now a ${ROLE[t.role].toLowerCase()}`)); renderAs(); renderTeam(); render();
+    whenSaved(() => toast(`${t.name} is now a ${ROLE[t.role].toLowerCase()}`)); renderAs(); renderTeam(); render(); focusIn('data-role', t.name);
   }));
-  const focusIn = (attr, name) => $$(`#team-tbl [${attr}]`).find(b => TEAM[b.getAttribute(attr)]?.name === name)?.focus();
   // tap a row, or the contact under the name, to change how to reach them
   const openEdit = name => { S.pedit = name; S.prm = null; renderTeam(); $('#pe-contact')?.focus(); };
   $$('[data-pedit]').forEach(b => b.addEventListener('click', () => openEdit(TEAM[b.dataset.pedit].name)));
@@ -2661,7 +2703,7 @@ function renderTeam() {
   $('#team-tbl .prm')?.addEventListener('keydown', e => { if (e.key === 'Escape') { e.preventDefault(); keep(); } });
   $$('[data-rmyes]').forEach(b => b.addEventListener('click', () => removePerson(TEAM[b.dataset.rmyes].name)));
   $$('#addp input, #addp select, #addp button').forEach(el => el.disabled = !edit);
-  renderPlants(); // its Steward and Backup pickers list the team, and the permissions say who can change them
+  renderVols(); // who's on the team shows there, and it redraws the Plants pickers, which list the team
   sync();
 }
 /* Remove: the person goes from the team (and the Sheet) at once, with 10 seconds to Undo, which puts them back where they were. */
@@ -2704,7 +2746,7 @@ $('#addp').addEventListener('submit', e => {
   const role = $('#ap-role').value;
   TEAM.push({ name, contact, via: $('#ap-via').value, role, perms: role === 'co' ? { create: true, edit: true, approve: false, tasks: true, team: false } : allPerms(false) });
   $('#ap-name').value = ''; $('#ap-contact').value = '';
-  whenSaved(() => toast(`${name} added as ${ROLE[role].toLowerCase()}`, 'check')); renderAs(); renderTeam(); render();
+  whenSaved(() => toast(`${name} added as a ${ROLE[role].toLowerCase()}`, 'check')); renderAs(); renderTeam(); render();
 });
 /* Sheet rows the app couldn't read, each with a Dismiss button. Rebuilt only when the list changes, so focus stays put. */
 const goneProbs = new Set(), probKey = p => [p.tab, p.row, p.what].join('|');
@@ -3118,20 +3160,25 @@ function bindPlan(ev) {
 }
 /* ---------- who's bringing what ----------
    Each task: what (tap it to change the words), who (the team, or someone who signed up on the home page, who then
-   joins the team as a volunteer), where it stands, and an Ask link that opens a text or an email to that person,
+   joins the team as a member), where it stands, and an Ask link that opens a text or an email to that person,
    already written. Under each person: how the hourly reminders reach them (hourly() in Code.js). An upcoming event's
    tasks can be changed by people with "Assign tasks"; a past or cancelled one's are its record. */
 const firstName = n => String(n ?? '').trim().split(/\s+/)[0] || '';
 // people who signed up on the home page and aren't on the team yet (one per name, since the team goes by names)
 function newVols() {
-  const seen = new Set(TEAM.map(t => String(t.name).trim().toLowerCase()));
-  return VOLS.filter(v => { const k = String(v.name ?? '').trim().toLowerCase(); if (!k || seen.has(k)) return false; seen.add(k); return true; });
+  const seen = new Set(TEAM.map(t => lc(t.name)));
+  return VOLS.filter(v => { const k = lc(v.name); if (!k || seen.has(k)) return false; seen.add(k); return true; });
 }
 const volKey = v => 'vol:' + (v.id || String(v.name).trim());
 // how to reach a sign-up: the way they said is best, else their email, else their phone
 const volContact = v => {
   const c = String(v.contact ?? '').trim(), email = String(v.email || (c.includes('@') ? c : '')).trim(), phone = String(v.phone || (c.includes('@') ? '' : c)).trim();
   return v.best === 'Text' && phone ? phone : email || phone;
+};
+// a sign-up as a member of the team, reached the way they said is best
+const memberFrom = v => {
+  const contact = volContact(v);
+  return { name: String(v.name).trim(), role: 'vol', contact, via: contact ? (contact.includes('@') ? 'Email' : 'Text') : '', perms: allPerms(false) };
 };
 // the Who picker: nobody, the team, then the new volunteers. Someone not on the team any more stays picked.
 function whoOptions(cur, blank = 'Nobody yet') {
@@ -3376,8 +3423,8 @@ function bindTasks(ev) {
   const join = key => {
     const v = newVols().find(x => volKey(x) === key);
     if (!v) return '';
-    const name = String(v.name).trim(), contact = volContact(v);
-    TEAM.push({ name, role: 'vol', contact, via: contact ? (contact.includes('@') ? 'Email' : 'Text') : '', perms: allPerms(false) });
+    const name = String(v.name).trim();
+    TEAM.push(memberFrom(v));
     log(`added ${name} to the team`);
     whenSaved(() => toast(`Added ${name} to the team`, 'check'));
     renderAs(); renderTeam();
@@ -4230,22 +4277,205 @@ const AUTH = {
 const GARDENS = [
   { name: 'Oakland Peace Center garden', addr: '111 Fairmount Ave, Oakland, CA', what: 'Monthly meetings and garden work days', lat: 37.8136, lng: -122.2589 },
 ];
-function renderMap() {
-  const Z = 1 << 14, X0 = 2627, Y0 = 6330, NX = 4, NY = 2;
-  const tile = (lat, lng) => [(lng + 180) / 360 * Z, (1 - Math.log(Math.tan(lat * Math.PI / 180) + 1 / Math.cos(lat * Math.PI / 180)) / Math.PI) / 2 * Z];
-  const link = g => `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(g.addr)}`;
-  const pins = GARDENS.map((g, i) => { if (typeof g.lat !== 'number' || typeof g.lng !== 'number') return ''; // no map point yet: list only
-    const [tx, ty] = tile(g.lat, g.lng); const L = (tx - X0) / NX * 100, T = (ty - Y0) / NY * 100;
-    if (!(L >= 0 && L <= 100 && T >= 0 && T <= 100)) return ''; // off the map tiles: list only
-    return `<a class="mpin ${L > 70 ? 'left' : ''}" style="left:${L.toFixed(2)}%;top:${T.toFixed(2)}%" href="${link(g)}" target="_blank" rel="noopener" data-g="${i}" aria-label="${esc(g.name)}, open in Google Maps"><span class="dot">${i + 1}</span><span class="lab">${esc(g.name)}</span></a>`; }).join('');
-  $('#gmap-art').innerHTML = `<div class="tiles"><i class="t2627-6330"></i><i class="t2628-6330"></i><i class="t2629-6330"></i><i class="t2630-6330"></i><i class="t2627-6331"></i><i class="t2628-6331"></i><i class="t2629-6331"></i><i class="t2630-6331"></i></div>${pins}<a class="attr" href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© OpenStreetMap contributors</a>`;
-  $('#glist').innerHTML = GARDENS.map((g, i) => `<li><a href="${link(g)}" target="_blank" rel="noopener" data-gl="${i}"><span class="n">${i + 1}</span><span><b>${esc(g.name)}</b><span>${esc(g.addr.replace(', CA', ''))}</span><span>${esc(g.what)}</span><span class="go">Open in Google Maps${ic('out')}</span></span></a></li>`).join('');
-  $$('[data-gl]').forEach(a => { const pin = $(`.mpin[data-g="${a.dataset.gl}"]`); a.addEventListener('mouseenter', () => pin?.classList.add('on')); a.addEventListener('mouseleave', () => pin?.classList.remove('on')); });
+/* The map: 4 × 2 OpenStreetMap tiles (256 px each) at zoom z, its top-left corner at tile x, y (a fraction of a tile is
+   fine). The view around the Peace Center is drawn from tiles inside this file, so it needs nothing from the internet.
+   When a garden falls outside it, the view moves and zooms out (to the whole world, if it must) until every garden fits,
+   with tiles from tile.openstreetmap.org. */
+const MAP_HOME = { z: 14, x: 2627, y: 6330 }, MAP_W = 4, MAP_H = 2;
+// room around the pins, as parts of the view: a pin's label sits above its point, so more at the top. The home view
+// asks for less, so the Peace Center (near its top) keeps it.
+const MAP_PAD = { l: .12, r: .12, t: .3, b: .1 }, HOME_PAD = { l: .05, r: .05, t: .2, b: .05 };
+const tileXY = (lat, lng, z) => { const Z = 2 ** z, r = lat * Math.PI / 180; return [(lng + 180) / 360 * Z, (1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2 * Z]; };
+const mapPoints = list => list.filter(g => typeof g.lat === 'number' && typeof g.lng === 'number' && Math.abs(g.lat) < 85 && Math.abs(g.lng) <= 180);
+function mapView(list) {
+  const pts = mapPoints(list), P = MAP_PAD, w = MAP_W * (1 - P.l - P.r), h = MAP_H * (1 - P.t - P.b);
+  const at = (v, g) => { const [x, y] = tileXY(g.lat, g.lng, v.z); return [(x - v.x) / MAP_W, (y - v.y) / MAP_H]; };
+  const H = HOME_PAD;
+  if (pts.every(g => { const [L, T] = at(MAP_HOME, g); return L >= H.l && L <= 1 - H.r && T >= H.t && T <= 1 - H.b; })) return MAP_HOME;
+  for (let z = MAP_HOME.z; ; z--) {
+    const xy = pts.map(g => tileXY(g.lat, g.lng, z)), xs = xy.map(q => q[0]), ys = xy.map(q => q[1]);
+    const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+    if ((x1 - x0 <= w && y1 - y0 <= h) || z === 1) {
+      const N = 2 ** z, y = (y0 + y1) / 2 - MAP_H * P.t - h / 2;
+      return { z, x: (x0 + x1) / 2 - MAP_W * P.l - w / 2, y: N <= MAP_H ? 0 : Math.min(Math.max(y, 0), N - MAP_H) };
+    }
+  }
 }
+// the map's tiles, pins and credit, for the home page and the Gardens page; each pin's number is its place in the list
+function mapHTML(list) {
+  const v = mapView(list), N = 2 ** v.z, pct = n => n.toFixed(3) + '%', tiles = [];
+  for (let j = Math.floor(v.y); j < v.y + MAP_H; j++) for (let i = Math.floor(v.x); i < v.x + MAP_W; i++) {
+    if (j < 0 || j >= N) continue;
+    const pos = `left:${pct((i - v.x) / MAP_W * 100)};top:${pct((j - v.y) / MAP_H * 100)}`;
+    tiles.push(v === MAP_HOME ? `<i class="t${i}-${j}" style="${pos}"></i>`
+      : `<img src="https://tile.openstreetmap.org/${v.z}/${((i % N) + N) % N}/${j}.png" alt="" loading="lazy" decoding="async" style="${pos}">`);
+  }
+  const pins = list.map((g, i) => { if (!mapPoints([g]).length) return ''; // no map point yet: list only
+    const [tx, ty] = tileXY(g.lat, g.lng, v.z), L = (tx - v.x) / MAP_W * 100, T = (ty - v.y) / MAP_H * 100;
+    return `<a class="mpin ${L > 70 ? 'left' : ''}" style="left:${pct(L)};top:${pct(T)}" href="${gardenLink(g)}" target="_blank" rel="noopener" data-g="${i}" aria-label="${esc(g.name)}, open in Google Maps"><span class="dot">${i + 1}</span><span class="lab">${esc(g.name)}</span></a>`; }).join('');
+  return `<div class="tiles">${tiles.join('')}</div>${pins}<a class="attr" href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© OpenStreetMap contributors</a>`;
+}
+const gardenLink = g => `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(g.addr || g.name)}`;
+// the home page's "Where we grow": hidden while there are no gardens
+let mapWas = '';
+function renderMap() {
+  $('#map').hidden = !GARDENS.length;
+  const art = mapHTML(GARDENS);
+  if (art !== mapWas) $('#gmap-art').innerHTML = mapWas = art;
+  $('#glist').innerHTML = GARDENS.map((g, i) => `<li><a href="${gardenLink(g)}" target="_blank" rel="noopener" data-gl="${i}"><span class="n">${i + 1}</span><span><b>${esc(g.name)}</b><span>${esc(String(g.addr || '').replace(', CA', ''))}</span><span>${esc(g.what || '')}</span><span class="go">Open in Google Maps${ic('out')}</span></span></a></li>`).join('');
+  $$('#glist [data-gl]').forEach(a => { const pin = $(`#gmap-art .mpin[data-g="${a.dataset.gl}"]`); a.addEventListener('mouseenter', () => pin?.classList.add('on')); a.addEventListener('mouseleave', () => pin?.classList.remove('on')); });
+}
+
+/* ---------- the Gardens page ----------
+   Organizers with "Edit events" add, change and take gardens off the map. Each change goes to the Sheet at once
+   (saveGarden, deleteGarden in Code.js), which looks a new address up straight away and answers with every garden. */
+let gardenCall = () => Promise.reject(new Error("The gardens can't be changed here."));
+function takeGardens(list) { if (Array.isArray(list)) GARDENS.splice(0, GARDENS.length, ...list.filter(g => g && String(g.name ?? '').trim())); }
+const GD_BUSY = new Set(); // gardens (by lc name) with a change on its way to the Sheet ('form': the form's)
+const GD_ERR = new Map(); // lc name -> what the Sheet said, shown on its card until the next change
+S.gdRm = ''; S.gdForm = null; // the garden whose Remove is being asked about; the open form
+function gardenCard(g, i, edit) {
+  const k = lc(g.name), name = esc(g.name), busy = GD_BUSY.has(k), off = busy ? ' aria-disabled="true"' : '', on = mapPoints([g]).length;
+  const facts = [['map-pin', esc(g.addr || 'No address yet')], g.what && ['sprout', esc(g.what)]].filter(Boolean);
+  const acts = S.gdRm === k && edit
+    ? `<span class="prm" role="group" aria-labelledby="gdrm-${i}"><span id="gdrm-${i}">Take ${name} off the map?</span><button class="btn warn sm" type="button" data-gdact="rm-yes"${off}>${ic('trash')}Remove</button><button class="btn ghost sm" type="button" data-gdact="rm-no">${ic('x')}Keep it</button></span>`
+    : (edit ? `<button class="btn ghost sm" type="button" data-gdact="edit"${off}>${ic('pencil')}Edit<span class="vh"> ${name}</span></button>` : '')
+      + `<a class="btn ghost sm" href="${gardenLink(g)}" target="_blank" rel="noopener">${ic('out')}Google Maps<span class="vh"> for ${name}</span></a>`
+      + (edit ? `<button class="tog rm" type="button" data-gdact="remove"${off}>${ic('trash')}Remove<span class="vh"> ${name}</span></button>` : '');
+  return `<li class="plcard gdcard" data-gd="${i}"><div class="plc-h"><div><h3>${i + 1}. ${name}</h3></div><span class="pill ${on ? 'posted' : 'review'}">${on ? 'On the map' : 'Not on the map'}</span></div>`
+    + `<ul class="plc-facts">${facts.map(([c, t]) => `<li>${ic(c)}<span>${t}</span></li>`).join('')}</ul>`
+    + (on ? '' : `<p class="hint">Google couldn't place this address yet. Check it and save again; it's listed under the map either way.</p>`)
+    + (GD_ERR.has(k) ? `<p class="err" role="alert">${esc(GD_ERR.get(k))}</p>` : '') + (busy ? `<p class="plc-busy" role="status">${ic('loader')}Saving…</p>` : '')
+    + `<div class="plc-acts">${acts}</div></li>`;
+}
+let gdHTML = '', gdNote = '', gdMap = '';
+function renderGardens() {
+  const edit = can('edit'), add = $('#gd-add'), l = lead();
+  add.disabled = !edit; add.title = edit ? '' : NOPE.edit;
+  if (!edit && S.gdForm) closeGardenForm(true);
+  const note = edit ? '' : `<div class="perm-note" style="margin-bottom:14px">${ic('lock')}<span>You need "Edit events" to add gardens or change them.${l && l.name !== ME ? ` Ask ${esc(firstName(l.name))} if you need to.` : ''}</span></div>`;
+  if (note !== gdNote) $('#gd-note').innerHTML = gdNote = note;
+  const art = GARDENS.length ? mapHTML(GARDENS) : '';
+  $('#gd-map').hidden = !GARDENS.length;
+  if (art !== gdMap) $('#gd-map').innerHTML = gdMap = art;
+  const html = !GARDENS.length
+    ? `<div class="nxnote"><i class="ic-chip">${ic('map-pin')}</i><span><b>No gardens yet.</b> The home page hides its map until there's one.</span>${edit ? `<button class="btn primary" type="button" data-gdact="add">${ic('plus')}Add a garden</button>` : ''}</div>`
+    : `<ul class="plcards">${GARDENS.map((g, i) => gardenCard(g, i, edit)).join('')}</ul>`;
+  if (html === gdHTML) return;
+  const box = $('#gd-list'), f = document.activeElement, had = !!f && box.contains(f);
+  const at = had ? f.closest('[data-gd]')?.dataset.gd : '', what = had ? f.dataset.gdact || '' : '';
+  box.innerHTML = gdHTML = html;
+  if (!had) return;
+  const card = at != null ? $$('#gd-list [data-gd]').find(c => c.dataset.gd === at) : null;
+  const to = card && ($$('[data-gdact]', card).find(el => el.dataset.gdact === what) || card.querySelector('[data-gdact], a'));
+  (to || (edit ? add : $('#p-gardens h1'))).focus();
+}
+const GD_FORM = [['name', 'gd-name', 80, 'name'], ['addr', 'gd-addr', 160, 'address'], ['what', 'gd-what', 160, 'line about what happens there']];
+const gardenForm = () => Object.fromEntries(GD_FORM.map(([k, id]) => [k, $('#' + id).value.trim().replace(/\s+/g, ' ')]));
+// [the field's id, what's wrong], or null: the checks saveGarden makes in Code.js
+function gardenProblem(f, was) {
+  if (!f.name) return ['gd-name', "Add the garden's name."];
+  if (!f.addr) return ['gd-addr', "Add the garden's address, so it can go on the map."];
+  const long = GD_FORM.find(([k, , most]) => f[k].length > most);
+  if (long) return [long[1], `Please keep the ${long[3]} to ${long[2]} characters or fewer.`];
+  const same = GARDENS.find(g => lc(g.name) === lc(f.name) && lc(g.name) !== lc(was));
+  if (same) return ['gd-name', `There's already a garden called ${same.name}.`];
+  return null;
+}
+function openGardenForm(g, from) {
+  if (!can('edit')) return;
+  S.gdForm = { was: g ? g.name : '', from: from || null };
+  $('#gdf-t').textContent = g ? 'Edit ' + g.name : 'Add a garden';
+  $('#gd-save span').textContent = g ? 'Save' : 'Add garden';
+  GD_FORM.forEach(([k, id]) => { const el = $('#' + id); el.value = g ? String(g[k] ?? '') : ''; el.removeAttribute('aria-invalid'); });
+  $('#gd-err').hidden = true;
+  $('#gdf').hidden = false;
+  $('#gdf').scrollIntoView({ block: 'start' });
+  $('#gd-name').focus({ preventScroll: true });
+}
+function closeGardenForm(quiet) {
+  const st = S.gdForm;
+  S.gdForm = null;
+  $('#gdf').hidden = true; $('#gdf').reset(); $('#gd-err').hidden = true;
+  GD_FORM.forEach(([, id]) => $('#' + id).removeAttribute('aria-invalid'));
+  if (quiet) return;
+  const back = st && st.from && document.body.contains(st.from) && !st.from.disabled ? st.from : $('#gd-add');
+  if (back && !back.disabled) back.focus(); else $('#p-gardens h1').focus();
+}
+const gardenSaid = (g, unlooked) => g && !unlooked && !mapPoints([g]).length ? ` Google couldn't place ${g.addr} on the map yet, so check the address.` : '';
+async function saveGardenForm() {
+  const st = S.gdForm;
+  if (!st || GD_BUSY.has('form')) return;
+  const f = gardenForm(), bad = gardenProblem(f, st.was), err = $('#gd-err');
+  GD_FORM.forEach(([, id]) => $('#' + id).removeAttribute('aria-invalid'));
+  if (bad) { err.textContent = bad[1]; err.hidden = false; $('#' + bad[0]).setAttribute('aria-invalid', 'true'); $('#' + bad[0]).focus(); return; }
+  const old = st.was && GARDENS.find(g => lc(g.name) === lc(st.was));
+  if (old && GD_FORM.every(([k]) => String(old[k] ?? '').trim() === f[k]) && mapPoints([old]).length) return closeGardenForm();
+  const btn = $('#gd-save'), label = btn.innerHTML;
+  GD_BUSY.add('form'); err.hidden = true;
+  btn.setAttribute('aria-busy', 'true'); btn.setAttribute('aria-disabled', 'true'); btn.innerHTML = ic('loader') + '<span>Saving…</span>';
+  let out = null;
+  try { out = await gardenCall('saveGarden', { was: st.was, ...f }); }
+  catch (er) { err.textContent = String((er && er.message) || "That didn't save. Try again."); err.hidden = false; }
+  finally { GD_BUSY.delete('form'); btn.removeAttribute('aria-busy'); btn.removeAttribute('aria-disabled'); btn.innerHTML = label; }
+  if (!out) { btn.focus(); return; }
+  takeGardens(out.gardens);
+  closeGardenForm(true);
+  renderGardens(); renderMap();
+  toast((st.was ? `Saved ${f.name}.` : `Added ${f.name} to the map.`) + gardenSaid(out.garden, out.unlooked), 'check');
+  const i = GARDENS.findIndex(g => lc(g.name) === lc(f.name)), card = i >= 0 && $$('#gd-list [data-gd]').find(c => +c.dataset.gd === i);
+  const to = card && card.querySelector('[data-gdact="edit"]');
+  if (to) to.focus(); else if (!$('#gd-add').disabled) $('#gd-add').focus();
+}
+async function removeGarden(g) {
+  const k = lc(g.name);
+  if (!can('edit') || GD_BUSY.has(k)) return;
+  GD_BUSY.add(k); GD_ERR.delete(k); renderGardens();
+  let out = null;
+  try { out = await gardenCall('deleteGarden', g.name); }
+  catch (er) { GD_ERR.set(k, String((er && er.message) || "That didn't save. Try again.")); }
+  GD_BUSY.delete(k);
+  if (out) { takeGardens(out.gardens); S.gdRm = ''; }
+  renderGardens(); renderMap();
+  if (!out) return;
+  toast(`Took ${g.name} off the map.`, 'trash');
+  const to = $('#gd-list [data-gdact="edit"]') || (!$('#gd-add').disabled ? $('#gd-add') : null);
+  if (to) to.focus(); else $('#p-gardens h1').focus();
+}
+$('#gd-add').addEventListener('click', e => openGardenForm(null, e.currentTarget));
+$('#gd-cancel').addEventListener('click', () => closeGardenForm());
+$('#gdf').addEventListener('submit', e => { e.preventDefault(); saveGardenForm(); });
+$('#gdf').addEventListener('keydown', e => { if (e.key === 'Escape') { e.preventDefault(); closeGardenForm(); } });
+$('#p-gardens h1').tabIndex = -1;
+$('#gd-list').addEventListener('click', e => {
+  const b = e.target.closest('[data-gdact]');
+  if (!b || b.getAttribute('aria-disabled') === 'true') return;
+  if (b.dataset.gdact === 'add') return openGardenForm(null, b);
+  const g = GARDENS[+b.closest('[data-gd]')?.dataset.gd];
+  if (!g) return;
+  switch (b.dataset.gdact) {
+    case 'edit': openGardenForm(g, b); break;
+    case 'remove': S.gdRm = lc(g.name); GD_ERR.delete(lc(g.name)); renderGardens(); $('#gd-list [data-gdact="rm-no"]')?.focus(); break;
+    case 'rm-no': S.gdRm = ''; renderGardens(); break;
+    case 'rm-yes': removeGarden(g); break;
+  }
+});
+/*PROTO*/
+// the artifact has no Sheet: its gardens stay in this tab, checked the way saveGarden is in Code.js (no geocoder, so a new address has no pin)
+gardenCall = async (fn, a) => {
+  const at = n => GARDENS.findIndex(g => lc(g.name) === lc(n)), all = () => ({ gardens: GARDENS.map(g => ({ ...g })) });
+  if (fn === 'deleteGarden') { const i = at(a); if (i >= 0) GARDENS.splice(i, 1); return all(); }
+  const i = a.was ? at(a.was) : -1;
+  if (a.was && i < 0) throw new Error('This garden was taken off the Gardens tab.');
+  const g = i >= 0 ? GARDENS[i] : (GARDENS.push({ lat: null, lng: null }), GARDENS[GARDENS.length - 1]);
+  if (i >= 0 && lc(g.addr) !== lc(a.addr)) { g.lat = null; g.lng = null; }
+  Object.assign(g, { name: a.name, addr: a.addr, what: a.what });
+  return { garden: { ...g }, unlooked: true, ...all() }; // nobody looked the address up, so the toast doesn't say Google couldn't find it
+};
+/*/PROTO*/
 /* The volunteer form's choices. The Sheet keeps their words (Code.js has the same lists, and a test checks they match). */
 const HELP = [['setup', 'Meeting setup'], ['workdays', 'Garden work days'], ['projects', 'Partner projects'], ['outreach', 'Outreach & photos'], ['teach', 'Teaching a skill'],
   ['plant', 'Adopt a plant'], ['host', 'Host a project'], ['partner', 'Partner organization']];
-const FREE = ['Weekend mornings', 'Weekday evenings', 'One-off projects'];
 const HEARD = ['Instagram', 'Partiful', 'Google Group', 'Facebook', 'A friend', 'Walked by the garden', 'A flyer', 'Other'];
 const VOLS = []; // filled by sign-ups on the home page
 function renderVols() {
@@ -4257,10 +4487,30 @@ function renderVols() {
       v.best && (email && phone) ? `<span class="hint">Prefers ${v.best === 'Text' ? 'a text' : 'email'}</span>` : '', v.list ? `<span class="tag">${ic('check')}Email list</span>` : ''].filter(Boolean).join('');
   };
   const about = v => [v.event && `<span class="vline">${ic('calendar')}Coming to ${esc(evTitle(v.event))}</span>`, v.heard && `<span class="vline hint">Heard about us: ${esc(v.heard)}</span>`,
+    (v.free || []).length && `<span class="vline hint">Usually free: ${esc(v.free.join(', '))}</span>`, // from before the form stopped asking
     v.note && `<span class="vnote">${esc(v.note)}</span>`].filter(Boolean).join('') || '<span class="hint">—</span>';
+  // already on the team (the team goes by names): their role there; else Make member, for people with "Manage team"
+  const team = v => {
+    const t = TEAM.find(x => lc(x.name) === lc(v.name)), key = esc(volKey(v));
+    if (t) return `<span class="onteam" tabindex="-1" data-onteam="${key}">${ic('check')}<span class="vh">${esc(t.name)} is a </span>${esc(ROLE[t.role] || 'On the team')}</span>`;
+    return can('team') ? `<button class="btn ghost sm" type="button" data-mkm="${key}">${ic('user-plus')}Make member</button>` : '<span class="hint">—</span>';
+  };
   renderPlants(); // the Steward and Backup pickers list the sign-ups
-  $('#vol-tbl').innerHTML = `<thead><tr><th>Name</th><th>Reach them</th><th>Wants to help with</th><th>Usually free</th><th>Note</th><th>Signed up</th></tr></thead><tbody>${VOLS.length ? '' : '<tr><td colspan="6" class="hint vol-empty">No sign-ups yet. People who join on the home page show up here.</td></tr>'}${VOLS.slice().sort((a, b) => String(b.date).localeCompare(String(a.date))).map(v => `<tr><td><span class="nm">${avatar(v.name)}<b>${esc(v.name)}</b></span></td><td class="vcell">${reach(v)}</td><td>${tags(v.help)}</td><td>${tags(v.free) || '<span class="hint">—</span>'}</td><td class="vcell">${about(v)}</td><td>${esc(mdy(v.date))}</td></tr>`).join('')}</tbody>`;
+  $('#vol-tbl').innerHTML = `<thead><tr><th>Name</th><th>Team</th><th>Reach them</th><th>Wants to help with</th><th>About</th><th>Signed up</th></tr></thead><tbody>${VOLS.length ? '' : '<tr><td colspan="6" class="hint vol-empty">No sign-ups yet. People who join on the home page show up here.</td></tr>'}${VOLS.slice().sort((a, b) => String(b.date).localeCompare(String(a.date))).map(v => `<tr><td><span class="nm">${avatar(v.name)}<b>${esc(v.name)}</b></span></td><td>${team(v)}</td><td class="vcell">${reach(v)}</td><td>${tags(v.help)}</td><td class="vcell">${about(v)}</td><td>${esc(mdy(v.date))}</td></tr>`).join('')}</tbody>`;
 }
+/* Make member: the volunteer joins the team as a member (saved like any team change), reached the way they said is
+   best. Their sign-up stays in the list, now saying Member; focus stays on that row. */
+$('#vol-tbl').addEventListener('click', e => {
+  const b = e.target.closest('[data-mkm]');
+  if (!b || !can('team')) return;
+  const v = VOLS.find(x => volKey(x) === b.dataset.mkm), name = v ? String(v.name).trim() : '';
+  if (!name) return;
+  if (TEAM.some(t => lc(t.name) === lc(name))) { toast(`${name} is already on the team.`); renderVols(); return; }
+  TEAM.push(memberFrom(v));
+  whenSaved(() => toast(`${name} is now a member`, 'check'));
+  renderAs(); renderTeam(); render();
+  $$('#vol-tbl [data-onteam]').find(s => s.dataset.onteam === b.dataset.mkm)?.focus();
+});
 const mdy = s => D(s).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 
 /* ---------- the volunteer form ----------
@@ -4268,8 +4518,6 @@ const mdy = s => D(s).toLocaleDateString('en-US', { month: 'short', day: 'numeri
    everything typed stays, and Try again sends it with the same id, so the Sheet keeps it once however often it's sent.
    #vj-opened: when the form was opened, on performance.now()'s clock, which never goes back when the device's clock is
    changed (the Sheet ignores a form sent within 3 seconds: that's a bot), and #vj-website is a box only bots fill in. */
-const NOTE_PH = 'Skills, languages you speak, anything we should know';
-const NOTE_ASK = { host: 'Tell us about your project: what it is, where it is, and the help it needs', partner: 'Tell us about your group and how you would like to work with the Guild' };
 const NAME_OK = /^\p{L}[\p{L}\p{M} .'’-]{0,79}$/u, EMAIL_OK = /^[^\s@<>"'(),;:]+@[^\s@<>"'(),;:]+\.[^\s@<>"'(),;:.]{2,}$/; // as Code.js checks them
 const tick = () => (window.performance && performance.now ? performance.now() : Date.now());
 const newId = () => { try { if (window.crypto && crypto.randomUUID) return crypto.randomUUID(); } catch {} return 'j' + Date.now().toString(36) + Math.random().toString(36).slice(2, 12).padEnd(10, '0'); };
@@ -4278,15 +4526,15 @@ let joinId = '', joinBusy = false, joinEv = null;
 function newJoin() {
   $('#joinf').reset(); $('#vj-err').hidden = true; $('#vj-err').textContent = ''; $('#vj-status').textContent = '';
   $('#joinf').hidden = false; $('#joined').hidden = true; $('#joined').innerHTML = '';
-  $('#vj-note').placeholder = NOTE_PH; $('#vj-opened').value = String(tick()); joinId = '';
+  $('#vj-opened').value = String(tick()); joinId = '';
 }
 const joinErr = (msg, el) => { const e = $('#vj-err'); e.textContent = msg; e.hidden = false; if (el) el.focus(); };
 // what the form says, or what's missing (with the field to go to)
 function joinForm() {
   const v = {
     name: $('#vj-name').value.trim().replace(/\s+/g, ' '), email: $('#vj-email').value.trim(), phone: $('#vj-phone').value.trim(),
-    best: $('input[name=vj-best]:checked')?.value || '', help: $$('input[name=vj-help]:checked').map(i => i.value), free: $$('input[name=vj-free]:checked').map(i => i.value),
-    heard: $('#vj-heard').value, note: $('#vj-note').value.trim(), list: $('#vj-list').checked, event: $('#vj-ev').value,
+    best: $('input[name=vj-best]:checked')?.value || '', help: $$('input[name=vj-help]:checked').map(i => i.value),
+    heard: $('#vj-heard').value, list: $('#vj-list').checked, event: $('#vj-ev').value,
   };
   const digits = v.phone.replace(/\D/g, '').length;
   const bad = !v.name ? ['Add your name so we know who to welcome.', '#vj-name']
@@ -4323,7 +4571,7 @@ async function sendJoin() {
     // right now) aren't fixed by sending the same answers again, so focus goes back to the form
     e.innerHTML = fail.net ? `<span>${m}</span><button class="btn ghost sm" type="button" id="vj-retry">${ic('rotate-ccw')}Try again</button>` : `<span>${m}</span>`;
     e.hidden = false;
-    const at = /\bname\b/i.test(said) ? '#vj-name' : /\bemail\b/i.test(said) ? '#vj-email' : /\bphone\b/i.test(said) ? '#vj-phone' : /\bnote\b/i.test(said) ? '#vj-note' : '#vj-send';
+    const at = /\bname\b/i.test(said) ? '#vj-name' : /\bemail\b/i.test(said) ? '#vj-email' : /\bphone\b/i.test(said) ? '#vj-phone' : '#vj-send';
     (fail.net ? $('#vj-retry') : $(at)).focus();
     return;
   }
@@ -4349,14 +4597,13 @@ function showJoined(v) {
   $('#joinf').hidden = true;
   const box = $('#joined');
   box.hidden = false;
-  box.innerHTML = `<b tabindex="-1" id="vj-thanks"><i class="ic-chip">${ic('check')}</i>Thanks, ${esc(first)}!</b><span>You're on the volunteer list. An organizer will reach out before the next meeting or work day.</span>`
+  box.innerHTML = `<b tabindex="-1" id="vj-thanks"><i class="ic-chip">${ic('check')}</i>Thanks, ${esc(first)}!</b><span>${(v.help || []).includes('host') ? "Thanks for telling us about your project. An organizer will get in touch to hear more." : (v.help || []).includes('partner') ? 'Thanks for reaching out. An organizer will get in touch about working together.' : "You're on the volunteer list. An organizer will reach out before the next meeting or work day."}</span>`
     + (next ? `<div class="vj-next">${next}</div>` : '') + `<button class="tog" type="button" id="vj-again" style="justify-self:start">${ic('user-plus')}Sign up someone else</button>`;
   $('#vj-thanks').focus();
 }
 function bindJoin() {
   const chip = (name, k, l) => `<label><input type="checkbox" name="${name}" value="${esc(k)}"><span>${ic('check')}${esc(l)}</span></label>`;
   $('#vj-picks').innerHTML = HELP.map(([k, l]) => chip('vj-help', k, l)).join('');
-  $('#vj-free').innerHTML = FREE.map(l => chip('vj-free', l, l)).join('');
   $('#vj-heard').innerHTML = '<option value="">Choose one</option>' + HEARD.map(l => `<option>${esc(l)}</option>`).join('');
   $('#vj-opened').value = String(tick());
   // the "Coming to <event>" chip's x: a sign-up for no event in particular
@@ -4371,7 +4618,7 @@ function bindJoin() {
     if (e.target.closest('#vj-again')) { newJoin(); $('#vj-name').focus(); }
     else if (e.target.closest('#vj-ics') && joinEv) downloadIcs(joinEv);
   });
-  // Host a project and Become a partner: the form, with that choice ticked, ready for them to tell us about it
+  // Host a project and Become a partner: the form, with that choice ticked, ready for their name
   $('#involved').addEventListener('click', e => {
     const a = e.target.closest('a[data-join]');
     if (!a || e.button || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return; // a new tab gets the plain #join link
@@ -4383,10 +4630,9 @@ function joinAs(k) {
   if ($('#joinf').hidden) newJoin();
   const box = $(`#vj-picks input[value="${k}"]`);
   if (box) box.checked = true;
-  $('#vj-note').placeholder = NOTE_ASK[k] || NOTE_PH;
   urlTo(homeHref('#join'), true);
-  $('#vj-note').scrollIntoView({ block: 'center' });
-  $('#vj-note').focus({ preventScroll: true });
+  $('#vj-name').scrollIntoView({ block: 'center' });
+  $('#vj-name').focus({ preventScroll: true });
 }
 /* The public landing page, from the published events only: never a draft, never one that's over.
    The live build fills EVENTS from the Sheet's public data (getPublic); until it answers, grey shapes. */
@@ -4700,6 +4946,7 @@ function signOut() {
   if (!leaveOk()) return;
   dropTeamUndo(); S.pedit = S.prm = null;
   closePlantForm(true); S.plRm = null; S.plTag.clear(); PL_ERR.clear();
+  closeGardenForm(true); S.gdRm = ''; GD_ERR.clear();
   renderPlants(); // the live page has let go of the plants (they have contacts), so their cards go too
   if (!$('#modal').hidden) closeEvent();
   AUTH.clear(); document.body.classList.add('out'); renderLanding(); showTab('landing'); history.replaceState(null, '', homeHref()); window.scrollTo({ top: 0 });
@@ -4725,7 +4972,7 @@ const h = (location.hash || '').slice(1), pub = pubFromUrl();
 if (!user) { document.body.classList.add('out'); if (pub) showPubEvent(pub); else showTab(h === 'signin' ? 'signin' : 'landing'); }
 else if (h.startsWith('ev-') && EVENTS.find(e => e.id === h.slice(3))) openEvent(h.slice(3), 'page');
 else if (pub && EVENTS.find(e => e.id === pub)) openEvent(pub, 'page');
-else showTab(['architecture', 'materials', 'team', 'plants'].includes(h) ? h : 'events');
+else showTab(['architecture', 'materials', 'team', 'plants', 'gardens'].includes(h) ? h : 'events');
 }
 })();
 </script>

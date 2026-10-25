@@ -514,13 +514,24 @@ test("reminders skip a task that's done, one whose person can't make it, and one
   assert.deepEqual(g.mail.map(m => m.subject), ['[TEST to karen@example.org] Reminder: Snacks for OPC Garden Work Party']);
 });
 
+test('the Team tab calls a member Member; a row that still says Volunteer (the old name) reads as a member', () => {
+  const g = seeded();
+  assert.deepEqual(g.tab('Team').map(r => r[1]), ['role', 'Lead organizer', 'Co-organizer', 'Member']);
+  g.sheets.get('Team').cells[3][1] = 'Volunteer';
+  const karen = g.ctx.signIn(CODE).team.find(t => t.name === 'Karen');
+  assert.equal(karen.role, 'vol');
+  assert.ok(!Object.values(karen.perms).some(Boolean), 'a member has no permissions');
+  g.ctx.saveTeam(CODE, team);
+  assert.equal(g.tab('Team')[3][1], 'Member', 'saved under the new name');
+});
+
 test('a volunteer added to the team from the Who picker (saveTeam) gets their reminder by email; a phone-only one goes on the text list', () => {
   const g = seeded({ now: '2026-10-24T19:30:00-07:00' }); // Sat 7:30 PM, the event is Sun
   const maya = { name: 'Maya', role: 'vol', contact: 'maya@example.org', via: 'Email', perms: { create: false, edit: false, approve: false, tasks: false, team: false } };
   const sam = { name: 'Sam', role: 'vol', contact: '(510) 555-0144', via: 'Text', perms: {} };
   g.ctx.saveTeam(CODE, [...team, maya, sam]);
   const row = g.tab('Team').find(r => r[0] === 'Maya');
-  assert.deepEqual(row.slice(0, 4), ['Maya', 'Volunteer', 'maya@example.org', 'Email'], 'on the Team tab as a volunteer');
+  assert.deepEqual(row.slice(0, 4), ['Maya', 'Member', 'maya@example.org', 'Email'], 'on the Team tab as a member');
   g.ctx.saveEvent(CODE, ev({ tasks: [{ id: 't1', what: 'Plates', who: 'Maya', status: 'open', type: 'other' }, { id: 't2', what: 'Shovels', who: 'Sam', status: 'asked', type: 'tools' }] }));
   assert.equal(g.ctx.hourly(), 2);
   const to = s => g.mail.find(m => s.test(m.subject));
@@ -1244,6 +1255,51 @@ test("gardens the geocoder can't find say 'not found', aren't looked up again, a
   h.ctx.doGet({});
   h.ctx.seed(CODE, { events: [ev()], team, vols: [], gardens: [{ name: 'OPC garden', addr: '111 Fairmount Ave', what: '', lat: '', lng: '' }] });
   assert.deepEqual(h.tab('Gardens')[1].slice(3, 5), ['37.81', '-122.25']);
+});
+
+test('organizers add, change and remove gardens; a new or changed address is looked up at once', () => {
+  const g = seeded({ now: BEFORE });
+  g.geo.find = addr => /Nowhere/.test(addr) ? null : /Berkeley/.test(addr) ? { lat: 37.87, lng: -122.27 } : { lat: 37.79, lng: -122.21 };
+  g.geo.asked.length = 0;
+  assert.throws(() => g.ctx.saveGarden('wrong', { name: 'X', addr: 'Y' }));
+  assert.throws(() => g.ctx.saveGarden(CODE, { name: '', addr: '1 Main St' }), /name/);
+  assert.throws(() => g.ctx.saveGarden(CODE, { name: 'Somewhere', addr: ' ' }), /address/);
+  assert.throws(() => g.ctx.saveGarden(CODE, { name: 'x'.repeat(81), addr: '1 Main St' }), /80 characters/);
+  let out = plain(g.ctx.saveGarden(CODE, { name: '  Dimond   Park ', addr: '3860 Hanly Rd, Oakland', what: 'Oak guild' }));
+  assert.deepEqual(out.garden, { name: 'Dimond Park', addr: '3860 Hanly Rd, Oakland', what: 'Oak guild', lat: 37.79, lng: -122.21 });
+  assert.deepEqual(out.gardens.map(x => x.name), ['OPC garden', 'Dimond Park']);
+  assert.throws(() => g.ctx.saveGarden(CODE, { name: 'dimond park', addr: 'Elsewhere' }), /already a garden called Dimond Park/);
+  // a new name and what happens there: the map point stays, nobody asks Google again
+  out = plain(g.ctx.saveGarden(CODE, { was: 'Dimond Park', name: 'Dimond Park garden', addr: '3860 Hanly Rd, Oakland', what: 'Oak guild and seed library' }));
+  assert.deepEqual(g.geo.asked, ['3860 Hanly Rd, Oakland']);
+  assert.deepEqual(g.tab('Gardens')[2], ['Dimond Park garden', '3860 Hanly Rd, Oakland', 'Oak guild and seed library', '37.79', '-122.21']);
+  // a new address: looked up again, wherever it is
+  out = plain(g.ctx.saveGarden(CODE, { was: 'Dimond Park garden', name: 'Dimond Park garden', addr: '2150 Allston Way, Berkeley', what: '' }));
+  assert.deepEqual([out.garden.lat, out.garden.lng], [37.87, -122.27]);
+  // one Google can't find is still listed, says 'not found', and is asked again on its next save
+  out = plain(g.ctx.saveGarden(CODE, { name: 'Mystery plot', addr: '1 Nowhere Lane' }));
+  assert.deepEqual([out.garden.lat, g.tab('Gardens')[3][3]], [null, 'not found']);
+  g.ctx.saveGarden(CODE, { was: 'Mystery plot', name: 'Mystery plot', addr: '1 Nowhere Lane', what: 'Ask Phil' });
+  assert.equal(g.geo.asked.filter(a => /Nowhere/.test(a)).length, 2);
+  // the geocoder not answering: saved without a point, for the hourly run
+  g.geo.down = true;
+  out = plain(g.ctx.saveGarden(CODE, { name: 'Lake Merritt garden', addr: '666 Bellevue Ave, Oakland' }));
+  assert.equal(g.tab('Gardens')[4][3] || '', '');
+  g.geo.down = false;
+  g.ctx.hourly();
+  assert.equal(g.tab('Gardens')[4][3], '37.79');
+  assert.throws(() => g.ctx.saveGarden(CODE, { was: 'Gone garden', name: 'Gone garden', addr: '1 Main St' }), /taken off/);
+  // the public page has the change at once
+  assert.deepEqual(plain(g.ctx.getPublic()).gardens.map(x => x.name), ['OPC garden', 'Dimond Park garden', 'Mystery plot', 'Lake Merritt garden']);
+  out = plain(g.ctx.deleteGarden(CODE, 'mystery PLOT'));
+  assert.deepEqual(out.gardens.map(x => x.name), ['OPC garden', 'Dimond Park garden', 'Lake Merritt garden']);
+  assert.deepEqual(plain(g.ctx.deleteGarden(CODE, 'Never there')).gardens.length, 3);
+  assert.deepEqual(plain(g.ctx.getPublic()).gardens.map(x => x.name), ['OPC garden', 'Dimond Park garden', 'Lake Merritt garden']);
+  assert.throws(() => g.ctx.deleteGarden('wrong', 'OPC garden'));
+  // through the JSON API too
+  const post = (fn, args) => JSON.parse(g.ctx.doPost({ postData: { contents: JSON.stringify({ fn, args }) } }).content);
+  assert.equal(post('saveGarden', [CODE, { name: 'Fruitvale plot', addr: '3301 E 12th St, Oakland' }]).value.garden.name, 'Fruitvale plot');
+  assert.equal(post('deleteGarden', [CODE, 'Fruitvale plot']).value.gardens.length, 3);
 });
 
 /* ---------- the Channels tab: which channels the Guild uses, their links, and what new events start with ---------- */

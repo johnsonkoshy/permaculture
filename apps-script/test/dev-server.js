@@ -18,6 +18,10 @@ const { makeGas } = require('./gas-mock');
 // a new Sheet's organizer code is blank (nobody can sign in), so the dev Sheet gets this one
 const CODE = process.env.CODE || 'garden-dev-1234';
 const g = makeGas({ page: path.join(__dirname, '..', 'dist', 'index.html'), settings: { ORGANIZER_CODE: CODE } });
+// the mock geocoder knows a few towns, so a garden added on the Gardens page lands about where it should
+// (anything else: near the Peace Center; an address with "Nowhere" in it: not found)
+const TOWNS = [[/berkeley/i, 37.8695, -122.2705], [/richmond/i, 37.9358, -122.3477], [/san francisco/i, 37.7749, -122.4194], [/fruitvale/i, 37.7748, -122.2241], [/alameda/i, 37.7652, -122.2416]];
+g.geo.find = addr => { if (/nowhere/i.test(addr)) return null; const t = TOWNS.find(([re]) => re.test(addr)); return t ? { lat: t[1], lng: t[2] } : { lat: 37.81, lng: -122.25 }; };
 const ctl = { latency: 0, fail: '' };
 const SHIM = `<script>(() => {
   const runner = (ok, no) => new Proxy({}, { get: (_, fn) => {

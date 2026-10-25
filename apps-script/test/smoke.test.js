@@ -258,7 +258,6 @@ test('the volunteer form adds a row to the Volunteers tab', async t => {
   settled(p);
   p.set('#vj-name', 'Sam Rivera');
   p.set('#vj-email', 'sam.rivera@example.org');
-  p.set('#vj-note', 'Weekends work best');
   const box = p.$('#vj-picks input[name=vj-help]');
   assert.ok(box, 'there are ways to help to pick');
   box.click();
@@ -269,7 +268,7 @@ test('the volunteer form adds a row to the Volunteers tab', async t => {
   assert.equal(row[0], '2026-10-24');
   assert.equal(row[2], 'sam.rivera@example.org');
   assert.ok(row[3].length > 0, 'what they want to help with');
-  assert.equal(row[4], 'Weekends work best');
+  assert.equal(row[4], '', 'no note: the form has no note box');
   assert.ok(p.g.mail.some(m => /Welcome to the East Bay Permaculture Guild/.test(m.subject)), 'welcome email sent');
   await waitFor(p.idle, 2000, 'calls to finish');
   p.noErrors();
@@ -317,7 +316,7 @@ test('the starter data is honest: drafts, open tasks, blank contacts, no sign-up
 
   // Team: blank contacts are flagged; the volunteer list is empty
   const chips = p.$$('#team-tbl .warnchip');
-  assert.equal(chips.length, p.$$('#team-tbl tbody tr').length, 'every person has a No contact yet chip');
+  assert.equal(chips.length, p.$$('#team-tbl tbody tr:not(.grp)').length, 'every person has a No contact yet chip');
   assert.ok(chips.every(c => c.textContent === 'No contact yet'));
   assert.match(p.$('#vol-tbl').textContent, /No sign-ups yet\. People who join on the home page show up here\./);
   assert.equal(p.$('#ap-name').placeholder, 'Name');
@@ -354,7 +353,7 @@ test('the sign-in card asks only for the organizer code and who you are', async 
   p.noErrors();
 });
 
-test("signed in as Phil: the chip, the five tabs, plain-words permissions and the Help page", async t => {
+test("signed in as Phil: the chip, the six tabs, plain-words permissions and the Help page", async t => {
   const p = await openPage(t);
   assert.ok(!p.visible('#who') && !p.visible('.tabs'), 'no chip or tabs while signed out');
   assert.equal(p.$('#help-sheet').textContent, 'Ask the Sheet owner for the link.', 'no Sheet link before sign-in');
@@ -364,7 +363,7 @@ test("signed in as Phil: the chip, the five tabs, plain-words permissions and th
   assert.equal(p.$('#who .vh').textContent, 'Signed in as ', 'the "Signed in as" part is for screen readers');
   assert.equal(p.$('#who .av').textContent, 'P', 'with the avatar');
   assert.equal(p.$('#who .av').getAttribute('aria-hidden'), 'true');
-  assert.deepEqual(p.$$('.tabs a').filter(p.visible).map(a => a.textContent), ['Events', 'Team', 'Plants', 'Flyers & posts', 'Help']);
+  assert.deepEqual(p.$$('.tabs a').filter(p.visible).map(a => a.textContent), ['Events', 'Team', 'Plants', 'Gardens', 'Flyers & posts', 'Help']);
   const note = "You can't manage the team. Ask Jessie if you need to.";
   assert.equal(p.$('#team-note').textContent, note);
   p.$('#tiles [data-open]').click();
@@ -473,7 +472,7 @@ test('icons: the sprite has the set, every icon resolves, and none are read alou
 
   await signIn(p, 'Jessie');
   checkIcons(p, 'events');
-  assert.deepEqual(p.$$('.tabs a').filter(p.visible).map(a => a.querySelector('use').getAttribute('href')), ['#i-calendar', '#i-users', '#i-sprout', '#i-image', '#i-help-circle']);
+  assert.deepEqual(p.$$('.tabs a').filter(p.visible).map(a => a.querySelector('use').getAttribute('href')), ['#i-calendar', '#i-users', '#i-sprout', '#i-map-pin', '#i-image', '#i-help-circle']);
   assert.ok(p.$('#attn use[href="#i-send"]'), 'the attention bar is marked as posts to send');
   p.$('#tiles [data-open="w7"]').click();
   await waitFor(() => p.$('#detail #dp-plan'), 2000, 'Workday #7 to open');
@@ -503,7 +502,7 @@ test('icons: the sprite has the set, every icon resolves, and none are read alou
   p.set('#ap-contact', 'sam.lee@example.org');
   p.$('#addp button[type=submit]').click();
   const toast = p.$('#toast');
-  await waitFor(() => toast.textContent === 'Sam <b>Lee</b> added as volunteer', 3000, 'the added toast once the team is saved');
+  await waitFor(() => toast.textContent === 'Sam <b>Lee</b> added as a member', 3000, 'the added toast once the team is saved');
   assert.ok(p.g.tab('Team').some(r => r[0] === 'Sam <b>Lee</b>'), 'the toast came after the Team tab had the new person');
   assert.ok(toast.querySelector('use[href="#i-check"]') && !toast.querySelector('b'), 'a check icon, and the name is not HTML');
   assert.ok(p.$('#team-tbl use[href="#i-mail"]'), 'an email contact gets a mail icon');
@@ -549,7 +548,7 @@ test('the prototype artifact still runs with its own sign-in, Viewing as, archit
   p.$('#si-google').click();
   assert.ok(p.visible('#p-events') && !p.d.body.classList.contains('out'), 'signed in');
   assert.ok(!p.visible('#who'), 'the artifact keeps its Viewing as select instead of the chip');
-  assert.deepEqual(p.$$('.tabs a').filter(p.visible).map(a => a.textContent), ['Events', 'Team', 'Plants', 'Flyers & posts', "How we'd build it"]);
+  assert.deepEqual(p.$$('.tabs a').filter(p.visible).map(a => a.textContent), ['Events', 'Team', 'Plants', 'Gardens', 'Flyers & posts', "How we'd build it"]);
   assert.deepEqual(p.$$('#as option').map(o => o.textContent), ['Jessie', 'Phil', 'Kalynn', 'Sky']);
   assert.ok(p.$$('.sample').filter(p.visible).length >= 1, 'the sample badges');
 
@@ -3513,10 +3512,9 @@ test('volunteer form: name, email and phone, the best way to reach you, its choi
   const label = i => i.closest('label').textContent.trim();
   assert.deepEqual(p.$$('#vj-picks input').map(label), fromMock(p.g, 'VOL_HELP'), "I'd like to help with: the Sheet's own list");
   assert.ok(['Adopt a plant', 'Host a project', 'Partner organization'].every(l => p.$$('#vj-picks input').map(label).includes(l)));
-  assert.deepEqual(p.$$('#vj-free input').map(i => i.value), fromMock(p.g, 'VOL_FREE'));
+  assert.ok(!p.$('#vj-free') && !p.$('#vj-note'), 'no Usually free or Anything else');
   assert.deepEqual(p.$$('#vj-heard option').map(o => o.value), ['', ...fromMock(p.g, 'VOL_HEARD')]);
   assert.deepEqual(p.$$('input[name=vj-best]').map(i => [i.type, i.value]), fromMock(p.g, 'VOL_BEST').map(v => ['radio', v]));
-  assert.equal(p.$('#vj-note').maxLength, 1000);
   assert.ok(p.$('#vj-list').type === 'checkbox' && !p.$('#vj-list').checked, 'the email list is opt-in');
   assert.match(p.$('#vj-list').closest('label').textContent, /^Add me to the Guild email list/);
   // the honeypot: a box only bots fill in
@@ -3554,8 +3552,7 @@ test('sending: Sending… while the Sheet saves it, then a thank-you with the ne
   p.set('#vj-name', '  Maya   Ortiz '); p.set('#vj-email', 'maya@example.org'); p.set('#vj-phone', '(510) 555-0101');
   p.$('input[name=vj-best][value=Text]').click();
   p.$('#vj-picks input[value=workdays]').click(); p.$('#vj-picks input[value=plant]').click();
-  p.$('#vj-free input[value="Weekend mornings"]').click(); p.$('#vj-free input[value="One-off projects"]').click();
-  p.set('#vj-heard', 'A friend'); p.set('#vj-note', 'I speak Spanish'); p.$('#vj-list').click();
+  p.set('#vj-heard', 'A friend'); p.$('#vj-list').click();
   p.api.latency = 150;
   p.$('#vj-send').click();
   const btn = p.$('#vj-send');
@@ -3567,7 +3564,7 @@ test('sending: Sending… while the Sheet saves it, then a thank-you with the ne
   await waitFor(() => p.shown('#joined'), 3000, 'the thank-you');
   assert.equal(joinCalls(p).length, 1, 'sent once');
   const sent = joinCalls(p)[0];
-  assert.deepEqual({ ...sent, id: undefined, elapsed: undefined }, { name: 'Maya Ortiz', email: 'maya@example.org', phone: '(510) 555-0101', best: 'Text', help: ['Garden work days', 'Adopt a plant'], free: ['Weekend mornings', 'One-off projects'], heard: 'A friend', note: 'I speak Spanish', list: true, event: '', id: undefined, elapsed: undefined, website: '' });
+  assert.deepEqual({ ...sent, id: undefined, elapsed: undefined }, { name: 'Maya Ortiz', email: 'maya@example.org', phone: '(510) 555-0101', best: 'Text', help: ['Garden work days', 'Adopt a plant'], heard: 'A friend', list: true, event: '', id: undefined, elapsed: undefined, website: '' });
   assert.match(sent.id, /^[A-Za-z0-9-]{8,64}$/);
   assert.ok(sent.elapsed >= 10000, 'how long the form was open');
   // the thank-you
@@ -3586,7 +3583,7 @@ test('sending: Sending… while the Sheet saves it, then a thank-you with the ne
   // the Sheet has every answer
   const r = await waitFor(() => volRowsOf(p.g).find(x => x.name === 'Maya Ortiz'), 2000, 'the row');
   assert.deepEqual([r.contact, r.email, r.phone, r['best way'], r['wants to help with'], r.free, r['heard from'], r['email list'], r.note],
-    ['maya@example.org', 'maya@example.org', '(510) 555-0101', 'Text', 'Garden work days, Adopt a plant', 'Weekend mornings, One-off projects', 'A friend', 'yes', 'I speak Spanish']);
+    ['maya@example.org', 'maya@example.org', '(510) 555-0101', 'Text', 'Garden work days, Adopt a plant', '', 'A friend', 'yes', '']);
   assert.match(r.id, /^[0-9a-f]{8}$/);
   // and the next person starts with an empty form
   const opened = Number(p.$('#vj-opened').value);
@@ -3602,7 +3599,7 @@ test('sending: Sending… while the Sheet saves it, then a thank-you with the ne
 test("when the Sheet doesn't answer, the form keeps everything with Try again, which sends the same id so the Sheet keeps it once", async t => {
   const p = await openPage(t, null, await seededSheet(t));
   settled(p);
-  p.set('#vj-name', 'Maya Ortiz'); p.set('#vj-email', 'maya@example.org'); p.set('#vj-note', 'Weekends');
+  p.set('#vj-name', 'Maya Ortiz'); p.set('#vj-email', 'maya@example.org');
   p.$('#vj-picks input[value=host]').click();
   p.api.fail = 'addVolunteer';
   p.$('#vj-send').click();
@@ -3612,7 +3609,7 @@ test("when the Sheet doesn't answer, the form keeps everything with Try again, w
   assert.ok(p.$('#vj-retry use[href="#i-rotate-ccw"]') && p.$('#vj-retry').textContent === 'Try again');
   assert.equal(p.d.activeElement, p.$('#vj-retry'));
   assert.ok(p.shown('#joinf') && !p.shown('#joined'), 'no thank-you');
-  assert.deepEqual([p.$('#vj-name').value, p.$('#vj-email').value, p.$('#vj-note').value, p.$('#vj-picks input[value=host]').checked], ['Maya Ortiz', 'maya@example.org', 'Weekends', true], 'everything typed is still there');
+  assert.deepEqual([p.$('#vj-name').value, p.$('#vj-email').value, p.$('#vj-picks input[value=host]').checked], ['Maya Ortiz', 'maya@example.org', true], 'everything typed is still there');
   assert.deepEqual([p.$('#vj-send').disabled, p.$('#vj-send').textContent], [false, 'Join the list']);
   assert.equal(volRowsOf(p.g).length, 0);
   // the send got through after all, but its answer didn't come back
@@ -3675,7 +3672,7 @@ test("a device clock set back while the form is open doesn't make a sign-up look
   p.noErrors();
 });
 
-test('an organizer signed in on this tab sees a sign-up on the Volunteer list at once, then as the Sheet kept it', async t => {
+test('an organizer signed in on this tab sees a sign-up on the Volunteers list at once, then as the Sheet kept it', async t => {
   const p = await openPage(t, null, await seededSheet(t));
   await signIn(p, 'Jessie');
   p.api.latency = 200; // so the list can be seen before the Sheet is read again
@@ -3701,13 +3698,13 @@ test('an organizer signed in on this tab sees a sign-up on the Volunteer list at
   await join('Ana Smith', 'host');
   assert.deepEqual(names(), ['Ana Smith', 'Ben Smith']);
   const ana = p.$$('#vol-tbl tbody tr').find(tr => tr.querySelector('.nm b').textContent === 'Ana Smith');
-  assert.equal(ana.cells[2].textContent.trim(), 'Garden work days Host a project');
+  assert.equal(ana.cells[3].textContent.trim(), 'Garden work days Host a project');
   assert.deepEqual(volRowsOf(p.g).filter(r => /Smith/.test(r.name)).map(r => r.name), ['Ana Smith', 'Ben Smith']);
   assert.ok(!p.api.toasts.includes('Updated with the latest changes'), 'their own sign-ups are no news here');
   p.noErrors();
 });
 
-test('Host a project and Become a partner open the form with that choice ticked and the note ready', async t => {
+test('Host a project and Become a partner open the form with that choice ticked and the name ready', async t => {
   const p = await openPage(t);
   const host = p.$('#involved a[data-join=host]'), partner = p.$('#involved a[data-join=partner]');
   assert.equal(host.getAttribute('href'), '#join', 'a plain link without the script, or in a new tab');
@@ -3715,12 +3712,10 @@ test('Host a project and Become a partner open the form with that choice ticked 
   assert.ok(host.querySelector('.go use[href="#i-arrow-down"]'));
   host.click();
   assert.ok(p.$('#vj-picks input[value=host]').checked, 'Host a project is ticked');
-  assert.equal(p.d.activeElement, p.$('#vj-note'), 'the note has focus');
-  assert.match(p.$('#vj-note').placeholder, /^Tell us about your project/);
+  assert.equal(p.d.activeElement, p.$('#vj-name'), 'the name has focus');
   assert.equal(p.w.location.hash, '#join');
   partner.click();
   assert.ok(p.$('#vj-picks input[value=partner]').checked && p.$('#vj-picks input[value=host]').checked);
-  assert.match(p.$('#vj-note').placeholder, /^Tell us about your group/);
   // a Cmd-click is left to the browser
   p.$('#vj-picks input[value=partner]').click();
   partner.dispatchEvent(new p.w.MouseEvent('click', { bubbles: true, cancelable: true, metaKey: true }));
@@ -3755,7 +3750,7 @@ test("signing up from an event's page sends its id, and the thank-you is about t
   p.noErrors();
 });
 
-test('the Volunteer list shows each answer, escaped', async t => {
+test('the Volunteers list shows each answer, escaped', async t => {
   const sheet = await seededSheet(t);
   sheet.clock.now = START + 60e3;
   sheet.ctx.addVolunteer({ name: 'Maya Ortiz', email: 'maya@example.org', phone: '510 555 0101', best: 'Text', help: ['Garden work days', 'Partner organization'], free: ['Weekday evenings'], heard: 'A flyer', list: true, event: 'w7', note: 'Line one\nLine <b>two</b>', id: 'abcdefgh-1', elapsed: 9000 });
@@ -3765,12 +3760,12 @@ test('the Volunteer list shows each answer, escaped', async t => {
   const row = p.$$('#vol-tbl tbody tr').find(tr => tr.textContent.includes('Maya Ortiz'));
   assert.ok(row, 'her row');
   const cells = [...row.cells].map(td => td.textContent.trim());
-  assert.match(cells[1], /maya@example\.org.*510 555 0101.*Prefers a text.*Email list/);
-  assert.equal(cells[2], 'Garden work days Partner organization');
-  assert.equal(cells[3], 'Weekday evenings');
-  assert.match(cells[4], /^Coming to OPC Garden Work Party.*Heard about us: A flyer.*Line one\nLine <b>two<\/b>$/s);
+  assert.equal(cells[1], 'Make member');
+  assert.match(cells[2], /maya@example\.org.*510 555 0101.*Prefers a text.*Email list/);
+  assert.equal(cells[3], 'Garden work days Partner organization');
+  assert.match(cells[4], /^Coming to OPC Garden Work Party.*Heard about us: A flyer.*Usually free: Weekday evenings.*Line one\nLine <b>two<\/b>$/s, 'answers from before the form stopped asking still show');
   assert.ok(!row.querySelector('b b'), 'the note is text');
-  checkIcons(p, 'the Volunteer list');
+  checkIcons(p, 'the Volunteers list');
   p.noErrors();
 });
 
@@ -4203,7 +4198,7 @@ const optTexts = (el, sel) => [...el.querySelector(sel).options].map(o => o.text
 const statusText = tr => { const s = tr.querySelector('[data-tstat]'); return s.options[s.selectedIndex].textContent; };
 const groupsOf = sel => [...sel.querySelectorAll('optgroup')].map(g => [g.label, [...g.children].map(o => o.textContent)]);
 const teamRow = (p, name) => { const [head, ...rows] = p.g.tab('Team'), r = rows.find(x => x[0] === name); return r && Object.fromEntries(head.map((h, i) => [h, r[i]])); };
-const teamTr = (p, name) => p.$$('#team-tbl tbody tr').find(r => r.querySelector('b').textContent === name);
+const teamTr = (p, name) => p.$$('#team-tbl tbody tr').find(r => r.querySelector('b')?.textContent === name);
 // mailto: and sms: links can't open in jsdom: keep where each would go instead
 function noLeave(p) {
   const went = [];
@@ -4317,7 +4312,7 @@ test('Team: tap a row to add how to reach someone; it persists, and the Ask link
   const p = await openPage(t);
   await signIn(p, 'Jessie');
   p.$('.tabs a[data-tab=team]').click();
-  assert.equal(p.$$('.roles > div')[2].textContent, 'VolunteerNo sign-in. Gets reminders by email. If they only have a phone, the host gets a list to text.');
+  assert.equal(p.$$('.roles > div')[2].textContent, 'MemberOn the team, no sign-in. Can be given tasks and gets reminders by email. If they only have a phone, the host gets a list to text.');
   // tap Phil's row
   teamTr(p, 'Phil').cells[2].click();
   const inp = await waitFor(() => p.$('#pe-contact'), 2000, "Phil's contact box");
@@ -4412,7 +4407,62 @@ test("Team: a contact form left open when going to another tab doesn't stop the 
   p.noErrors();
 });
 
-test("a sign-up from the home page is in the Who list under New volunteers; picking her puts her on the Team tab as a volunteer", async t => {
+test('Team: Organizers and Members under their own headings; Make member puts a volunteer on the team as a member', async t => {
+  const sheet = await seededSheet(t);
+  sheet.clock.now = START + 60e3;
+  sheet.ctx.addVolunteer({ name: 'Maya Ortiz', email: 'maya@example.org', phone: '510 555 0101', best: 'Text', help: ['Garden work days'], id: 'abcdefgh-2', elapsed: 9000 });
+  const p = await openPage(t, null, sheet);
+  await signIn(p, 'Jessie');
+  p.$('.tabs a[data-tab=team]').click();
+  assert.deepEqual(p.$$('.roles b').map(b => b.textContent), ['Lead organizer', 'Co-organizer', 'Member', 'Volunteer']);
+  // each heading, then the people under it
+  const groups = () => {
+    const out = [];
+    p.$$('#team-tbl tbody tr').forEach(tr => tr.classList.contains('grp') ? out.push([tr.textContent, []]) : tr.querySelector('.nm b') && out[out.length - 1][1].push(tr.querySelector('.nm b').textContent));
+    return out;
+  };
+  const before = groups(), orgs = TEAM_NAMES.slice(0, 4), mems = TEAM_NAMES.slice(4); // Jessie leads; Phil, Kalynn and Sky co-organize
+  assert.deepEqual(before, [[`Organizers (${orgs.length})`, orgs], [`Members (${mems.length})`, mems]]);
+  assert.equal(before[0][1][0], 'Jessie', 'the lead organizer first');
+  assert.deepEqual([...teamTr(p, mems[0]).querySelector('[data-role]').options].map(o => o.textContent), ['Co-organizer', 'Member']);
+  assert.deepEqual([...p.$('#ap-role').options].map(o => o.textContent), ['Member', 'Co-organizer']);
+  // the Volunteers list: Make member
+  const volTr = () => p.$$('#vol-tbl tbody tr').find(tr => tr.textContent.includes('Maya Ortiz'));
+  assert.deepEqual(p.$$('#vol-tbl thead th').map(th => th.textContent), ['Name', 'Team', 'Reach them', 'Wants to help with', 'About', 'Signed up']);
+  const btn = volTr().querySelector('[data-mkm]');
+  assert.ok(btn && btn.textContent === 'Make member' && btn.querySelector('use[href="#i-user-plus"]'));
+  btn.click();
+  assert.equal(volTr().querySelector('.onteam').textContent, 'Maya Ortiz is a Member', 'the sign-up now says Member, naming her for screen readers');
+  assert.equal(p.d.activeElement, volTr().querySelector('.onteam'), 'focus stays on her row');
+  assert.deepEqual(groups()[1], [`Members (${mems.length + 1})`, [...mems, 'Maya Ortiz']]);
+  await waitFor(() => teamRow(p, 'Maya Ortiz') && p.idle(), 3000, 'Maya on the Team tab');
+  assert.deepEqual(['role', 'email or phone', 'reminders by'].map(h => teamRow(p, 'Maya Ortiz')[h]), ['Member', '510 555 0101', 'Text'], 'reached the way she said is best');
+  await waitFor(() => p.api.toasts.includes('Maya Ortiz is now a member'), 2000, 'the toast');
+  assert.ok(volRowsOf(p.g).some(r => r.name === 'Maya Ortiz'), 'her sign-up stays on the Volunteers tab');
+  // a member made co-organizer moves up to Organizers, and focus follows the role picker
+  const pick = teamTr(p, 'Maya Ortiz').querySelector('[data-role]');
+  pick.value = 'co'; pick.dispatchEvent(new p.w.Event('change', { bubbles: true }));
+  assert.ok(groups()[0][1].includes('Maya Ortiz') && !groups()[1][1].includes('Maya Ortiz'));
+  assert.equal(p.d.activeElement, teamTr(p, 'Maya Ortiz').querySelector('[data-role]'));
+  assert.equal(volTr().querySelector('.onteam').textContent, 'Maya Ortiz is a Co-organizer');
+  checkIcons(p, 'the Team page');
+  await waitFor(p.idle, 2000, 'calls to finish');
+  p.noErrors();
+});
+
+test('Team: without Manage team, the Volunteers list has no Make member', async t => {
+  const sheet = await seededSheet(t);
+  sheet.clock.now = START + 60e3;
+  sheet.ctx.addVolunteer({ name: 'Maya Ortiz', email: 'maya@example.org', help: ['Garden work days'], id: 'abcdefgh-3', elapsed: 9000 });
+  const p = await openPage(t, null, sheet);
+  await signIn(p, 'Phil');
+  p.$('.tabs a[data-tab=team]').click();
+  const tr = p.$$('#vol-tbl tbody tr').find(r => r.textContent.includes('Maya Ortiz'));
+  assert.ok(tr && !tr.querySelector('[data-mkm]') && tr.cells[1].textContent === '—');
+  p.noErrors();
+});
+
+test("a sign-up from the home page is in the Who list under New volunteers; picking her puts her on the Team tab as a member", async t => {
   const p = await openPage(t, null, await seededSheet(t));
   settled(p);
   p.set('#vj-name', 'Maya');
@@ -4431,7 +4481,7 @@ test("a sign-up from the home page is in the Who list under New volunteers; pick
   p.set('#nt-who', maya);
   p.$('#nt-add').click();
   await waitFor(() => teamRow(p, 'Maya') && p.idle(), 3000, 'Maya on the Team tab');
-  assert.deepEqual(['role', 'email or phone', 'reminders by'].map(h => teamRow(p, 'Maya')[h]), ['Volunteer', '(510) 555-0199', 'Text'], 'a volunteer, reached the way she said is best');
+  assert.deepEqual(['role', 'email or phone', 'reminders by'].map(h => teamRow(p, 'Maya')[h]), ['Member', '(510) 555-0199', 'Text'], 'a member, reached the way she said is best');
   await waitFor(() => p.api.toasts.includes('Added Maya to the team'), 2000, 'the toast');
   const id = taskId(p, 'w7', 'Plates');
   assert.deepEqual(['who', 'status', 'type'].map(h => bringRow(p, 'w7', id)[h]), ['Maya', 'open', 'other']);
@@ -4781,6 +4831,88 @@ test('the prototype artifact: Plants starts empty, takes a plant and a steward w
   assert.deepEqual(p.api.printed[0].qr, [], 'no Sheet, so no plant page for a QR code to open');
   assert.equal(p.$('#print-sheet .ptag .k').textContent, 'Stewarded plant · no. 001');
   p.w.dispatchEvent(new p.w.Event('afterprint'));
+  assert.deepEqual(p.api.calls, [], 'the artifact calls no server');
+  p.noErrors();
+});
+
+/* ---------- the Gardens page, and the map that fits them ---------- */
+const gardenCardOf = (p, name) => p.$$('#gd-list [data-gd]').find(c => c.querySelector('h3').textContent.endsWith('. ' + name));
+test('Gardens: add a Berkeley garden and the map zooms out to fit it, edit it, remove both, and the home page hides its map', async t => {
+  const sheet = await seededSheet(t);
+  sheet.geo.find = addr => /Berkeley/.test(addr) ? { lat: 37.8695, lng: -122.2705 } : /Nowhere/.test(addr) ? null : { lat: 37.81, lng: -122.25 };
+  const p = await openPage(t, null, sheet);
+  // signed out: the starter garden, on the tiles inside the page
+  assert.ok(p.visible('#map'));
+  assert.equal(p.$$('#gmap-art .mpin').length, 1);
+  assert.equal(p.$$('#gmap-art .tiles img').length, 0, 'nothing from the internet');
+  assert.equal(p.$$('#gmap-art .tiles i').length, 8);
+  await signIn(p, 'Jessie');
+  p.$('.tabs a[data-tab=gardens]').click();
+  assert.ok(p.visible('#p-gardens') && !p.visible('#p-events'), 'the Gardens page is shown');
+  let card = gardenCardOf(p, 'Oakland Peace Center garden');
+  assert.equal(card.querySelector('.pill').textContent, 'On the map');
+  assert.equal(p.$$('#gd-map .mpin').length, 1, 'the preview map');
+  checkIcons(p, 'gardens');
+
+  p.$('#gd-add').click();
+  assert.ok(p.visible('#gdf') && p.d.activeElement === p.$('#gd-name'));
+  p.$('#gdf button[type=submit]').click();
+  assert.equal(p.$('#gd-err').textContent, "Add the garden's name.");
+  p.set('#gd-name', 'oakland peace center GARDEN'); p.set('#gd-addr', '1 Main St');
+  p.$('#gdf button[type=submit]').click();
+  assert.equal(p.$('#gd-err').textContent, "There's already a garden called Oakland Peace Center garden.");
+  p.set('#gd-name', 'Berkeley Ecology Center'); p.set('#gd-addr', '2150 Allston Way, Berkeley, CA'); p.set('#gd-what', 'Seed swaps');
+  p.$('#gdf button[type=submit]').click();
+  await waitFor(() => p.$('#gdf').hidden && gardenCardOf(p, 'Berkeley Ecology Center'), 3000, 'the new card');
+  assert.deepEqual(p.g.tab('Gardens')[2], ['Berkeley Ecology Center', '2150 Allston Way, Berkeley, CA', 'Seed swaps', '37.8695', '-122.2705']);
+  assert.ok(p.api.toasts.includes('Added Berkeley Ecology Center to the map.'));
+  // both maps fit both gardens now, with OpenStreetMap's tiles
+  for (const box of ['#gd-map', '#gmap-art']) {
+    assert.equal(p.$$(box + ' .mpin').length, 2, box);
+    const src = p.$(box + ' .tiles img').getAttribute('src');
+    assert.match(src, /^https:\/\/tile\.openstreetmap\.org\/1[0-3]\/\d+\/\d+\.png$/, box);
+    p.$$(box + ' .mpin').forEach(a => { const L = parseFloat(a.style.left), T = parseFloat(a.style.top); assert.ok(L > 5 && L < 95 && T > 20 && T < 95, `${box} pin at ${L}, ${T}`); });
+  }
+
+  // an address Google can't find is saved, listed, and said so
+  card = gardenCardOf(p, 'Berkeley Ecology Center');
+  card.querySelector('[data-gdact=edit]').click();
+  assert.equal(p.$('#gd-name').value, 'Berkeley Ecology Center');
+  p.set('#gd-addr', '1 Nowhere Lane');
+  p.$('#gdf button[type=submit]').click();
+  await waitFor(() => p.$('#gdf').hidden && gardenCardOf(p, 'Berkeley Ecology Center')?.querySelector('.pill').textContent === 'Not on the map', 3000, 'the changed card');
+  assert.equal(p.g.tab('Gardens')[2][3], 'not found');
+  assert.ok(p.api.toasts.some(x => /couldn't place 1 Nowhere Lane/.test(x)));
+  assert.equal(p.$$('#gmap-art .mpin').length, 1);
+  assert.equal(p.$$('#glist li').length, 2, 'still listed');
+
+  // Remove asks first
+  for (const name of ['Berkeley Ecology Center', 'Oakland Peace Center garden']) {
+    gardenCardOf(p, name).querySelector('[data-gdact=remove]').click();
+    assert.match(gardenCardOf(p, name).querySelector('.prm').textContent, new RegExp(`Take ${name} off the map\\?`));
+    gardenCardOf(p, name).querySelector('[data-gdact=rm-yes]').click();
+    await waitFor(() => !gardenCardOf(p, name), 3000, 'the card to go');
+  }
+  assert.equal(p.g.tab('Gardens').length, 1, 'just the header');
+  assert.equal(p.$('#gd-list .nxnote b').textContent, 'No gardens yet.');
+  assert.ok(p.$('#map').hidden, "the home page's map is hidden");
+  await waitFor(p.idle, 2000, 'calls to finish');
+  // the one "couldn't" toast was the address Google can't find, on purpose
+  p.api.toasts = p.api.toasts.filter(x => !/couldn't place 1 Nowhere Lane/.test(x));
+  p.noErrors();
+});
+
+test('the prototype artifact: Gardens takes a garden with no server', async t => {
+  const p = loadPage(t, ARTIFACT, 'http://localhost/artifact');
+  await waitFor(() => p.shown('#p-landing'), 2000, 'the artifact landing page');
+  p.$('#signin-top').click();
+  p.$('#si-google').click();
+  p.$('.tabs a[data-tab=gardens]').click();
+  p.$('#gd-add').click();
+  p.set('#gd-name', 'Dimond Park'); p.set('#gd-addr', '3860 Hanly Rd, Oakland');
+  p.$('#gdf button[type=submit]').click();
+  await waitFor(() => gardenCardOf(p, 'Dimond Park'), 2000, 'the card');
+  assert.equal(p.$$('#glist li').length, 2);
   assert.deepEqual(p.api.calls, [], 'the artifact calls no server');
   p.noErrors();
 });

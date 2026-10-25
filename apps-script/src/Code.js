@@ -46,7 +46,8 @@ const DEFAULTS = [
   ['LINKTREE_URL', 'https://linktr.ee/eastbaypermacultureguild', "The Guild's Linktree, linked from the public page. Starts with https://."],
   ['CONTACT_EMAIL', '', 'An email address the public page can show for questions. Blank: none is shown.'],
 ];
-const ROLES = { lead: 'Lead organizer', co: 'Co-organizer', vol: 'Volunteer' };
+// 'vol' is a member: on the team without signing in. Rows that still say Volunteer (the old name) read as members.
+const ROLES = { lead: 'Lead organizer', co: 'Co-organizer', vol: 'Member' };
 const PERM_KEYS = ['create', 'edit', 'approve', 'tasks', 'team'];
 /* What a saved event may hold. The page only sends these, so anything else is a hand-made request. */
 const ID_RE = /^[A-Za-z0-9_-]{1,40}$/;
@@ -130,7 +131,8 @@ function moved_(to) {
 /* JSON API for the Netlify page: POST {"fn": "saveEvent", "args": [...]} as text/plain.
    Only these functions can be called; each one checks the organizer code itself. */
 const API = { getPublic: getPublic, signIn: signIn, seed: seed, saveEvent: saveEvent, saveTeam: saveTeam, addVolunteer: addVolunteer, postTo: postTo,
-  cancelEvent: cancelEvent, deleteEvent: deleteEvent, savePlant: savePlant, deletePlant: deletePlant, approveAdoption: approveAdoption, declineAdoption: declineAdoption };
+  cancelEvent: cancelEvent, deleteEvent: deleteEvent, savePlant: savePlant, deletePlant: deletePlant, approveAdoption: approveAdoption, declineAdoption: declineAdoption,
+  saveGarden: saveGarden, deleteGarden: deleteGarden };
 function doPost(e) {
   let out;
   try {
@@ -412,6 +414,56 @@ function deleteEvent(code, id) {
 function saveTeam(code, team) {
   check_(code);
   return writing_(() => { writeTeam_(team); return true; });
+}
+
+/* ---------- Gardens ----------
+   The gardens on the home page's map. Organizers add, change and take them off on the Gardens page, or type them into
+   the Gardens tab. A garden is found by its name, so two can't share one. A new or changed address is looked up at once,
+   so its pin is there on the next visit; one Google can't find gets 'not found' in its lat cell (see geocodeGardens_),
+   and one asked while the geocoder doesn't answer is left blank for the hourly run. */
+
+/* Add a garden (was blank) or change one (was: the name it had). g: { was, name, addr, what }.
+   Returns { garden, gardens }: the garden as readGardens_ reads it (lat and lng null while it has no map point), and every garden. */
+function saveGarden(code, g) {
+  check_(code);
+  g = g && typeof g === 'object' && !Array.isArray(g) ? g : {};
+  const s = x => String(x == null ? '' : x).replace(/\s+/g, ' ').trim();
+  const name = s(g.name), addr = s(g.addr), what = s(g.what), was = s(g.was);
+  if (!name) throw new Error("Add the garden's name.");
+  if (!addr) throw new Error("Add the garden's address, so it can go on the map.");
+  [[name, 80, 'name'], [addr, 160, 'address'], [what, 160, 'line about what happens there']].forEach(([v, most, w]) => {
+    if (v.length > most) throw new Error('Please keep the ' + w + ' to ' + most + ' characters or fewer.');
+  });
+  return writing_(() => {
+    const all = rows_('Gardens', true), at = n => all.findIndex(r => key_(r[0]) === key_(n));
+    const i = was ? at(was) : -1;
+    if (was && i < 0) throw new Error('This garden was taken off the Gardens tab.');
+    const j = at(name);
+    if (j >= 0 && j !== i) throw new Error("There's already a garden called " + s(all[j][0]) + '.');
+    const row = i >= 0 ? all[i].slice() : TABS.Gardens.map(() => '');
+    // looked up when it's new, its address changed, or it has no map point yet (a 'not found' is asked again on a save)
+    const moved = i < 0 || key_(row[1]) !== key_(addr) || isNaN(parseFloat(row[3])) || isNaN(parseFloat(row[4]));
+    row[0] = name; row[1] = addr; row[2] = what;
+    if (moved) {
+      const loc = geocode_(addr);
+      row[3] = loc ? String(loc.lat) : loc === null ? 'not found' : '';
+      row[4] = loc ? String(loc.lng) : '';
+    }
+    if (i >= 0) put_('Gardens', i + 2, [row]); else append_('Gardens', [row]);
+    const gardens = readGardens_();
+    return { garden: gardens.find(x => key_(x.name) === key_(name)) || null, gardens: gardens };
+  });
+}
+/* Take a garden off the map: its row goes from the Gardens tab. A name the tab doesn't have is fine. Returns { gardens }. */
+function deleteGarden(code, name) {
+  check_(code);
+  return writing_(() => {
+    const k = key_(name), i = k ? rows_('Gardens', true).findIndex(r => key_(r[0]) === k) : -1;
+    if (i >= 0) {
+      try { sheet_('Gardens').deleteRow(i + 2); } catch (e) { blank_('Gardens', i + 2, 1); } // a tab with no other row to keep: empty it instead
+    }
+    return { gardens: readGardens_() };
+  });
 }
 
 /* ---------- Adopt a plant ----------
@@ -1409,12 +1461,19 @@ function geocodeGardens_() {
   const todo = rows_('Gardens', true).map((r, i) => [r, i]).filter(x => x[0][0] && String(x[0][1]).trim() && !String(x[0][3]).trim());
   let n = 0;
   todo.slice(0, 5).forEach(([r, i]) => {
-    let res;
-    try { res = Maps.newGeocoder().geocode(r[1]); } catch (e) { return; }
-    const hit = res && res.results && res.results[0], loc = hit && hit.geometry && hit.geometry.location;
-    if (!loc && res && res.status && res.status !== 'ZERO_RESULTS') return; // over the limit or an error: next hour
+    const loc = geocode_(r[1]);
+    if (loc === undefined) return; // over the limit or an error: next hour
     put_('Gardens', i + 2, [[r[0], r[1], r[2], loc ? String(loc.lat) : 'not found', loc ? String(loc.lng) : '']], [3, 4]);
     n++;
   });
   return n;
+}
+/* An address on the map: { lat, lng }, null when Google can't find it, or undefined when the geocoder didn't answer
+   (over the day's limit, or an error), so it can be asked again later. */
+function geocode_(addr) {
+  let res;
+  try { res = Maps.newGeocoder().geocode(addr); } catch (e) { return undefined; }
+  const hit = res && res.results && res.results[0], loc = hit && hit.geometry && hit.geometry.location;
+  if (loc) return { lat: loc.lat, lng: loc.lng };
+  return res && res.status && res.status !== 'ZERO_RESULTS' ? undefined : null;
 }
