@@ -82,9 +82,21 @@ on_err = ("(function(){var shown=0;window.addEventListener('error',function(e){"
 assert "//" not in on_err
 config = ("window.EBPG_GAS={api:" + '"' + API_URL + '"' + ",url:location.origin+location.pathname,"
           "ev:(new URLSearchParams(location.search).get('ev')||'').slice(0,40)};")
+# Share previews: what a link to the site (or to an event's ?ev= page) shows in WhatsApp, iMessage, Slack and social posts.
+# The page is static, so every link previews as the Guild; og.jpg is the trellis photo.
+SITE_URL = "https://ebpg-event-hub.netlify.app/"
+desc = "Garden work days, monthly potlucks and volunteer sign-up for the East Bay Permaculture Guild in Oakland."
+share = (f'<link rel="canonical" href="{SITE_URL}">\n'
+         '<meta property="og:type" content="website">\n<meta property="og:site_name" content="East Bay Permaculture Guild">\n'
+         f'<meta property="og:title" content="East Bay Permaculture Guild">\n<meta property="og:description" content="{desc}">\n'
+         f'<meta property="og:url" content="{SITE_URL}">\n<meta property="og:image" content="{SITE_URL}og.jpg">\n'
+         '<meta property="og:image:width" content="560">\n<meta property="og:image:height" content="421">\n'
+         '<meta property="og:image:alt" content="A volunteer ties a wire trellis in a garden bed">\n'
+         '<meta name="twitter:card" content="summary_large_image">\n')
 head = ('<!doctype html>\n<html lang="en">\n<meta charset="utf-8">\n<meta name="viewport" content="width=device-width, initial-scale=1">\n'
-        '<title>East Bay Permaculture Guild</title>\n<meta name="description" content="Garden work days, monthly potlucks and volunteer sign-up for the East Bay Permaculture Guild in Oakland.">\n'
+        f'<title>East Bay Permaculture Guild</title>\n<meta name="description" content="{desc}">\n{share}'
         f'<link rel="icon" href="{icon}">\n<script>{on_err}{config}</script>\n')
 (site / "index.html").write_text(head + page)
+shutil.copy(hub / "assets" / "trellis.jpg", site / "og.jpg")
 (site / "_headers").write_text("/*\n  X-Content-Type-Options: nosniff\n  Referrer-Policy: strict-origin-when-cross-origin\n  X-Frame-Options: DENY\n")
 print("built site/:", len(head + page) // 1024, "KB page")

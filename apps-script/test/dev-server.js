@@ -45,6 +45,7 @@ const server = http.createServer((req, res) => {
     const html = fs.readFileSync(path.join(__dirname, '..', 'site', 'index.html'), 'utf8').replace(/https:\/\/script\.google\.com\/macros\/s\/[\w-]+\/exec/, api);
     return send(200, 'text/html; charset=utf-8', html);
   }
+  if (url.pathname === '/og.jpg') return send(200, 'image/jpeg', fs.readFileSync(path.join(__dirname, '..', 'site', 'og.jpg'))); // the share preview image
   if (url.pathname === '/_ctl') {
     if (url.searchParams.has('latency')) ctl.latency = latencyOf(url.searchParams.get('latency'));
     if (url.searchParams.has('fail')) ctl.fail = url.searchParams.get('fail');

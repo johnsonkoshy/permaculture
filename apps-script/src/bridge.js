@@ -300,7 +300,7 @@ if (window.EBPG_GAS) {
   const SEED = { events: EVENTS.map(payload), team: JSON.parse(JSON.stringify(TEAM)), vols: [], gardens: GARDENS.slice() };
   // ...and nothing else uses them: every page shows only what the Sheet sends
   EVENTS.length = 0; TEAM.length = 0; S.sel = undefined;
-  pubState = 'loading';
+  pubState = 'loading'; pubAnswered = false; // an event's page waits for the Sheet before it says an event isn't there
   function load(st) {
     EVENTS.length = 0; st.events.forEach(r => EVENTS.push(fromRows(r))); // the public copies go: these are the Sheet's own rows
     if (st.team?.length) TEAM.splice(0, TEAM.length, ...st.team);
@@ -313,7 +313,7 @@ if (window.EBPG_GAS) {
     st.events.forEach(r => { base['e:' + r.cols.id] = JSON.stringify(r); });
     base.team = JSON.stringify(st.team || []); base.vols = JSON.stringify(st.vols || []);
     if (!EVENTS.find(e => e.id === S.sel)) S.sel = nextEvent()?.id;
-    pubState = 'ready'; // the landing page now draws from the Sheet's own rows (published ones only)
+    pubState = 'ready'; pubAnswered = true; // the landing page now draws from the Sheet's own rows (published ones only)
   }
   // start over: a new sign-in, or signing out
   function reset() {
@@ -490,9 +490,7 @@ if (window.EBPG_GAS) {
         renderVols(); renderMaterials(); renderLanding();
         if (!person(name) || person(name).role === 'vol') name = (organizers()[0] || TEAM[0]).name;
         store.keep(c, name, resume ? undefined : $('#si-rem').checked);
-        finishSignIn(name);
-        if (G.ev && EVENTS.find(e => e.id === G.ev)) openEvent(G.ev, 'page');
-        G.ev = '';
+        finishSignIn(name); // opens the plan of the event this page was opened at (planAfter), if any
       } catch (er) {
         // a wrong code is forgotten; when the Sheet just didn't answer, or sign-in is paused after too many
         // wrong codes (someone else's), the stored code is kept for another try
@@ -562,8 +560,12 @@ if (window.EBPG_GAS) {
     // a remembered device stays remembered when signing back in fails and someone picks their name again
     if (store.kept().code) $('#si-rem').checked = true;
     document.body.classList.add('out');
+    // an event link (?ev=): organizers signing back in get its plan; everyone else its public page, with grey shapes
+    // until the Sheet answers (unless the last visit's answer has it)
+    planAfter = G.ev;
     if (user && code) { showTab('resume'); remote.signIn(user, true); } // not the landing page: we're signing straight back in
-    else showTab('landing'); // an event link (?ev=) shows the home page for now; signing in opens that event
+    else if (G.ev) showPubEvent(G.ev);
+    else showTab('landing');
   };
   /* The public data: published events, the organizers' names, gardens and a few settings. Until it arrives (Apps
      Script can take a few seconds to wake up) the page shows grey shapes, or what the last visit got. If it never
@@ -578,7 +580,7 @@ if (window.EBPG_GAS) {
     readingPublic = true;
     run('getPublic').then(st => {
       if (!st || !Array.isArray(st.events)) return publicFailed();
-      keepPublic(st);
+      keepPublic(st); pubAnswered = true;
       if (live || held) return; // the Sheet's own rows win
       loadPublic(st); render(); renderMaterials(); redrawLanding();
     }, publicFailed).finally(() => { readingPublic = false; });

@@ -37,8 +37,19 @@ The Event Hub prototype, now saving to a real Google Sheet. The page is hosted o
 
 - **Landing page** for the public: upcoming events, a garden map and the volunteer sign-up. Sign-ups go to the **Volunteers** tab. The volunteer gets a welcome email and the lead organizer gets a "new volunteer" email.
   - **Only what the Sheet publishes:** *Upcoming events* shows up to four published events of any kind, soonest first, each with its type, title, date and time, and place, and a *Today*, *Tomorrow* or *This Saturday* chip when it's within a week. Drafts, cancelled events and ones that are over never show, and nothing is made up: with nothing published it says *Next dates coming soon. Join the list and we'll tell you.* The line under *Upcoming events* is `SCHEDULE_TEXT` on the Settings tab, and the Linktree links use `LINKTREE_URL`.
-  - **Event links:** each card links to `?ev=` and the event's id. For now that shows the home page again; an organizer who signs in from there gets that event's plan.
-  - **The card fan** at the top shows the next published event. On phones it's replaced by a *Next up* strip under the heading, with a **Details** link.
+  - **Event links:** each card links to the event's own page, `?ev=` and the event's id (for example https://ebpg-event-hub.netlify.app/?ev=w7). Share that link anywhere: on flyers, in posts and in chats.
+  - **The card fan** at the top shows the next published event, and clicking it opens that event's page. On phones it's replaced by a *Next up* strip under the heading, with a **Details** link.
+- **An event's own page** (`?ev=`), for newcomers, built only from what `getPublic` hands out:
+  - The type of event and its title, the date and time, the place and address with **Directions** (the event's map link, or a Google Maps search for the address), the description, *What to bring* and the good-to-know line from its tags.
+  - **First time? Here's how it goes:** the timeline without the leads' own rows, *Wear closed-toe shoes and bring water.* for work days, and *Look for Jessie, who's hosting.*
+  - **I'm new: sign me up** goes to the volunteer form on the home page, with a *Coming to OPC Garden Work Party* chip (its **x** takes it off). The form keeps the event's id in a hidden field; sending it to the Sheet comes later.
+  - **Also on Partiful** (or Luma, Meetup, and so on) when the event has an RSVP link.
+  - **Add to Google Calendar**, **Download .ics** (for Apple Calendar, Outlook and the rest; Oakland time, with the event's link) and **Share**: the phone's share sheet where there is one, else **Copy link** and **Share on WhatsApp**.
+  - **Organizer? Open the plan** goes to sign-in; once signed in, the event's plan opens. An organizer already signed in on that device who opens the link gets the plan straight away.
+  - A draft, a cancelled event, one that's over, or a link that was mistyped says *This event isn't on the calendar anymore* and shows the next events. While the Sheet wakes up the page shows grey shapes, never that note.
+  - Moving between the home page and event pages doesn't load the site again, and Back and Forward work. The browser tab says the event's title.
+  - **Copy link** at the top of an event, for organizers, copies the same public link. A draft's is turned off ("Publish it first to share").
+- **Share previews:** a link to the site shows the Guild's name, the description and the trellis photo (`og.jpg`) in WhatsApp, iMessage, Slack and social posts. The page is one static file, so an event's link previews as the Guild, not as that event.
   - **While the Sheet wakes up** the page shows grey cards that say *Loading events…*, never events of its own. Each browser keeps the Sheet's last public answer (`ebpg-public-v1` in its local storage, public fields only) and shows it at once on the next visit while it reads the Sheet again. If the Sheet doesn't answer and there's nothing kept, the page says *We couldn't load the latest dates. See our Linktree for upcoming events.* and tries again when the visitor comes back to the tab.
 - **Organizer sign-in** with the organizer code. You can change the code on the **Settings** tab at any time; it needs at least 8 characters, and a blank or shorter one lets nobody in ("The organizer code isn't set up yet. Ask the Sheet owner."). After 20 wrong codes in 10 minutes, every organizer call says "Too many tries. Wait 10 minutes and try again." until the 10 minutes are up, so the code can't be guessed. A page left open with the old code stops calling the Sheet as soon as it's turned down, keeps its unsaved changes and asks for the new code, so it never uses up those tries. The header shows who is signed in.
 - **Test-mode banner:** while `TEST_MODE` is TRUE, every organizer page has a yellow note: "Test mode: every email goes only to *the owner*. Turn it off on the Settings tab when you're ready to go live.", with an **Open the Sheet** link. It goes away within two minutes of setting `TEST_MODE` to FALSE.
@@ -97,6 +108,8 @@ node --test test/                # all tests (or: npm test, which builds first)
                                  #   smoke.test.js: the built site/ page in jsdom against that mock
                                  #   (landing from the Sheet, sign-in, saving an edit, volunteer sign-up, honest starter data)
 node test/dev-server.js          # the real page + mock backend at http://localhost:8766/ (organizer code: garden-dev-1234)
+                                 #   the Netlify build is at /site; its mock Sheet starts empty, so sign in once to fill it,
+                                 #   then sign out and open /site?ev=w7 for Workday #7's public page
                                  #   curl 'localhost:8766/_ctl?latency=3000&fail=saveEvent' makes the mock Sheet slow,
                                  #   and saveEvent answer with an HTML error page; '_ctl?latency=0&fail=' undoes it
                                  #   '_ctl?quota=20' leaves the mock Gmail 20 emails for the day

@@ -3,7 +3,7 @@
    Build first: python3 build.py   Run: node --test test/   (or node --test test/smoke.test.js)
 
    What the page gets that jsdom lacks: every POST goes to Code.js doPost on the mock, and
-   scrollTo, matchMedia, the observers, the clipboard, canvas and window.open are stubbed.
+   scrollTo, matchMedia, the observers, the clipboard, canvas, window.open and downloads are stubbed.
    The page clock is pinned to the morning of Oct 24 2026 (and the mock follows it), so the
    starter events stay "upcoming" whatever day the test runs. */
 const test = require('node:test');
@@ -72,6 +72,16 @@ function stub(w, g, api) {
   Object.defineProperty(w.navigator, 'clipboard', { configurable: true, value: { writeText: async t => { api.copied.push(String(t)); }, readText: async () => api.copied.at(-1) || '' } });
   w.HTMLCanvasElement.prototype.getContext = () => null;
   w.open = (u = '') => { api.opened.push(String(u)); return null; };
+  // downloads: a Blob's object URL, and a click on <a download> is kept in api.downloads instead of navigating (jsdom can't)
+  w.URL.createObjectURL = b => { api.blobs.push(b); return 'blob:http://localhost/' + api.blobs.length; };
+  w.URL.revokeObjectURL = () => {};
+  w.addEventListener('click', e => {
+    const a = e.target && e.target.closest && e.target.closest('a[download]');
+    if (!a) return;
+    e.preventDefault();
+    const href = a.getAttribute('href');
+    api.downloads.push({ name: a.download, href, blob: /^blob:/.test(href) ? api.blobs[Number(href.split('/').pop()) - 1] : null });
+  }, true);
   w.alert = () => {};
   w.confirm = () => true;
   w.prompt = () => null;
@@ -85,7 +95,7 @@ const onScreen = (w, el) => { for (; el && el.nodeType === 1; el = el.parentElem
    before(w, g) runs before the page's scripts */
 function loadPage(t, file, url, before, sheet) {
   const g = sheet || makeGas({ page: undefined, now: START, settings: { ORGANIZER_CODE: 'garden-test-2468' } }); // the code starts blank, so set one
-  const api = { errors: [], calls: [], sent: [], done: [], out: {}, most: {}, latency: 0, fail: '', pending: 0, copied: [], opened: [], toasts: [] };
+  const api = { errors: [], calls: [], sent: [], done: [], out: {}, most: {}, latency: 0, fail: '', pending: 0, copied: [], opened: [], toasts: [], blobs: [], downloads: [] };
   const vc = new VirtualConsole();
   vc.on('error', (...a) => api.errors.push('console.error: ' + a.map(x => (x && x.stack) || String(x)).join(' ')));
   vc.on('jsdomError', e => { if (!NOISE.test(e.message)) api.errors.push('jsdom: ' + ((e.detail && e.detail.stack) || e.stack || e.message)); });
@@ -1961,15 +1971,337 @@ test("with the server out of reach and nothing kept, the page shows the Linktree
   p.noErrors();
 });
 
-test('an event link (?ev=) shows the home page to a visitor; an organizer who signs in from there gets its plan', async t => {
-  const p = loadPage(t, SITE, URL_SITE + '?ev=w7', null, await seededSheet(t));
-  await waitFor(() => p.$('#nextup a.nxcard'), 3000, 'the events');
-  assert.ok(p.shown('#p-landing') && !p.shown('#p-signin'), 'the home page, not the sign-in card');
-  await startSignIn(p, p.code(), 'Jessie');
-  await waitFor(() => p.$('#detail #dp-plan') && !p.d.body.classList.contains('out'), 3000, "Workday #7's plan");
-  assert.match(p.$('#detail').textContent, /OPC Garden Work Party/);
+/* ---------- the public event page (?ev=ID) ---------- */
+const W7_TL = [['9:45 AM', 'Arrivals and nametags'], ['10:15 AM', 'Intro and ice breaker'], ['10:45 AM', 'Garden work'], ['12:30 PM', 'Lunch'], ['12:50 PM', 'Debrief in small groups']];
+// what only organizers may see: the plan's leads-only rows, roles, tasks, food, supplies, garden areas, notes, the ice breaker
+const PLAN_ONLY = ['hard out', 'Leads set up', 'Phil', 'Kalynn', 'Karen', 'Meena', 'Make a parking sign', 'Plates, cups', 'pride of Madeira', 'oak guild', 'What are you planting', 'Greenhouse and guild boxes', 'Nametags and markers'];
+const blobText = (w, b) => new Promise((ok, no) => { const r = new w.FileReader(); r.onload = () => ok(r.result); r.onerror = no; r.readAsText(b); });
+async function eventPage(t, id, before, sheet) {
+  const p = loadPage(t, SITE, URL_SITE + '?ev=' + id, before, sheet || await seededSheet(t));
+  await waitFor(() => p.api.calls.includes('getPublic') && p.idle() && !p.$('#p-pubevent').hasAttribute('aria-busy'), 4000, 'the event page to load');
+  return p;
+}
+const setEvCell = (g, id, head, v) => { const tab = g.tab('Events'); g.sheets.get('Events').set(tab.findIndex(r => r[0] === id) + 1, tab[0].indexOf(head) + 1, v); delete g.cache['public:v1']; };
+
+test("an event link (?ev=w7) shows a visitor the event's own page: when, where with Directions, what to expect, and nothing from the plan", async t => {
+  const p = await eventPage(t, 'w7');
+  assert.ok(p.shown('#p-pubevent') && !p.shown('#p-landing') && !p.shown('#p-signin'), 'the event page, not the home page or the sign-in card');
+  assert.ok(p.d.body.classList.contains('out'));
+  assert.equal(p.$('#pe-title').textContent, 'OPC Garden Work Party');
+  assert.equal(p.d.title, 'OPC Garden Work Party · East Bay Permaculture Guild');
+  assert.deepEqual(p.$$('.pe-k > span').map(s => s.textContent), ['Work party', 'Tomorrow']);
+  assert.deepEqual(p.$$('.pe-facts li').map(li => [...li.querySelector('span').children].map(x => x.textContent)),
+    [['Sunday, October 25', '10:00 AM–2:00 PM'], ['Oakland Peace Center', '111 Fairmount Ave, Oakland', 'Directions']]);
+  const dir = p.$('#pe-dir');
+  assert.equal(dir.getAttribute('href'), 'https://maps.app.goo.gl/9jQkydC38eJrRScr6', "the Guild's own map link");
+  assert.deepEqual([dir.target, dir.rel], ['_blank', 'noopener']);
+  assert.deepEqual(p.$$('.pe-about p').map(x => x.textContent), [
+    'Our monthly garden work day at the Oakland Peace Center. We pick up where Workday #6 left off, then share lunch and a short debrief. No experience needed.',
+    'What to bring: water bottle, gloves if you have them',
+    'No experience needed, tools and gloves provided, bring a dish to share if you can.']);
+  assert.equal(p.$('#pe-first-h').textContent, "First time? Here's how it goes");
+  assert.deepEqual(p.$$('.pe-tl li').map(li => [...li.children].map(x => x.textContent)), W7_TL, "the public timeline, without the leads' own rows");
+  assert.deepEqual(p.$$('.pe-tips li').map(li => li.textContent), ['Wear closed-toe shoes and bring water.', "Look for Jessie, who's hosting."]);
+  assert.equal(p.$('#pe-join').textContent, "I'm new: sign me up");
+  assert.ok(!p.$('#pe-rsvp'), 'no RSVP link until one is set');
+  assert.equal(p.$('#pe-org').textContent, 'Organizer? Open the plan');
+  const html = p.$('#p-pubevent').innerHTML;
+  for (const s of PLAN_ONLY) assert.ok(!html.includes(s), s + ' is not on the public page');
+  assert.ok(!p.$('#p-landing [data-signin], [data-signin]'), 'nothing sends visitors to the sign-in page');
+  checkIcons(p, 'the public event page');
+  assert.deepEqual(p.$$('.pe-facts .ic-chip use').map(u => u.getAttribute('href')), ['#i-calendar', '#i-map-pin']);
+  assert.deepEqual(['#pe-join', '#pe-gcal', '#pe-ics', '#pe-copy', '#pe-wa', '#pe-org', '.pe-back'].map(s => p.$(s + ' use').getAttribute('href')),
+    ['#i-user-plus', '#i-calendar-plus', '#i-download', '#i-link', '#i-message-circle', '#i-lock', '#i-arrow-left']);
+  p.noErrors();
+});
+
+test('Add to Google Calendar and Download .ics give Oakland time; Copy link and WhatsApp share the page', async t => {
+  const p = await eventPage(t, 'w7');
+  const cal = p.$('#pe-gcal').getAttribute('href');
+  assert.ok(cal.startsWith('https://calendar.google.com/calendar/render?action=TEMPLATE&text=OPC%20Garden%20Work%20Party&'), cal);
+  assert.ok(cal.includes('&dates=20261025T100000/20261025T140000&'), 'the dates, in local time');
+  assert.ok(cal.includes('&ctz=America/Los_Angeles&'), "in Oakland's time zone");
+  const q = new URL(cal).searchParams;
+  assert.equal(q.get('location'), 'Oakland Peace Center, 111 Fairmount Ave, Oakland');
+  assert.match(q.get('details'), /^Our monthly garden work day[^]*\n\nWhat to bring: water bottle, gloves if you have them\n\nDetails and directions: http:\/\/localhost:8766\/site\?ev=w7$/);
+  assert.deepEqual([p.$('#pe-gcal').target, p.$('#pe-gcal').rel], ['_blank', 'noopener']);
+
+  p.$('#pe-ics').click();
+  const dl = await waitFor(() => p.api.downloads[0], 2000, 'the .ics download');
+  assert.equal(dl.name, 'ebpg-2026-10-25-opc-garden-work-party.ics');
+  assert.match(dl.href, /^blob:/);
+  assert.equal(dl.blob.type, 'text/calendar;charset=utf-8');
+  const ics = await blobText(p.w, dl.blob);
+  assert.ok(ics.startsWith('BEGIN:VCALENDAR\r\nVERSION:2.0\r\n') && ics.endsWith('END:VCALENDAR\r\n'));
+  const lines = ics.split('\r\n').slice(0, -1);
+  assert.ok(lines.every(l => Buffer.byteLength(l) <= 75), 'every line folded to 75 bytes');
+  const flat = ics.replace(/\r\n /g, ''); // unfolded
+  for (const l of ['BEGIN:VEVENT', 'UID:w7@ebpg-event-hub', 'DTSTART;TZID=America/Los_Angeles:20261025T100000', 'DTEND;TZID=America/Los_Angeles:20261025T140000',
+    'SUMMARY:OPC Garden Work Party', 'LOCATION:Oakland Peace Center\\, 111 Fairmount Ave\\, Oakland', 'URL:http://localhost:8766/site?ev=w7', 'TZID:America/Los_Angeles', 'END:VEVENT']) {
+    assert.ok(flat.split('\r\n').includes(l), l);
+  }
+  assert.match(flat, /\r\nDTSTAMP:2026102\dT\d{6}Z\r\n/);
+  assert.match(flat, /\r\nDESCRIPTION:Our monthly garden work day at the Oakland Peace Center\. We pick up where Workday #6 left off\\, then share lunch and a short debrief\. No experience needed\.\\n\\nWhat to bring: water bottle\\, gloves if you have them\\n\\nDetails and directions: http:\/\/localhost:8766\/site\?ev=w7\r\n/,
+    'commas and new lines escaped');
+
+  // no share sheet on this browser: Copy link, and WhatsApp
+  assert.ok(!p.$('#pe-share'));
+  p.$('#pe-copy').click();
+  await waitFor(() => p.api.copied.length, 2000, 'the copied link');
+  assert.deepEqual(p.api.copied, ['http://localhost:8766/site?ev=w7']);
+  await waitFor(() => p.api.toasts.includes('Link copied'), 2000, 'Link copied');
+  assert.equal(p.$('#pe-wa').getAttribute('href'), 'https://wa.me/?text=' + encodeURIComponent('OPC Garden Work Party: Sunday, October 25, 10am, Oakland Peace Center. With the East Bay Permaculture Guild. http://localhost:8766/site?ev=w7'));
+  assert.deepEqual([p.$('#pe-wa').target, p.$('#pe-wa').rel], ['_blank', 'noopener']);
+  checkIcons(p, 'save and share');
+  p.noErrors();
+});
+
+test("on a phone with a share sheet, Share uses it; an RSVP link shows as Also on Partiful; values from the Sheet stay text", async t => {
+  const sheet = await seededSheet(t);
+  setEvCell(sheet, 'w7', 'rsvp link', 'https://partiful.com/e/abc123');
+  setEvCell(sheet, 'w7', 'title', 'Dig & <b>weed</b>, "together"');
+  const shared = [];
+  let refuse = '';
+  const p = await eventPage(t, 'w7', w => {
+    Object.defineProperty(w.navigator, 'share', { configurable: true, value: async d => { if (refuse) throw new w.DOMException('no', refuse); shared.push(d); } });
+  }, sheet);
+  assert.equal(p.$('#pe-title').textContent, 'Dig & <b>weed</b>, "together"', 'shown as typed, not as markup');
+  assert.ok(!p.$('#p-pubevent b b, #pe-title b'));
+  const rsvp = p.$('#pe-rsvp');
+  assert.equal(rsvp.textContent, 'Also on Partiful');
+  assert.equal(rsvp.getAttribute('href'), 'https://partiful.com/e/abc123');
+  assert.ok(rsvp.querySelector('use[href="#i-out"]'), 'with the opens-elsewhere icon');
+  assert.ok(p.$('#pe-share') && !p.$('#pe-copy') && !p.$('#pe-wa'), 'one Share button');
+  p.$('#pe-share').click();
+  await waitFor(() => shared.length, 2000, 'the share sheet');
+  assert.deepEqual(JSON.parse(JSON.stringify(shared[0])), { title: 'Dig & <b>weed</b>, "together"', text: 'Dig & <b>weed</b>, "together": Sunday, October 25, 10am, Oakland Peace Center. With the East Bay Permaculture Guild.', url: 'http://localhost:8766/site?ev=w7' });
+  refuse = 'AbortError'; // closing the share sheet
+  p.$('#pe-share').click();
+  await sleep(50);
+  assert.deepEqual(p.api.copied, [], 'closing the sheet copies nothing');
+  refuse = 'NotAllowedError'; // a browser that won't share from here
+  p.$('#pe-share').click();
+  await waitFor(() => p.api.copied.length, 2000, 'the link copied instead');
+  assert.deepEqual(p.api.copied, ['http://localhost:8766/site?ev=w7']);
+  // a link that isn't Partiful, and one that isn't https, which never gets through
+  setEvCell(sheet, 'w7', 'rsvp link', 'https://www.eventbrite.com/e/123');
+  const q = await eventPage(t, 'w7', null, sheet);
+  assert.equal(q.$('#pe-rsvp').textContent, 'Also on Eventbrite');
+  setEvCell(sheet, 'w7', 'rsvp link', 'javascript:alert(1)');
+  const r = await eventPage(t, 'w7', null, sheet);
+  assert.ok(!r.$('#pe-rsvp') && !r.$('#p-pubevent').innerHTML.includes('javascript'));
+  p.noErrors(); q.noErrors(); r.noErrors();
+});
+
+test("a draft, a past, or an unknown event's link says it isn't on the calendar anymore, with the next events", async t => {
+  const sheet = await seededSheet(t);
+  for (const id of ['m2', 'w6', 'nope', '<img src=x onerror=alert(1)>']) {
+    const p = await eventPage(t, encodeURIComponent(id), null, sheet);
+    assert.ok(p.shown('#p-pubevent'), id);
+    assert.equal(p.$('.pe-gone h1').textContent, "This event isn't on the calendar anymore", id);
+    assert.equal(p.$('.pe-gone > p').textContent, "It may have moved, or it's already happened. Here's what's coming up next.");
+    assert.deepEqual(p.$$('.pe-gone a.nxcard').map(a => a.dataset.ev), ['w7'], 'the next published events');
+    assert.equal(p.d.title, 'East Bay Permaculture Guild');
+    const html = p.$('#p-pubevent').innerHTML;
+    for (const s of ['OPC Community Meeting', 'seed library', 'Workday #6', 'oak guild', '<img']) assert.ok(!html.includes(s), `${s} is not shown for ${id}`);
+    checkIcons(p, 'not on the calendar');
+    p.noErrors();
+  }
+  // its cards open the next event here
+  const p = await eventPage(t, 'm2', null, sheet);
+  p.$('.pe-gone a.nxcard').click();
+  assert.equal(p.$('#pe-title').textContent, 'OPC Garden Work Party');
+  assert.equal(p.w.location.search, '?ev=w7');
+  p.w.history.back();
+  await waitFor(() => p.$('.pe-gone'), 2000, 'Back to the note');
+  p.$('.pe-gone [data-pe="home-top"]').click();
+  assert.ok(p.shown('#p-landing') && !p.shown('#p-pubevent'));
+  assert.equal(p.w.location.pathname + p.w.location.search + p.w.location.hash, '/site#welcome');
+  // nothing published at all: Next dates coming soon, with the volunteer list
+  const empty = await eventPage(t, 'w7', null, makeGas({ now: START, settings: { ORGANIZER_CODE: 'garden-test-2468' } }));
+  assert.equal(empty.$('.pe-gone > p').textContent, "Next dates coming soon. Join the list and we'll tell you.");
+  empty.$('.pe-gone [data-pe="joinlist"]').click();
+  assert.ok(empty.shown('#p-landing') && empty.$('#vj-for').hidden, 'the volunteer form, for no event in particular');
+  assert.equal(empty.d.activeElement, empty.$('#vj-name'));
+  p.noErrors(); empty.noErrors();
+});
+
+test("while the Sheet wakes up an event link shows grey shapes, never not-found; if it doesn't answer, the Linktree", async t => {
+  const sheet = await seededSheet(t);
+  const p = loadPage(t, SITE, URL_SITE + '?ev=w7', (w, g, api) => { api.latency = 400; }, sheet);
+  assert.ok(p.shown('#p-pubevent'));
+  assert.equal(p.$('#p-pubevent').getAttribute('aria-busy'), 'true');
+  assert.match(p.$('#p-pubevent').textContent, /Loading event…/);
+  assert.ok(p.$('#p-pubevent .sk') && !p.$('.pe-gone'), 'grey shapes, not "not on the calendar"');
+  await waitFor(() => p.$('#pe-title'), 3000, 'the event');
+  assert.ok(!p.$('#p-pubevent').hasAttribute('aria-busy') && !p.$('#p-pubevent .sk'));
+  // the last visit's answer: shown at once when it has the event; grey shapes while the Sheet says whether a newer one is there
+  const kept = JSON.stringify({ at: 0, st: sheet.ctx.getPublic() });
+  setEvCell(sheet, 'm2', 'status', 'published');
+  const q = loadPage(t, SITE, URL_SITE + '?ev=w7', (w, g, api) => { w.localStorage.setItem(CACHE, kept); api.latency = 300; }, sheet);
+  assert.equal(q.$('#pe-title').textContent, 'OPC Garden Work Party', 'at once, from the last visit');
+  const r = loadPage(t, SITE, URL_SITE + '?ev=m2', (w, g, api) => { w.localStorage.setItem(CACHE, kept); api.latency = 300; }, sheet);
+  assert.ok(r.$('#p-pubevent .sk') && !r.$('.pe-gone'), 'not in the last answer: wait for the Sheet');
+  await waitFor(() => r.$('#pe-title'), 3000, 'Community Meeting #2, published since');
+  assert.equal(r.$('#pe-title').textContent, 'OPC Community Meeting');
+  // the Sheet doesn't answer, and nothing kept
+  const f = loadPage(t, SITE, URL_SITE + '?ev=w7', (w, g, api) => { api.fail = 'getPublic'; }, sheet);
+  await waitFor(() => f.$('.pe-gone.warn'), 3000, 'the note');
+  assert.equal(f.$('.pe-gone h1').textContent, "We couldn't load this event");
+  assert.equal(f.$('.pe-gone a[target=_blank]').getAttribute('href'), 'https://linktr.ee/eastbaypermacultureguild');
+  // and it shows once the Sheet answers, when the visitor comes back to the tab
+  f.api.fail = '';
+  f.d.dispatchEvent(new f.w.Event('visibilitychange'));
+  await waitFor(() => f.$('#pe-title'), 3000, 'the event');
+  await waitFor(() => p.idle() && q.idle() && r.idle() && f.idle(), 2000, 'calls to finish');
+  p.noErrors(); q.noErrors(); r.noErrors(); f.noErrors();
+});
+
+test('the landing cards, the Next up strip and the hero open the event page in place; Back goes home again', async t => {
+  const p = await openPage(t, null, await seededSheet(t));
+  assert.ok(!p.$('#p-landing [data-signin]'), 'no landing element sends people to sign in');
+  const hero = p.$('#hero-cards a.hero-go');
+  assert.deepEqual([hero.getAttribute('href'), hero.getAttribute('tabindex'), p.$('#hero-cards').getAttribute('aria-hidden')], ['?ev=w7', '-1', 'true'], 'the card fan is a link for the mouse (keyboards use the cards)');
+  const calls = p.api.calls.length;
+  p.$('#nextup a.nxcard').click();
+  assert.ok(p.shown('#p-pubevent') && !p.shown('#p-landing'), 'the event page');
+  assert.equal(p.$('#pe-title').textContent, 'OPC Garden Work Party');
+  assert.equal(p.w.location.search, '?ev=w7', 'with its own address');
+  assert.equal(p.d.activeElement, p.$('#pe-title'), 'focus on its heading, for screen readers');
+  assert.equal(p.api.calls.length, calls, 'without asking the Sheet again');
+  p.w.history.back();
+  await waitFor(() => p.shown('#p-landing'), 2000, 'Back to the home page');
+  assert.equal(p.w.location.search, '');
+  assert.equal(p.d.title, 'East Bay Permaculture Guild');
+  p.w.history.forward();
+  await waitFor(() => p.shown('#p-pubevent'), 2000, 'Forward to the event');
+  // All upcoming events: home, at the list
+  p.$('.pe-back').click();
+  assert.ok(p.shown('#p-landing'));
+  assert.equal(p.w.location.pathname + p.w.location.search + p.w.location.hash, '/site#meet');
+  assert.equal(p.d.activeElement, p.$('#meet h2'));
+  p.$('#nextstrip a.nsgo').click();
+  assert.ok(p.shown('#p-pubevent'), 'the Next up strip');
+  p.$('.pe-back').click();
+  p.$('#hero-cards a.hero-go').click();
+  assert.ok(p.shown('#p-pubevent'), 'the hero');
+  // a click with Cmd or Ctrl is left to the browser (a new tab)
+  p.$('.pe-back').click();
+  const e = new p.w.MouseEvent('click', { bubbles: true, cancelable: true, metaKey: true });
+  p.$('#nextup a.nxcard').dispatchEvent(e);
+  assert.ok(p.shown('#p-landing'));
+  p.noErrors();
+});
+
+test("I'm new: sign me up goes to the volunteer form, which says which event; its x clears it", async t => {
+  const p = await eventPage(t, 'w7');
+  p.$('#pe-join').click();
+  assert.ok(p.shown('#p-landing') && !p.shown('#p-pubevent'));
+  assert.equal(p.w.location.pathname + p.w.location.search + p.w.location.hash, '/site#join');
+  assert.equal(p.$('#vj-ev').value, 'w7', 'the event, in a hidden field');
+  assert.equal(p.$('#vj-ev').type, 'hidden');
+  assert.ok(!p.$('#vj-for').hidden);
+  assert.equal(p.$('#vj-for > span').textContent, 'Coming to OPC Garden Work Party');
+  assert.ok(p.$('#vj-for use[href="#i-calendar"]'));
+  assert.equal(p.d.activeElement, p.$('#vj-name'), 'ready to type a name');
+  checkIcons(p, 'the Coming to chip');
+  p.w.history.back();
+  await waitFor(() => p.shown('#p-pubevent'), 2000, 'Back to the event');
+  p.$('#pe-join').click();
+  const x = p.$('#vj-for-x');
+  assert.equal(x.getAttribute('aria-label'), 'Clear "Coming to OPC Garden Work Party"');
+  x.click();
+  assert.ok(p.$('#vj-for').hidden);
+  assert.equal(p.$('#vj-ev').value, '');
+  assert.equal(p.d.activeElement, p.$('#vj-name'));
+  // the sign-up still goes through
+  p.set('#vj-name', 'Maya Ortiz'); p.set('#vj-contact', 'maya@example.org');
+  p.$('#vj-picks input').click();
+  p.$('#joinf button[type=submit]').click();
+  await waitFor(() => p.g.tab('Volunteers').some(r => r.includes('Maya Ortiz')), 3000, 'the sign-up');
   await waitFor(p.idle, 2000, 'calls to finish');
   p.noErrors();
+});
+
+test("Organizer? Open the plan: sign in from an event's page and its plan opens; signed in, ?ev= opens the plan; a draft's link can't be copied", async t => {
+  const sheet = await seededSheet(t);
+  const p = await eventPage(t, 'w7', null, sheet);
+  p.$('#pe-org').click();
+  assert.ok(p.shown('#p-signin'));
+  assert.equal(p.$('#si-back').textContent, 'Back to the event');
+  p.$('#si-back').click();
+  assert.ok(p.shown('#p-pubevent') && p.$('#pe-title'), 'back to the event');
+  p.$('#pe-org').click();
+  p.set('#si-code', p.code());
+  p.$('#si-pick button[data-as="Jessie"]').click();
+  await waitFor(() => p.shown('#p-event') && p.$('#detail #dp-plan') && !p.d.body.classList.contains('out'), 3000, "Workday #7's plan");
+  assert.match(p.$('#detail .dh h2').textContent, /OPC Garden Work Party/);
+  assert.equal(p.d.title, 'East Bay Permaculture Guild', 'the title is the site again');
+  const copy = p.$('#ev-copy');
+  assert.ok(!copy.disabled && !copy.title, 'a published event can be shared');
+  copy.click();
+  await waitFor(() => p.api.copied.length, 2000, 'the copied link');
+  assert.deepEqual(p.api.copied, ['http://localhost:8766/site?ev=w7'], 'the same link the public uses');
+  // the pop-up has Copy link too: off for a draft
+  p.$('#ev-back').click();
+  p.$('#tiles [data-open="m2"]').click();
+  await waitFor(() => p.shown('#modal') && p.$('#detail #dp-plan'), 2000, 'the pop-up');
+  const mc = p.$('#m-copy');
+  assert.ok(!mc.hidden && mc.disabled && mc.querySelector('use[href="#i-link"]'));
+  assert.equal(mc.title, 'Publish it first to share');
+  p.$('#m-x').click();
+  p.$('#tiles [data-open="w7"]').click();
+  await waitFor(() => p.shown('#modal') && !p.$('#m-copy').disabled, 2000, 'the pop-up for Workday #7');
+  p.$('#m-copy').click();
+  await waitFor(() => p.api.copied.length === 2, 2000, 'the copied link');
+  assert.equal(p.api.copied[1], 'http://localhost:8766/site?ev=w7');
+  p.$('#m-x').click();
+  await waitFor(p.idle, 2000, 'calls to finish');
+  // signed out from there, the site is home again (no ?ev=)
+  p.$('#signout').click();
+  assert.ok(p.shown('#p-landing'));
+  assert.equal(p.w.location.search, '');
+  p.noErrors();
+
+  // an organizer signed in on this device who opens ?ev= gets the plan, as before; a draft's Copy link is turned off
+  const q = loadPage(t, SITE, URL_SITE + '?ev=m2', withCode('tab', 'Phil'), sheet);
+  assert.ok(q.shown('#p-resume') && !q.shown('#p-pubevent'), 'signing back in, not the public page');
+  await waitFor(() => q.shown('#p-event') && q.$('#detail #dp-plan'), 4000, "Community Meeting #2's plan");
+  const qc = q.$('#ev-copy');
+  assert.ok(qc.disabled);
+  assert.equal(qc.title, 'Publish it first to share');
+  assert.equal(qc.getAttribute('aria-disabled'), 'true');
+  qc.click();
+  assert.deepEqual(q.api.copied, [], 'nothing copied');
+  q.$('#publish-ev').click();
+  assert.ok(!q.$('#ev-copy').disabled && !q.$('#ev-copy').title, 'published: it can be shared');
+  await waitFor(q.idle, 3000, 'calls to finish');
+  q.noErrors();
+});
+
+test('share previews: Open Graph and Twitter tags, a canonical link, and og.jpg next to the page', () => {
+  const live = fs.readFileSync(SITE, 'utf8'), head = live.slice(0, live.indexOf('<script>'));
+  const meta = (attr, k) => (head.match(new RegExp(`<meta ${attr}="${k.replace(/[:.]/g, '\\$&')}" content="([^"]*)">`)) || [])[1];
+  const desc = meta('name', 'description');
+  assert.equal(desc, 'Garden work days, monthly potlucks and volunteer sign-up for the East Bay Permaculture Guild in Oakland.');
+  assert.equal(meta('property', 'og:title'), 'East Bay Permaculture Guild');
+  assert.equal(meta('property', 'og:description'), desc, 'the same as the description');
+  assert.equal(meta('property', 'og:image'), 'https://ebpg-event-hub.netlify.app/og.jpg');
+  assert.equal(meta('property', 'og:url'), 'https://ebpg-event-hub.netlify.app/');
+  assert.equal(meta('name', 'twitter:card'), 'summary_large_image');
+  assert.ok(head.includes('<link rel="canonical" href="https://ebpg-event-hub.netlify.app/">'));
+  const og = path.join(path.dirname(SITE), 'og.jpg');
+  assert.ok(fs.existsSync(og), 'site/og.jpg');
+  assert.ok(fs.readFileSync(og).equals(fs.readFileSync(path.join(path.dirname(ARTIFACT), 'assets', 'trellis.jpg'))), 'the trellis photo');
+});
+
+test('the event page fits a phone: one column under 860px, no art under 600px, 44px tap targets', () => {
+  const css = fs.readFileSync(SITE, 'utf8').match(/<style>([\s\S]*?)<\/style>/)[1];
+  assert.match(css, /@media \(max-width: 860px\) \{ \.pe \{ grid-template-columns: 1fr;/);
+  assert.match(css, /@media \(max-width: 600px\) \{ \.pe-art \{ display: none; \} \}/);
+  assert.match(css, /\.pe-save \.btn \{[^}]*width: 100%; white-space: normal;[^}]*min-height: 44px;/);
+  assert.match(css, /\.pe-back \{[^}]*min-height: 44px;/);
+  for (const sel of ['.pe h1', '.pe-facts li > span', '.pe-about', '.pe-tl li']) assert.match(css, new RegExp(sel.replace(/[.>]/g, '\\$&') + ' \\{[^}]*overflow-wrap: anywhere'), sel + ' wraps long words');
 });
 
 test("when the Sheet doesn't answer: last visit's events stay on show, and coming back to the tab tries again", async t => {
@@ -2058,18 +2390,44 @@ test('the built page has no made-up meeting, and phones get the Next up strip in
   assert.match(block(400), /\.lock b \{ position: absolute; width: 1px; height: 1px; overflow: hidden; clip:/, 'under 400px the mark alone, the name kept for screen readers');
 });
 
-test('the prototype artifact draws its own events at once, with the same cards, and an event link stays on the home page', async t => {
+test('the prototype artifact draws its own events at once, with the same cards, and an event link opens its page (#pub-ID)', async t => {
   const p = loadPage(t, ARTIFACT, 'http://localhost/artifact');
   await waitFor(() => p.shown('#p-landing'), 2000, 'the artifact landing page');
   assert.ok(!p.$('.skel, .sk, [aria-busy]'), 'no grey shapes');
-  assert.deepEqual(p.$$('#nextup a.nxcard').map(a => [a.getAttribute('href'), a.querySelector('.soon').textContent]), [['?ev=w7', 'Tomorrow']]);
+  assert.deepEqual(p.$$('#nextup a.nxcard').map(a => [a.getAttribute('href'), a.querySelector('.soon').textContent]), [['#pub-w7', 'Tomorrow']]);
   assert.deepEqual([...p.$('#nextup .nb').children].map(x => x.textContent), ['Work party', 'OPC Garden Work Party', 'Sunday, October 25 · 10:00 AM', 'Oakland Peace Center']);
   assert.equal(p.$$('#hero-cards .art').length, 3);
   assert.equal(p.$('#nextstrip .nsk').textContent, 'Next up · Tomorrow');
   assert.deepEqual(p.$$('#si-pick button').map(b => b.dataset.as), ['Jessie', 'Phil', 'Kalynn', 'Sky']);
   p.$('#nextup a.nxcard').click();
-  p.$('#nextstrip a.nsgo').click();
-  assert.ok(p.shown('#p-landing') && p.$('#nextup a.nxcard'), 'still on the home page');
-  assert.deepEqual(p.api.calls, [], 'the artifact calls no server');
-  p.noErrors();
+  assert.ok(p.shown('#p-pubevent') && !p.shown('#p-landing'), 'the event page');
+  assert.equal(p.w.location.hash, '#pub-w7');
+  assert.equal(p.$('#pe-title').textContent, 'OPC Garden Work Party');
+  assert.deepEqual(p.$$('.pe-tl li').map(li => [...li.children].map(x => x.textContent)), W7_TL, 'drawn from the public fields of the in-memory event');
+  assert.deepEqual(p.$$('.pe-tips li').map(li => li.textContent), ['Wear closed-toe shoes and bring water.', "Look for Jessie, who's hosting."]);
+  const html = p.$('#p-pubevent').innerHTML;
+  for (const s of PLAN_ONLY) assert.ok(!html.includes(s), s + ' is not on the public page');
+  const cal = p.$('#pe-gcal').getAttribute('href');
+  assert.ok(cal.includes('dates=20261025T100000/20261025T140000') && cal.includes('ctz=America/Los_Angeles'));
+  assert.match(new URL(cal).searchParams.get('details'), /Details and directions: https:\/\/claude\.ai\/artifact\/\w+#pub-w7$/);
+  p.$('#pe-ics').click();
+  const ics = await blobText(p.w, (await waitFor(() => p.api.downloads[0], 2000, 'the .ics')).blob);
+  assert.ok(ics.includes('BEGIN:VCALENDAR') && ics.includes('DTSTART;TZID=America/Los_Angeles:20261025T100000'));
+  p.$('.pe-back').click();
+  assert.ok(p.shown('#p-landing'));
+  // a draft's link, and one that's over, aren't on the calendar
+  for (const id of ['m2', 'w6']) {
+    const q = loadPage(t, ARTIFACT, 'http://localhost/artifact#pub-' + id);
+    assert.equal(q.$('.pe-gone h1').textContent, "This event isn't on the calendar anymore", id);
+    assert.ok(!q.$('#p-pubevent').innerHTML.includes('Community Meeting'), id);
+    q.noErrors();
+  }
+  // signing in from an event's page opens its plan
+  const r = loadPage(t, ARTIFACT, 'http://localhost/artifact#pub-w7');
+  assert.equal(r.$('#pe-title').textContent, 'OPC Garden Work Party');
+  r.$('#pe-org').click();
+  r.$('#si-google').click();
+  assert.ok(r.shown('#p-event') && r.$('#detail #dp-plan'), "Workday #7's plan");
+  assert.deepEqual(p.api.calls.concat(r.api.calls), [], 'the artifact calls no server');
+  p.noErrors(); r.noErrors();
 });

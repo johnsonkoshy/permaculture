@@ -781,6 +781,68 @@ a.nxcard:hover { transform: translateY(-3px); box-shadow: var(--shadow); }
 .lcta p { opacity: .9; }
 .lcta .btn { background: var(--lemon); color: #2A2208; }
 .lcta::after { content: ""; position: absolute; width: 220px; height: 220px; right: -40px; bottom: -60px; opacity: .25; pointer-events: none; background: var(--mark-lines) center / contain no-repeat; }
+/* the hero's card fan opens the next event's page (keyboards and screen readers use the Upcoming events cards) */
+.scene .hero-go { position: absolute; inset: 0; display: block; }
+/* "Coming to <event>": the volunteer form, reached from an event's page */
+.vj-for { display: flex; align-items: center; gap: 8px; justify-self: start; max-width: 100%; padding: 4px 4px 4px 12px; border-radius: 999px; background: var(--fern-soft); color: var(--ink); font-size: 14px; }
+.vj-for > .ic { color: var(--fern); }
+.vj-for > span { min-width: 0; overflow-wrap: anywhere; }
+.vj-for .x { padding: 6px; }
+/* the public event page (?ev=ID; #pub-ID in the artifact): what a newcomer needs, from the public fields only */
+.pubev { display: grid; gap: 14px; padding-block: 0 40px; }
+.pe-back { justify-self: start; display: inline-flex; align-items: center; gap: 6px; min-height: 44px; font-weight: 700; font-size: 14px; color: var(--fern); text-decoration: none; }
+.pe-back:hover { text-decoration: underline; text-underline-offset: 3px; }
+.pe { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 36px; align-items: start; }
+@media (max-width: 860px) { .pe { grid-template-columns: 1fr; gap: 28px; } }
+.pe-main { display: grid; gap: 24px; min-width: 0; }
+.pe-k { display: flex; align-items: center; gap: 8px 10px; flex-wrap: wrap; font: 600 12px/1.3 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--fern); }
+.pe-soon { display: inline-flex; align-items: center; gap: 5px; padding: 5px 10px; border-radius: 999px; background: var(--b-lemon); color: var(--b-canopy); font: 700 12px/1 var(--body); letter-spacing: 0; text-transform: none; }
+.pe-soon .ic { width: 13px; height: 13px; }
+.pe h1 { font: 400 clamp(34px, 5.4vw, 56px)/1.04 var(--display); letter-spacing: -.012em; margin-top: 12px; overflow-wrap: anywhere; }
+.pe h1:focus { outline: none; }
+.pe-facts { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; }
+.pe-facts li { display: grid; grid-template-columns: 40px minmax(0, 1fr); gap: 12px; align-items: start; }
+.pe-facts li > span { display: grid; gap: 2px; min-width: 0; justify-items: start; overflow-wrap: anywhere; }
+.pe-facts b { font-size: 17px; }
+.pe-facts span span { color: var(--ink-2); }
+.pe-dir { display: inline-flex; align-items: center; gap: 2px; min-height: 36px; font-weight: 700; font-size: 14px; }
+.pe-cta { display: flex; gap: 10px; flex-wrap: wrap; }
+.pe-about { display: grid; gap: 12px; font-size: 17px; line-height: 1.55; color: var(--ink-2); max-width: 62ch; overflow-wrap: anywhere; }
+.pe-about b { color: var(--ink); }
+.pe-gtk { display: flex; gap: 10px; align-items: flex-start; color: var(--ink); }
+.pe-gtk .ic { color: var(--fern); margin-top: 4px; }
+.pe-first { display: grid; gap: 14px; padding: 22px; border-radius: 18px; background: var(--surface); border: 1px solid var(--line); }
+@media (max-width: 560px) { .pe-first { padding: 18px 16px; } }
+.pe-first h2, .pe-gone h2 { font: 400 clamp(22px, 3vw, 28px)/1.15 var(--display); }
+.pe-tl { list-style: none; margin: 0; padding: 0; display: grid; }
+.pe-tl li { display: grid; grid-template-columns: 84px minmax(0, 1fr); gap: 12px; padding: 9px 0; border-top: 1px solid var(--line); overflow-wrap: anywhere; }
+.pe-tl li:first-child { border-top: 0; padding-top: 0; }
+.pe-tl .tm { font: 600 13px/1.6 var(--mono); color: var(--fern); white-space: nowrap; }
+.pe-tips { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.pe-tips li { display: flex; gap: 10px; align-items: flex-start; font-weight: 700; }
+.pe-tips .ic { color: var(--fern); margin-top: 3px; }
+.pe-side { display: grid; gap: 16px; min-width: 0; }
+.pe-art { width: 100%; max-width: 380px; }
+@media (max-width: 860px) { .pe-art { max-width: 280px; } }
+@media (max-width: 600px) { .pe-art { display: none; } }
+.pe-save { display: grid; gap: 8px; padding: 18px; border-radius: 18px; border: 1px solid var(--line); background: var(--surface); }
+.pe-save h2 { font: 700 15px/1.3 var(--body); margin-bottom: 2px; }
+.pe-save .btn { justify-content: flex-start; width: 100%; white-space: normal; text-align: left; min-height: 44px; }
+.pe-org { justify-self: start; }
+/* waiting for the Sheet, and an event that isn't (or is no longer) on the public calendar */
+.pe-skel .sk.k { height: 12px; width: 110px; }
+.pe-skel .sk.h { height: 44px; width: 78%; margin-top: 14px; }
+.pe-skel .sk.ln { height: 14px; width: 55%; }
+.pe-skel .sk.ln.s { width: 38%; }
+.pe-skel .sk.box { height: 220px; border-radius: 18px; }
+.pe-skel b { color: var(--ink-3); }
+.pe-gone { display: grid; gap: 12px; justify-items: start; padding: 28px; border-radius: 22px; background: var(--surface); border: 1px solid var(--line); }
+@media (max-width: 560px) { .pe-gone { padding: 20px 16px; } }
+.pe-gone h1 { font: 400 clamp(28px, 4.4vw, 42px)/1.1 var(--display); }
+.pe-gone h1:focus { outline: none; }
+.pe-gone > p { color: var(--ink-2); max-width: 56ch; font-size: 17px; }
+.pe-gone .nextup { width: 100%; margin-top: 8px; }
+.pe-gone.warn .ic-chip { background: var(--flag-soft); color: var(--flag); }
 /* sign in */
 .signin { min-height: min(720px, 82vh); display: grid; place-items: center; padding-block: 24px; }
 .scard { width: min(440px, 100%); background: var(--surface); border: 1px solid var(--line); border-radius: 20px; box-shadow: var(--shadow); padding: 32px 28px; display: grid; gap: 16px; animation: up .6s cubic-bezier(.2, .7, .2, 1) both; }
@@ -988,7 +1050,7 @@ td code, .code code { font: 400 13px/1.5 var(--mono); }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 /* phones: small buttons and inline action links are at least 44px tall, so they're easy to tap */
 @media (max-width: 600px) {
-  .btn.sm, .tog, .x, .obody a.hint, .ostat a, .dh .meta a, .doc-kv a, .savest button, .chk { min-height: 44px; }
+  .btn.sm, .tog, .x, .obody a.hint, .ostat a, .dh .meta a, .doc-kv a, .savest button, .chk, .pe-dir { min-height: 44px; }
   .dh .meta a, .doc-kv a { display: inline-flex; align-items: center; }
   .x { min-width: 44px; }
 }
@@ -1139,6 +1201,8 @@ td code, .code code { font: 400 13px/1.5 var(--mono); }
       </div>
       <div class="combo-r">
       <form class="joinf" id="joinf" novalidate>
+        <input type="hidden" id="vj-ev" name="ev" value="">
+        <div class="vj-for" id="vj-for" hidden></div>
         <div class="r2"><label class="fld">Name<input id="vj-name" autocomplete="name"></label><label class="fld">Email or phone<input id="vj-contact" autocomplete="email"></label></div>
         <fieldset><legend>I'd like to help with</legend><div class="picks" id="vj-picks"></div></fieldset>
         <label class="fld">Anything else? <span class="hint" style="font-weight:400">optional</span><textarea id="vj-note" rows="2" placeholder="Skills, availability, languages you speak"></textarea></label>
@@ -1153,6 +1217,9 @@ td code, .code code { font: 400 13px/1.5 var(--mono); }
       </div>
     </section>
   </div>
+
+  <!-- ============ PUBLIC EVENT PAGE (?ev=ID) ============ -->
+  <div id="p-pubevent" data-page="pubevent" class="pubev" hidden></div>
 
   <!-- ============ SIGN IN ============ -->
   <div id="p-signin" data-page="signin" class="signin" hidden>
@@ -1629,6 +1696,7 @@ await supabase.from('volunteers').insert({
       <section aria-labelledby="hp-pub">
         <h2 id="hp-pub">Drafts and the public page</h2>
         <p>A new event starts as a <b>Draft</b>: only organizers see it, so you can plan it before anyone else does. When it's ready, click <b>Publish</b> at the top of the event, or pick <b>Published</b> in Edit event. Published events show on the public page from today on, with the RSVP link if you add one. In the Sheet, the Events tab's <code>status</code> column says <code>draft</code>, <code>published</code> or <code>cancelled</code>; a blank one counts as published. A change typed into the Sheet by hand can take up to 5 minutes to reach the public page.</p>
+        <p>Each published event has its own page for newcomers: when and where, directions, what to bring, how the day goes and who to look for, with buttons to sign up, add it to a calendar and share it. <b>Copy link</b> at the top of an event copies its link for posts and flyers; a draft's link works once it's published. Organizers who open the link while signed in get the plan.</p>
       </section>
       <section aria-labelledby="hp-lead">
         <h2 id="hp-lead">Who to ask</h2>
@@ -1639,7 +1707,7 @@ await supabase.from('volunteers').insert({
 </main>
 
 <div class="modal" id="modal" hidden><div class="mbox" role="dialog" aria-modal="true" aria-labelledby="m-title">
-  <div class="mbar"><span class="eyebrow" id="m-title">Event</span><div class="grp"><a class="btn ghost sm" id="m-tab" href="#" target="_blank" rel="noopener">New tab<svg class="ic" aria-hidden="true" focusable="false"><use href="#i-out"/></svg></a><button class="btn primary sm" type="button" id="m-x"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-x"/></svg>Close</button></div>
+  <div class="mbar"><span class="eyebrow" id="m-title">Event</span><div class="grp"><button class="btn ghost sm" type="button" id="m-copy"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-link"/></svg>Copy link</button><a class="btn ghost sm" id="m-tab" href="#" target="_blank" rel="noopener">New tab<svg class="ic" aria-hidden="true" focusable="false"><use href="#i-out"/></svg></a><button class="btn primary sm" type="button" id="m-x"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-x"/></svg>Close</button></div>
     <div class="savest live" id="m-savest" role="status" tabindex="-1" data-state="idle"><span></span><button type="button" hidden><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-rotate-ccw"/></svg>Retry</button></div></div>
   <div class="mbody" id="m-body"></div>
 </div></div>
@@ -1657,6 +1725,11 @@ let whenSaved = f => f(), unsaved = id => false, leaveOk = () => true;
 /* The public page's data. The artifact draws its own events at once; the live build starts at 'loading' (grey shapes)
    until the Sheet's public data arrives, and 'failed' says it never did. PUB: the Settings the public page shows. */
 let pubState = 'ready';
+/* pubAnswered: the Sheet's public data has come this visit (the live build starts without it, so an event page shows
+   grey shapes rather than "not on the calendar" while it waits). planAfter: the event whose plan opens after signing in,
+   set by visiting its public page. */
+let pubAnswered = true, planAfter = '';
+const TITLE0 = document.title;
 const LINKTREE = 'https://linktr.ee/eastbaypermacultureguild';
 const PUB = { SCHEDULE_TEXT: '', LINKTREE_URL: LINKTREE };
 const $ = (s, el = document) => el.querySelector(s);
@@ -1988,6 +2061,8 @@ const counts = ev => { const c = { off: 0, review: 0, approved: 0, posted: 0, te
 /* tabs */
 function showTab(t) {
   if (t !== 'event' && S.mode === 'page') { DETAIL.remove(); S.mode = null; }
+  if (t !== 'pubevent') document.title = TITLE0;
+  if (t === 'landing') planAfter = '';
   $$('[data-page]').forEach(p => p.hidden = p.dataset.page !== t);
   $$('.tabs a').forEach(a => a.setAttribute('aria-current', a.dataset.tab === (t === 'event' ? 'events' : t) ? 'page' : 'false'));
 }
@@ -2119,10 +2194,13 @@ function renderTiles() {
   });
 }
 let evLink = id => ''; // the live build links to its own page
+// the public event page's full link, for sharing and calendars: on the live site the same ?ev= link (organizers who are signed in get the plan)
+let pubLink = id => evLink(id);
 /*PROTO*/
 const ARTIFACT = 'https://claude.ai/artifact/EDjxHQH1WdzLnhMVGh6taL';
 const SEEDED = ['w2', 'w5', 'm1', 'w6', 'w7', 'm2'];
 evLink = id => SEEDED.includes(id) ? ARTIFACT + '#ev-' + id : '';
+pubLink = id => ARTIFACT + '#pub-' + encodeURIComponent(id);
 /*/PROTO*/
 const DETAIL = Object.assign(document.createElement('div'), { id: 'detail', className: 'detail' });
 // while the event pop-up is open, the page behind it can't be reached by Tab, a click or a screen reader
@@ -2139,7 +2217,7 @@ function openEvent(id, mode) {
     $('#m-body').appendChild(DETAIL); $('#modal').hidden = false; document.body.style.overflow = 'hidden'; pageBehind(true);
     $('#modal').scrollTop = 0;
     $('#m-title').textContent = ev.label || 'Event';
-    const tab = $('#m-tab'), lk = evLink(id); tab.hidden = !lk; tab.href = lk || '#';
+    const tab = $('#m-tab'), lk = evLink(id); tab.hidden = !lk; tab.href = lk || '#'; $('#m-copy').hidden = !lk;
     setTimeout(() => $('#m-x').focus(), 20);
   }
   renderDetail();
@@ -2166,13 +2244,14 @@ $('#modal').addEventListener('keydown', e => {
   if (e.shiftKey ? cur === first || !box.contains(cur) : cur === last || !box.contains(cur)) { e.preventDefault(); (e.shiftKey ? last : first).focus(); }
 });
 $('#ev-back').addEventListener('click', () => { DETAIL.remove(); S.mode = null; showTab('events'); history.replaceState(null, '', '#events'); render(); });
-$('#ev-copy').addEventListener('click', async () => {
+$$('#ev-copy, #m-copy').forEach(b => b.addEventListener('click', async () => {
+  if (EVENTS.find(e => e.id === S.sel)?.status === 'draft') return; // Publish it first to share
   const link = evLink(S.sel);
 /*PROTO*/
   if (!link) { toast('This prototype event only lives in this tab, so it has no link yet.'); return; }
 /*/PROTO*/
   try { await navigator.clipboard.writeText(link); toast('Link copied', 'check'); } catch { toast(link); }
-});
+}));
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#modal').hidden && !$('#scrim')) closeEvent(); });
 $$('[data-when]').forEach(b => b.addEventListener('click', () => { S.when = b.dataset.when; renderTiles(); }));
 
@@ -2201,6 +2280,12 @@ function renderDetail() {
       <div class="chs"><div class="chs-h">${fold('log', 'Activity', ev.log.length, 'history')}</div><ul class="log" id="log-body" ${hid('log')}>${ev.log.slice().reverse().map(([t, w]) => `<li><span>${esc(t)}</span><span>${esc(w)}</span></li>`).join('')}</ul></div>
     </div>`;
   $$('[data-dtab]').forEach(b => b.addEventListener('click', () => { S.dtab = b.dataset.dtab; try { sessionStorage.setItem('ebpg-dtab', S.dtab); } catch {} renderDetail(); }));
+  // Copy link (on the event page and in the pop-up): the public page's link, so a draft has nothing to share yet
+  const hide = ev.status === 'draft';
+  $$('#ev-copy, #m-copy').forEach(cp => {
+    cp.disabled = hide; cp.title = hide ? 'Publish it first to share' : '';
+    if (hide) cp.setAttribute('aria-disabled', 'true'); else cp.removeAttribute('aria-disabled');
+  });
   bindDetail(ev);
   applyPerms();
   sync();
@@ -2715,6 +2800,12 @@ function renderVols() {
 const mdy = s => D(s).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 function bindJoin() {
   $('#vj-picks').innerHTML = HELP.map(([k, l]) => `<label><input type="checkbox" name="vj-help" value="${k}"><span>${ic('check')}${l}</span></label>`).join('');
+  // the "Coming to <event>" chip's x: a sign-up for no event in particular
+  $('#vj-for').addEventListener('click', e => {
+    if (!e.target.closest('#vj-for-x')) return;
+    $('#vj-ev').value = ''; $('#vj-for').hidden = true; $('#vj-for').innerHTML = '';
+    $('#vj-name').focus();
+  });
   $('#joinf').addEventListener('submit', e => {
     e.preventDefault();
     const name = $('#vj-name').value.trim(), contact = $('#vj-contact').value.trim(), help = $$('input[name=vj-help]:checked').map(i => i.value), err = $('#vj-err');
@@ -2733,8 +2824,18 @@ function bindJoin() {
 /* The public landing page, from the published events only: never a draft, never one that's over.
    The live build fills EVENTS from the Sheet's public data (getPublic); until it answers, grey shapes. */
 const SCHED = $('#sched').textContent; // when the Settings tab's SCHEDULE_TEXT is blank
-// an event's public page (the live build reads ?ev= when it loads)
-const evHref = id => '?ev=' + encodeURIComponent(id);
+/* An event's public page: ?ev=ID on the live site, #pub-ID in the artifact. homeHref: the home page, at a #section.
+   pubFromUrl: the event the address bar names, if any. */
+let evHref = id => '?ev=' + encodeURIComponent(id);
+let homeHref = (hash = '#welcome') => location.pathname + hash;
+let pubFromUrl = () => { try { return (new URLSearchParams(location.search).get('ev') || '').slice(0, 40); } catch { return ''; } };
+/*PROTO*/
+evHref = id => '#pub-' + encodeURIComponent(id);
+homeHref = (hash = '#welcome') => hash;
+pubFromUrl = () => { const h = location.hash.slice(1); try { return h.startsWith('pub-') ? decodeURIComponent(h.slice(4)).slice(0, 40) : ''; } catch { return ''; } };
+/*/PROTO*/
+// change the address without reloading (the Apps Script frame may refuse)
+const urlTo = (u, push) => { try { history[push ? 'pushState' : 'replaceState'](null, '', u); } catch {} };
 // 'Today', 'Tomorrow' or 'This Saturday' for an event in the coming week, else ''
 function soonWord(s) {
   const n = Math.round((D(s) - D(TODAY)) / 864e5);
@@ -2767,7 +2868,8 @@ function renderLanding() {
   const cards = $('#hero-cards'), note = $('#hero-note');
   busyAttr(cards, loading);
   cards.innerHTML = loading ? '<span class="sk c1"></span><span class="sk c2">Loading events…</span><span class="sk c3"></span>'
-    : hero ? flyerArt(hero).replace('art flyer', 'art flyer c1') + igArt(hero).replace('art ig', 'art ig c2') + storyArt(hero).replace('art story', 'art story c3') : '';
+    : hero ? `<a class="hero-go" href="${esc(evHref(hero.id))}" data-ev="${esc(hero.id)}" tabindex="-1">`
+      + flyerArt(hero).replace('art flyer', 'art flyer c1') + igArt(hero).replace('art ig', 'art ig c2') + storyArt(hero).replace('art story', 'art story c3') + '</a>' : '';
   cards.hidden = !loading && !hero;
   note.hidden = loading || !!hero;
   note.className = 'scene-note' + (failed ? ' warn' : '');
@@ -2800,31 +2902,242 @@ function renderLanding() {
       : 'The Guild Sheet has no organizers yet. Type the code and press Continue to set it up, then pick your name.'}</p>`
       + `<button type="button" class="first" data-as="" data-first>${ic('log-in')}<span>Continue<small>Check the code</small></span></button>`;
   $$('[data-as]', pick).forEach(b => b.addEventListener('click', () => signIn(b.dataset.as)));
+  if (!$('#p-pubevent').hidden) renderPubEvent(); // the Sheet's answer came while an event's page is open
 }
-function goSignIn() { showTab('signin'); history.replaceState(null, '', '#signin'); window.scrollTo({ top: 0 }); }
+
+/* ---------- the public event page ----------
+   What the page may show: the public fields only (getPublic's shape), worked out the same way from an organizer's
+   full event, so nothing from the plan (the leads' notes and times, roles, tasks, food, notes) ever reaches it. */
+function pubShape(e) {
+  const s = v => String(v ?? ''), pl = e.plan && Array.isArray(e.plan.roles) ? e.plan : null;
+  const tl = (e.plan && Array.isArray(e.plan.timeline) ? e.plan.timeline : [])
+    .filter(r => Array.isArray(r) && /^\d{2}:\d{2}$/.test(s(r[0])) && !/^leads$/i.test(s(r[2]).trim())) // the leads' own rows stay in the plan
+    .map(r => [s(r[0]), s(r[1])]).sort((a, b) => a[0].localeCompare(b[0]));
+  return { id: s(e.id), series: s(e.series), title: s(e.title), date: s(e.date), start: s(e.start), end: s(e.end), place: s(e.place), address: s(e.address),
+    map: safeUrl(e.map), about: s(e.about), bring: s(e.bring), tags: Array.isArray(e.tags) ? e.tags.map(s) : [], photo: s(e.photo),
+    host: s((pl && hostOf(pl)) || e.host).trim().split(/\s+/)[0], timeline: tl, rsvp: safeUrl(e.rsvp) };
+}
+/* calendars: Oakland time, written the way Google Calendar and .ics files want it */
+const TZ = 'America/Los_Angeles';
+const HM = /^\d{2}:\d{2}$/;
+const calStamp = (date, hm) => date.replace(/-/g, '') + 'T' + hm.replace(':', '') + '00';
+const nextDay = s => { const d = D(s); d.setDate(d.getDate() + 1); return iso(d); };
+// when it starts and ends; with no start time, the whole day; with no end time (or one before the start), two hours
+function calSpan(e) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(e.date)) return null;
+  if (!HM.test(e.start)) return { day: true, start: e.date.replace(/-/g, ''), end: nextDay(e.date).replace(/-/g, '') };
+  let end = HM.test(e.end) && e.end > e.start ? e.end : '';
+  if (!end) { const m = Math.min(+e.start.slice(0, 2) * 60 + +e.start.slice(3) + 120, 23 * 60 + 59); end = String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0'); }
+  return { day: false, start: calStamp(e.date, e.start), end: calStamp(e.date, end) };
+}
+const whereOf = e => [e.place, e.address].filter(Boolean).join(', ');
+const calDetails = (e, url) => [e.about, e.bring && 'What to bring: ' + e.bring, url && 'Details and directions: ' + url].filter(Boolean).join('\n\n');
+function gcalUrl(e) {
+  const sp = calSpan(e);
+  return sp ? 'https://calendar.google.com/calendar/render?action=TEMPLATE&text=' + encodeURIComponent(e.title) + '&dates=' + sp.start + '/' + sp.end
+    + '&ctz=' + TZ + '&location=' + encodeURIComponent(whereOf(e)) + '&details=' + encodeURIComponent(calDetails(e, pubLink(e.id))) : '';
+}
+// Oakland's daylight-saving rules, so Outlook and older calendar apps read DTSTART;TZID right too
+const VTIMEZONE = ['BEGIN:VTIMEZONE', 'TZID:' + TZ, 'X-LIC-LOCATION:' + TZ,
+  'BEGIN:DAYLIGHT', 'TZOFFSETFROM:-0800', 'TZOFFSETTO:-0700', 'TZNAME:PDT', 'DTSTART:19700308T020000', 'RRULE:FREQ=YEARLY;BYMONTH=3;BYDAY=2SU', 'END:DAYLIGHT',
+  'BEGIN:STANDARD', 'TZOFFSETFROM:-0700', 'TZOFFSETTO:-0800', 'TZNAME:PST', 'DTSTART:19701101T020000', 'RRULE:FREQ=YEARLY;BYMONTH=11;BYDAY=1SU', 'END:STANDARD', 'END:VTIMEZONE'];
+const icsEsc = v => String(v ?? '').replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r\n|\r|\n/g, '\\n');
+// a line longer than 75 bytes goes on over the next lines, each starting with a space (RFC 5545)
+function icsFold(line) {
+  let out = '', n = 0;
+  for (const ch of line) {
+    const c = ch.codePointAt(0), b = c < 0x80 ? 1 : c < 0x800 ? 2 : c < 0x10000 ? 3 : 4;
+    if (n + b > 75) { out += '\r\n '; n = 1; }
+    out += ch; n += b;
+  }
+  return out;
+}
+function icsText(e) {
+  const sp = calSpan(e), url = pubLink(e.id), where = whereOf(e);
+  if (!sp) return '';
+  const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d+/, '');
+  const when = sp.day ? ['DTSTART;VALUE=DATE:' + sp.start, 'DTEND;VALUE=DATE:' + sp.end] : ['DTSTART;TZID=' + TZ + ':' + sp.start, 'DTEND;TZID=' + TZ + ':' + sp.end];
+  return ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//East Bay Permaculture Guild//Event Hub//EN', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH', ...(sp.day ? [] : VTIMEZONE),
+    'BEGIN:VEVENT', 'UID:' + icsEsc(e.id) + '@ebpg-event-hub', 'DTSTAMP:' + stamp, ...when, 'SUMMARY:' + icsEsc(e.title),
+    ...(where ? ['LOCATION:' + icsEsc(where)] : []), 'DESCRIPTION:' + icsEsc(calDetails(e, url)), ...(url ? ['URL:' + url] : []), 'END:VEVENT', 'END:VCALENDAR']
+    .map(icsFold).join('\r\n') + '\r\n';
+}
+const icsName = e => 'ebpg-' + e.date + '-' + (e.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'event') + '.ics';
+function downloadIcs(e) {
+  const text = icsText(e), a = document.createElement('a');
+  if (!text) return;
+  let href;
+  try { href = URL.createObjectURL(new Blob([text], { type: 'text/calendar;charset=utf-8' })); } catch { href = 'data:text/calendar;charset=utf-8,' + encodeURIComponent(text); }
+  a.href = href; a.download = icsName(e); a.hidden = true;
+  document.body.appendChild(a); a.click(); a.remove();
+  if (href.startsWith('blob:')) setTimeout(() => { try { URL.revokeObjectURL(href); } catch {} }, 10000);
+}
+// the map link the organizers set (https only), else a Google Maps search for the address
+const directionsUrl = e => e.map || (e.address || e.place ? 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(e.address || e.place) : '');
+const RSVP_SITES = [[/(^|\.)partiful\.com$/, 'Partiful'], [/(^|\.)(lu\.ma|luma\.com)$/, 'Luma'], [/(^|\.)meetup\.com$/, 'Meetup'], [/(^|\.)(facebook\.com|fb\.me)$/, 'Facebook'], [/(^|\.)eventbrite\.[a-z.]+$/, 'Eventbrite']];
+const rsvpSite = u => { let h = ''; try { h = new URL(u).hostname.toLowerCase(); } catch {} return (RSVP_SITES.find(([re]) => re.test(h)) || [, ''])[1]; };
+const shareText = e => `${e.title}: ${longDate(e.date)}${HM.test(e.start) ? ', ' + t12s(e.start) : ''}${e.place ? ', ' + e.place : ''}. With the East Bay Permaculture Guild.`;
+async function copyLink(url) {
+  try { await navigator.clipboard.writeText(url); toast('Link copied', 'check'); } catch { toast(url); }
+}
+async function sharePub(e) {
+  const url = pubLink(e.id);
+  try { await navigator.share({ title: e.title, text: shareText(e), url }); }
+  catch (er) { if (!er || er.name !== 'AbortError') copyLink(url); } // closing the share sheet is fine; anything else copies the link
+}
+const isWork = e => ['Work party', 'Work day', 'Dig day'].includes(kindOf(e));
+function pubEventHTML(e) {
+  const soon = soonWord(e.date), dir = directionsUrl(e), gtk = goodToKnow(e), cal = gcalUrl(e), site = e.rsvp ? rsvpSite(e.rsvp) : '';
+  const tips = [isWork(e) && ['shovel', 'Wear closed-toe shoes and bring water.'], e.host && ['user', `Look for ${e.host}, who's hosting.`]].filter(Boolean);
+  const when = HM.test(e.start) ? (HM.test(e.end) ? range(e.start, e.end) : t12(e.start)) : '';
+  const share = typeof navigator.share === 'function'
+    ? `<button class="btn ghost" type="button" id="pe-share" data-pe="share">${ic('share')}Share</button>`
+    : `<button class="btn ghost" type="button" id="pe-copy" data-pe="copy">${ic('link')}Copy link</button>`
+      + `<a class="btn ghost" id="pe-wa" href="${esc('https://wa.me/?text=' + encodeURIComponent(shareText(e) + ' ' + pubLink(e.id)))}" target="_blank" rel="noopener">${ic('message-circle')}Share on WhatsApp${ic('out')}</a>`;
+  return `<a class="pe-back" href="${esc(homeHref('#meet'))}" data-pe="home">${ic('arrow-left')}All upcoming events</a>
+  <article class="pe" aria-labelledby="pe-title">
+    <div class="pe-main">
+      <header><p class="pe-k"><span>${esc(kindOf(e))}</span>${soon ? `<span class="pe-soon">${ic('clock')}${esc(soon)}</span>` : ''}</p><h1 id="pe-title" tabindex="-1">${esc(e.title)}</h1></header>
+      <ul class="pe-facts">
+        <li><i class="ic-chip">${ic('calendar')}</i><span><b>${esc(longDate(e.date))}</b>${when ? `<span>${esc(when)}</span>` : ''}</span></li>
+        ${e.place || e.address ? `<li><i class="ic-chip">${ic('map-pin')}</i><span>${e.place ? `<b>${esc(e.place)}</b>` : ''}${e.address ? `<span>${esc(e.address)}</span>` : ''}${dir ? `<a class="pe-dir" id="pe-dir" href="${esc(dir)}" target="_blank" rel="noopener">Directions${ic('out', 'out')}</a>` : ''}</span></li>` : ''}
+      </ul>
+      <div class="pe-cta"><a class="btn primary lg" id="pe-join" href="${esc(homeHref('#join'))}" data-pe="join">${ic('user-plus')}I'm new: sign me up</a>${e.rsvp ? `<a class="btn ghost lg" id="pe-rsvp" href="${esc(e.rsvp)}" target="_blank" rel="noopener">${site ? 'Also on ' + esc(site) : 'RSVP online'}${ic('out')}</a>` : ''}</div>
+      ${e.about || e.bring || gtk ? `<div class="pe-about">${e.about ? `<p>${esc(e.about)}</p>` : ''}${e.bring ? `<p><b>What to bring:</b> ${esc(e.bring)}</p>` : ''}${gtk ? `<p class="pe-gtk">${ic('check')}<span>${esc(gtk)}</span></p>` : ''}</div>` : ''}
+      ${e.timeline.length || tips.length ? `<section class="pe-first" aria-labelledby="pe-first-h"><h2 id="pe-first-h">First time? Here's how it goes</h2>`
+        + (e.timeline.length ? `<ol class="pe-tl">${e.timeline.map(([t, x]) => `<li><span class="tm">${esc(t12(t))}</span><span>${esc(x)}</span></li>`).join('')}</ol>` : '')
+        + (tips.length ? `<ul class="pe-tips">${tips.map(([i, x]) => `<li>${ic(i)}<span>${esc(x)}</span></li>`).join('')}</ul>` : '') + '</section>' : ''}
+    </div>
+    <div class="pe-side">
+      <div class="pe-art" aria-hidden="true">${igArt(e)}</div>
+      <section class="pe-save" aria-labelledby="pe-save-h"><h2 id="pe-save-h">Save and share</h2>
+        ${cal ? `<a class="btn ghost" id="pe-gcal" href="${esc(cal)}" target="_blank" rel="noopener">${ic('calendar-plus')}Add to Google Calendar${ic('out')}</a><button class="btn ghost" type="button" id="pe-ics" data-pe="ics">${ic('download')}Download .ics</button>` : ''}
+        ${share}
+        ${cal ? '<p class="hint">The .ics file works with Apple Calendar, Outlook and most calendar apps.</p>' : ''}
+      </section>
+      <button class="tog pe-org" type="button" id="pe-org" data-pe="org">${ic('lock')}Organizer? Open the plan</button>
+    </div>
+  </article>`;
+}
+const PE_SKEL = `<div class="pe pe-skel skel"><div class="pe-main"><div><span class="sk k"></span><span class="sk h"></span></div><p role="status"><b>Loading event…</b></p>`
+  + '<span class="sk ln"></span><span class="sk ln s"></span><span class="sk box"></span></div><div class="pe-side" aria-hidden="true"><span class="sk box"></span></div></div>';
+// an event that isn't on the public calendar (never was, a draft, cancelled, or over), or the Sheet didn't answer
+function peGoneHTML(failed) {
+  const home = `<a class="btn ghost" href="${esc(homeHref())}" data-pe="home-top">${ic('arrow-left')}Go to the home page</a>`;
+  if (failed) return `<section class="pe-gone warn"><i class="ic-chip">${ic('alert-triangle')}</i><h1 tabindex="-1">We couldn't load this event</h1>`
+    + `<p>The Guild Sheet didn't answer. Try again in a minute, or <a href="${esc(linktree())}" target="_blank" rel="noopener">see our Linktree${ic('out')}</a> for upcoming events.</p>${home}</section>`;
+  const nx = upcoming().slice(0, 3);
+  return `<section class="pe-gone"><i class="ic-chip">${ic('calendar')}</i><h1 tabindex="-1">This event isn't on the calendar anymore</h1>`
+    + (nx.length ? `<p>It may have moved, or it's already happened. Here's what's coming up next.</p><div class="nextup">${nx.map(nextCard).join('')}</div>`
+      : `<p><b>Next dates coming soon.</b> <a href="${esc(homeHref('#join'))}" data-pe="joinlist">Join the list</a> and we'll tell you.</p>`) + home + '</section>';
+}
+/* draw the page for S.pub: the event, grey shapes while the Sheet's first answer is on its way, or the not-found note.
+   Redrawn only when it changes, so a focused button keeps focus when the Sheet's answer comes. */
+let peHTML = '';
+function renderPubEvent() {
+  const box = $('#p-pubevent'), found = upcoming().find(e => e.id === S.pub), e = found && pubShape(found);
+  const failed = pubState === 'failed', waiting = !e && !failed && (pubState === 'loading' || !pubAnswered);
+  const html = e ? pubEventHTML(e) : waiting ? PE_SKEL : peGoneHTML(failed);
+  document.title = e ? e.title + ' · East Bay Permaculture Guild' : TITLE0;
+  busyAttr(box, waiting);
+  if (html === peHTML) return;
+  const f = document.activeElement, fid = f && box.contains(f) ? f.id : '';
+  box.innerHTML = peHTML = html;
+  if (fid) document.getElementById(fid)?.focus();
+}
+/* show an event's page. how: 'push' (a link on this page: a new history entry, focus on the heading),
+   'pop' (Back or Forward), or nothing (the address already names it) */
+let landingY = 0;
+function showPubEvent(id, how) {
+  S.pub = String(id || '').slice(0, 40); planAfter = S.pub;
+  showTab('pubevent');
+  renderPubEvent();
+  if (how === 'push') urlTo(evHref(S.pub), true); else if (how !== 'pop') urlTo(evHref(S.pub));
+  window.scrollTo({ top: 0 });
+  if (how === 'push') $('#p-pubevent h1')?.focus({ preventScroll: true });
+}
+// the home page, at a section (#meet, #join), with a new history entry when push
+function goHome(hash = '#welcome', push) {
+  showTab('landing');
+  urlTo(homeHref(hash), push);
+  const sec = hash.length > 1 && document.getElementById(hash.slice(1));
+  if (!sec) { window.scrollTo({ top: 0 }); return; }
+  sec.scrollIntoView({ block: 'start' });
+  const h = sec.querySelector('h2');
+  if (h) { h.tabIndex = -1; h.focus({ preventScroll: true }); }
+}
+// "I'm new: sign me up": the volunteer form, saying which event they're coming to (the form keeps its id in #vj-ev)
+function joinFor(e) {
+  if ($('#joinf').hidden) { $('#joinf').reset(); $('#vj-err').hidden = true; $('#joinf').hidden = false; $('#joined').hidden = true; }
+  if (e) {
+    $('#vj-ev').value = e.id;
+    const c = $('#vj-for');
+    c.innerHTML = `${ic('calendar')}<span>Coming to <b>${esc(e.title)}</b></span><button class="x" type="button" id="vj-for-x" aria-label="${esc(`Clear "Coming to ${e.title}"`)}">${ic('x')}</button>`;
+    c.hidden = false;
+  }
+  goHome('#join', true);
+  $('#vj-name').focus({ preventScroll: true });
+}
+$('#p-pubevent').addEventListener('click', ev => {
+  const b = ev.target.closest('[data-pe]');
+  if (!b || (b.tagName === 'A' && (ev.button || ev.metaKey || ev.ctrlKey || ev.shiftKey || ev.altKey))) return; // a new tab gets the plain link
+  const found = upcoming().find(x => x.id === S.pub), e = found && pubShape(found);
+  if (b.tagName === 'A') ev.preventDefault();
+  switch (b.dataset.pe) {
+    case 'home': goHome('#meet', true); break;
+    case 'home-top': goHome('#welcome', true); break;
+    case 'joinlist': joinFor(null); break;
+    case 'join': joinFor(e); break;
+    case 'ics': if (e) downloadIcs(e); break;
+    case 'share': if (e) sharePub(e); break;
+    case 'copy': if (e) copyLink(pubLink(e.id)); break;
+    case 'org': goSignIn(); break; // planAfter is this event, so its plan opens once signed in
+  }
+});
+// event links (the cards, the Next up strip, the hero) open the page here, without loading the site again
+document.addEventListener('click', ev => {
+  const a = ev.target.closest && ev.target.closest('a[data-ev]');
+  if (!a || ev.defaultPrevented || ev.button || ev.metaKey || ev.ctrlKey || ev.shiftKey || ev.altKey) return;
+  ev.preventDefault();
+  if (!$('#p-landing').hidden) landingY = window.scrollY || 0;
+  showPubEvent(a.dataset.ev, 'push');
+});
+// Back and Forward between the home page and event pages (signed in, organizers' pages keep their own address)
+window.addEventListener('popstate', () => {
+  if (!document.body.classList.contains('out')) return;
+  const id = pubFromUrl();
+  if (id) { showPubEvent(id, 'pop'); return; }
+  if (!$('#p-landing').hidden) return; // a #section link on the home page: the browser scrolls
+  showTab('landing');
+  const sec = location.hash.length > 1 && document.getElementById(location.hash.slice(1));
+  if (sec) sec.scrollIntoView({ block: 'start' }); else window.scrollTo({ top: landingY });
+});
+function goSignIn() {
+  $('#si-back').innerHTML = ic('arrow-left') + (planAfter ? 'Back to the event' : 'Back to the home page');
+  showTab('signin'); history.replaceState(null, '', '#signin'); window.scrollTo({ top: 0 });
+}
 function signIn(name) { if (remote) return remote.signIn(name); finishSignIn(name); }
 function finishSignIn(name) {
   ME = name; AUTH.set(name); document.body.classList.remove('out');
+  const plan = planAfter; planAfter = ''; // signing in from an event's page (or its ?ev= link) opens its plan
   renderAs(); render(); renderTeam(); showTab('events'); history.replaceState(null, '', '#events'); window.scrollTo({ top: 0 });
   toast(`Signed in as ${name}`, 'check');
+  if (plan && EVENTS.find(e => e.id === plan && !e.isNew)) openEvent(plan, 'page');
 }
 function signOut() {
   if (!leaveOk()) return;
   if (!$('#modal').hidden) closeEvent();
-  AUTH.clear(); document.body.classList.add('out'); renderLanding(); showTab('landing'); history.replaceState(null, '', '#welcome'); window.scrollTo({ top: 0 });
+  AUTH.clear(); document.body.classList.add('out'); renderLanding(); showTab('landing'); history.replaceState(null, '', homeHref()); window.scrollTo({ top: 0 });
 }
-/*PROTO*/
-// the artifact has no event page at ?ev= yet, so an event link stays on the home page
-document.addEventListener('click', e => { if (!remote && e.target.closest('a[data-ev]')) { e.preventDefault(); renderLanding(); window.scrollTo({ top: 0 }); } });
-/*/PROTO*/
 $('#signin-top').addEventListener('click', goSignIn);
 $('#signout').addEventListener('click', signOut);
 /*PROTO*/
 $('#si-google').addEventListener('click', () => signIn(TEAM.find(t => t.role === 'lead').name));
 /*/PROTO*/
-$('#si-back').addEventListener('click', () => { showTab('landing'); history.replaceState(null, '', '#welcome'); });
+// back to the event's page when sign-in was opened from one, else the home page
+$('#si-back').addEventListener('click', () => { if (planAfter) showPubEvent(planAfter); else goHome(); });
 $('.lock').style.cursor = 'pointer';
-$('.lock').addEventListener('click', () => { if (document.body.classList.contains('out')) { showTab('landing'); history.replaceState(null, '', '#welcome'); } else { showTab('events'); history.replaceState(null, '', '#events'); } });
+$('.lock').addEventListener('click', () => { if (document.body.classList.contains('out')) goHome(); else { showTab('events'); history.replaceState(null, '', '#events'); } });
 
 /*__GAS_BRIDGE__*/
 /* boot */
@@ -2832,9 +3145,11 @@ if (!remote) {
 const user = AUTH.get();
 if (user && organizers().find(o => o.name === user)) ME = user;
 renderAs(); render(); renderMaterials(); renderTeam(); renderLanding(); bindJoin(); renderVols();
-const h = (location.hash || '').slice(1);
-if (!user) { document.body.classList.add('out'); showTab(h === 'signin' ? 'signin' : 'landing'); }
+const h = (location.hash || '').slice(1), pub = pubFromUrl();
+// an event's link (#pub-ID): its public page, or its plan for someone signed in
+if (!user) { document.body.classList.add('out'); if (pub) showPubEvent(pub); else showTab(h === 'signin' ? 'signin' : 'landing'); }
 else if (h.startsWith('ev-') && EVENTS.find(e => e.id === h.slice(3))) openEvent(h.slice(3), 'page');
+else if (pub && EVENTS.find(e => e.id === pub)) openEvent(pub, 'page');
 else showTab(['architecture', 'materials', 'team'].includes(h) ? h : 'events');
 }
 })();
