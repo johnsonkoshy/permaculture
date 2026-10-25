@@ -1,19 +1,31 @@
 <!doctype html>
-<html><head><title>Create an event</title></head>
-<body>
-<!-- Mimics Partiful's create page: big title box, custom date button, location input,
-     rich-text description, hidden image input behind a button. -->
-<header class="topbar"><a href="/">partiful</a><button type="button">Sign out</button></header>
-<main id="root">
-  <form id="create">
-    <div class="cover"><button type="button" class="pick">Choose image</button>
-      <input type="file" accept="image/*" style="display:none" aria-label="Upload a cover image"></div>
-    <textarea class="title" placeholder="Untitled Event" maxlength="120" rows="1"></textarea>
-    <button type="button" class="date">Set a date…</button>
-    <div class="field"><div class="lbl">Location</div><input type="text" placeholder="Place name, address, or link"></div>
-    <div class="field"><div class="lbl">Max capacity</div><input type="text" inputmode="numeric" name="capacity"></div>
-    <div class="desc"><div contenteditable="true" role="textbox" aria-multiline="true"><p data-placeholder="Add a description of your event…"></p></div></div>
-    <button type="submit" id="publish">Publish</button>
-  </form>
-</main>
+<html><head><title>Create Free Invitations | Partiful</title></head>
+<body class="ptf-app">
+<!-- Partiful's create page as it was on 2026-10-25. Class names keep their readable part; the hash
+     after it is made up. There's no ordinary form: the title and description are text that turns
+     into a box on focus, and the date, place and cover image open dialogs. tests/partiful-mock.js
+     adds that behavior, the way Partiful's own code does. -->
+<header><a href="/">partiful</a><button type="button" id="login">Login</button></header>
+<div id="root"></div>
+<template id="editor">
+  <main class="EventEditor_nextRoot__BtOLw">
+    <section class="EventEditor_main__9tJ3L">
+      <div class="EventEditor_leftColumn__wPH_W">
+        <h1><div class="ptf-l-hmf26 ptf-l-PGnbJ EditableEventTitle_titleInput__aOdUR" tabindex="0"><span>Untitled Event</span></div></h1>
+        <div class="EditableEventImage_image__jRzM3"><img src="https://partiful-posters.imgix.net/friendsgiving-tartan.png" alt=""><button type="button" class="EditableEventImage_editButton__I_AUd">Edit</button></div>
+        <div class="EditableEventDetails_root__nZ4nX EventEditor_details__xXk3_">
+          <div class="EditableEventDetails_dateSection__ikNmU"><div class="ptf-l-GEENI EditableEventDate_eventDateContainer__d4QuI"><div><svg></svg></div><time class="dtstart"><div><div><div>Set a date...</div></div></div></time><span>(Optional) Event Date</span></div></div>
+          <div class="EditableEventDetails_properties__J00b4">
+            <div class="EditableHostsField_root__016Nm"><span>Hosted by</span><div class="EditableHostsField_input__Hglx0 placeholder-shown" tabindex="0"><span>(optional) host nickname</span></div></div>
+            <div><div role="button" tabindex="0" id="place" class="ptf-l-GEENI"><span>Location</span><span>(Optional) Location · hidden before rsvp</span></div></div>
+            <div role="button" tabindex="0" class="EditableEventCapacity_root__NkK_e"><span>Unlimited spots</span></div>
+          </div>
+          <div class="ptf-l-hmf26 placeholder-shown EditableEventDescription_input__S8lha" tabindex="0"><span>Add a description of your event</span></div>
+        </div>
+      </div>
+    </section>
+    <span role="popover" class="settings">Limit +1s · Hide Guest List</span>
+    <button type="button" id="save-draft">Save draft</button>
+  </main>
+</template>
 </body></html>

@@ -29,7 +29,7 @@ test('manifest: the hub script runs at document_start on exactly the hub origins
 
 test('manifest: the filling script runs on every target site and nowhere else', () => {
   const site = manifest.content_scripts.find(c => c.js.includes('src/site.js'));
-  assert.deepEqual(site.js, ['src/shared.js', 'src/filler.js', 'src/panel.js', 'src/site.js']);
+  assert.deepEqual(site.js, ['src/shared.js', 'src/filler.js', 'src/panel.js', 'src/partiful.js', 'src/site.js']);
   const hosts = site.matches.map(m => /^https:\/\/\*\.([^/]+)\/\*$/.exec(m)[1]);
   assert.deepEqual(hosts, ['partiful.com', 'lu.ma', 'luma.com', 'meetup.com', 'facebook.com', 'hylo.com']);
   hosts.forEach(h => assert.ok(shared.channelForHost(h), h));

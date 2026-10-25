@@ -10,7 +10,7 @@ function setup(name, url) {
 }
 
 test('the React helper in these tests really ignores a plain value assignment', () => {
-  const { win, doc } = setup('partiful-create.html');
+  const { win, doc } = setup('plain-create.html');
   const ta = doc.querySelector('textarea');
   const state = H.reactify(ta);
   ta.value = 'typed by a script';
@@ -22,7 +22,7 @@ test('the React helper in these tests really ignores a plain value assignment', 
 });
 
 test('Partiful: fills title, location and description; leaves the date button alone', () => {
-  const { win, doc } = setup('partiful-create.html');
+  const { win, doc } = setup('plain-create.html');
   H.addClipboardSupport(win);
   const fileInput = doc.querySelector('input[type=file]');
   H.allowFiles(fileInput);

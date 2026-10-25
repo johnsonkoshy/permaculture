@@ -10,14 +10,14 @@
   'use strict';
   const isNode = typeof module === 'object' && module.exports;
   const api = isNode
-    ? factory(require('./shared.js'), require('./filler.js'), require('./panel.js'))
-    : factory(root.EBPG.shared, root.EBPG.filler, root.EBPG.panel);
+    ? factory(require('./shared.js'), require('./filler.js'), require('./panel.js'), require('./partiful.js'))
+    : factory(root.EBPG.shared, root.EBPG.filler, root.EBPG.panel, root.EBPG.partiful);
   if (isNode) module.exports = api;
   else if (!root.__ebpgSiteStarted && root.chrome && root.chrome.runtime && root.chrome.runtime.id) {
     root.__ebpgSiteStarted = true;
     api.createSiteHelper({ win: root, doc: root.document, runtime: root.chrome.runtime, storage: root.chrome.storage && root.chrome.storage.local }).start();
   }
-})(typeof globalThis !== 'undefined' ? globalThis : this, function (shared, filler, panelLib) {
+})(typeof globalThis !== 'undefined' ? globalThis : this, function (shared, filler, panelLib, partiful) {
   'use strict';
 
   const ROW_FOR_KIND = {
@@ -33,6 +33,8 @@
     const channel = shared.channelForHost(win.location.hostname);
 
     let draft = null, panel = null, observer = null, debounce = null, stopTimer = null;
+    // Partiful's page is filled step by step (see partiful.js): the run in progress, and whether one finished.
+    let partifulRun = null, partifulDone = false;
     let filledEls = new WeakSet(), filledKinds = new Set(), imageAttached = false;
     // used: this tab already had the event filled on an earlier page, so wait for Fill again.
     let used = false, reported = false;
@@ -65,16 +67,8 @@
       panel.render({ draft, count: filledKinds.size + (imageAttached ? 1 : 0), filled: rowsFilled(), imageAttached, looking: !!looking, used });
     }
 
-    function pass(force) {
-      if (!draft) return null;
-      const res = filler.fill(doc, draft, {
-        channel,
-        createPage: isCreatePage(),
-        force: !!force,
-        skip: force ? null : el => filledEls.has(el) || userEls.has(el),
-        withImage: !imageAttached,
-        memory
-      });
+    // What a fill found: remember what got filled, tell the service worker once, update the panel.
+    function apply(res) {
       res.filled.forEach(({ kind, el }) => { filledKinds.add(kind); filledEls.add(el); });
       if (res.image === 'attached') imageAttached = true;
       if (res.mode && res.filled.length && !reported) {
@@ -83,6 +77,63 @@
       }
       render(!res.mode && !!observer);
       return res;
+    }
+
+    // Partiful: one run at a time. The page changes all through a run, and those changes start no
+    // second one; after a run, only Fill again starts another. Fill again during a run goes next.
+    function passPartiful(force) {
+      if (partifulRun) {
+        if (!force) return partifulRun;
+        const next = partifulRun.then(() => { partifulRun = null; return passPartiful(true); });
+        partifulRun = next;
+        return next;
+      }
+      if (partifulDone && !force) return null;
+      // Another event in the editor (the person kept editing their own): only Fill again fills it.
+      if (!force && partiful.holdsOther(doc, draft)) {
+        partifulDone = true;
+        render(false);
+        return null;
+      }
+      render(true);
+      const forDraft = draft;
+      const run = partiful.fill(doc, draft, {
+        force: !!force,
+        skipKind: force ? null : kind => filledKinds.has(kind),
+        withImage: !imageAttached,
+        // Closing the panel (dismiss) stops the run.
+        halted: () => draft !== forDraft,
+        timing: opts.partifulTiming
+      }).catch(() => ({ mode: null, filled: [], failed: [], kept: [], image: 'none' })).then(res => {
+        // A Fill again queued behind this run has taken its place; leave that one in.
+        if (partifulRun === run) partifulRun = null;
+        partifulDone = true;
+        return draft ? apply(res) : res;
+      });
+      partifulRun = run;
+      return run;
+    }
+
+    function pass(force) {
+      if (!draft) return null;
+      if (channel === 'partiful' && partiful) {
+        if (partifulRun || partiful.isEditor(doc)) return passPartiful(force);
+        // Partiful's "unsaved event" question: the editor shows once it's answered, and the watcher fills it.
+        if (partiful.resumePrompt(doc)) {
+          partiful.resumeOwn(doc, draft);
+          render(true);
+          return null;
+        }
+      }
+      const res = filler.fill(doc, draft, {
+        channel,
+        createPage: isCreatePage(),
+        force: !!force,
+        skip: force ? null : el => filledEls.has(el) || userEls.has(el),
+        withImage: !imageAttached,
+        memory
+      });
+      return apply(res);
     }
 
     function stopWatching() {
@@ -103,7 +154,17 @@
         debounce = win.setTimeout(() => { debounce = null; if (observer) pass(false); }, debounceMs);
       });
       observer.observe(doc.documentElement, { childList: true, subtree: true });
-      stopTimer = win.setTimeout(stopWatching, watchMs);
+      stopTimer = win.setTimeout(expire, watchMs);
+    }
+
+    // Stop watching after watchMs, except while Partiful waits for the person to answer its
+    // "unsaved event" question: the form shows only after that.
+    function expire() {
+      if (channel === 'partiful' && partiful && partiful.resumePrompt(doc)) {
+        stopTimer = win.setTimeout(expire, watchMs);
+        return;
+      }
+      stopWatching();
     }
 
     function fillAgain() {
@@ -162,8 +223,9 @@
           listenForTyping();
           // Fill this tab armed the tab again, so this fill counts as its first one.
           reported = false;
-          const res = fillAgain();
-          sendResponse({ ok: true, count: filledKinds.size + (imageAttached ? 1 : 0), mode: res && res.mode });
+          Promise.resolve(fillAgain()).then(res => {
+            sendResponse({ ok: true, count: filledKinds.size + (imageAttached ? 1 : 0), mode: res && res.mode });
+          });
         });
         return true;
       }

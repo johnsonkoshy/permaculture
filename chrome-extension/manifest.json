@@ -47,7 +47,7 @@
         "https://*.facebook.com/*",
         "https://*.hylo.com/*"
       ],
-      "js": ["src/shared.js", "src/filler.js", "src/panel.js", "src/site.js"],
+      "js": ["src/shared.js", "src/filler.js", "src/panel.js", "src/partiful.js", "src/site.js"],
       "run_at": "document_idle"
     }
   ]

@@ -40,7 +40,7 @@ function page(html, url, draft, opts) {
 const panelText = helper => helper.state.panel.shadow.querySelector('.msg').textContent;
 
 test('fills the opened Partiful tab and shows the panel with a Copy button per field', async () => {
-  const p = page(H.fixture('partiful-create.html'), 'https://partiful.com/create', H.draft());
+  const p = page(H.fixture('plain-create.html'), 'https://partiful.com/create', H.draft());
   const submits = H.watchSubmits(p.doc);
   await p.helper.start();
   assert.deepEqual(p.runtime.sent[0], { type: 'claim', channel: 'partiful' });
@@ -64,7 +64,7 @@ test('fills the opened Partiful tab and shows the panel with a Copy button per f
 
 test('event text is shown as text, never as HTML', async () => {
   const evil = H.draft({ title: '<img src=x onerror="window.hacked=1">Workday' });
-  const p = page(H.fixture('partiful-create.html'), 'https://partiful.com/create', evil);
+  const p = page(H.fixture('plain-create.html'), 'https://partiful.com/create', evil);
   await p.helper.start();
   const shadow = p.helper.state.panel.shadow;
   assert.equal(shadow.querySelector('img[onerror]'), null);
@@ -73,7 +73,7 @@ test('event text is shown as text, never as HTML', async () => {
 });
 
 test('does nothing at all when this tab was not opened for a draft', async () => {
-  const p = page(H.fixture('partiful-create.html'), 'https://partiful.com/create', null);
+  const p = page(H.fixture('plain-create.html'), 'https://partiful.com/create', null);
   await p.helper.start();
   assert.equal(p.doc.querySelector('ebpg-posting-helper'), null);
   assert.equal(p.doc.querySelector('textarea.title').value, '');
@@ -188,14 +188,14 @@ test('the panel keeps keyboard focus when the page changes but the fill result d
 });
 
 test('a tab fills by itself only once; the next page in it waits for Fill again', async () => {
-  const first = page(H.fixture('partiful-create.html'), 'https://partiful.com/create', H.draft());
+  const first = page(H.fixture('plain-create.html'), 'https://partiful.com/create', H.draft());
   await first.helper.start();
   first.helper.stopWatching();
   assert.equal(first.doc.querySelector('textarea.title').value, H.draft().title);
   assert.deepEqual(first.runtime.sent.map(m => m.type), ['claim', 'used'], 'the service worker hears about the first fill once');
 
   // A later full page load in the same tab, for example a new create form after publishing.
-  const next = page(H.fixture('partiful-create.html'), 'https://partiful.com/create', H.draft(), { used: true });
+  const next = page(H.fixture('plain-create.html'), 'https://partiful.com/create', H.draft(), { used: true });
   await next.helper.start();
   assert.equal(next.doc.querySelector('textarea.title').value, '', 'not filled again on its own');
   assert.equal(next.helper.state.watching, false);
@@ -218,7 +218,7 @@ test('a page that matches nothing does not use up the tab\'s one fill', async ()
 
 test('with no fresh event saved, it does nothing on the page and does not wake the service worker', async () => {
   for (const storage of [H.storageArea(), H.storageArea({ draft: { channel: 'partiful', timestamp: Date.now() - 31 * 60 * 1000, draft: H.draft() } })]) {
-    const p = page(H.fixture('partiful-create.html'), 'https://partiful.com/create', H.draft(), { storage });
+    const p = page(H.fixture('plain-create.html'), 'https://partiful.com/create', H.draft(), { storage });
     const added = [];
     const add = p.doc.addEventListener.bind(p.doc);
     p.doc.addEventListener = (type, fn, opt) => { added.push(type); return add(type, fn, opt); };

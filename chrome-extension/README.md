@@ -63,17 +63,28 @@ Nobody could sign in to the real sites while building this, so the way it finds 
 - **Description:** description, details, about, "What are the details?"
 - **Post box** (Facebook and Hylo groups): "Create a public post", "Write something", "What's on your mind"
 
-Each site was checked against a hand-made copy of its form in `tests/fixtures/`, using jsdom. It has not yet been tried on the live sites. What to expect on each site:
+Each site was checked against a hand-made copy of its form in `tests/fixtures/`, using jsdom. Partiful was also tried on the live partiful.com/create page on 2026-10-25, in a narrow and a wide window (see below). The other sites have not yet been tried live. What to expect on each site:
 
 | Site | Expected to fill | Expect to copy and paste |
 |---|---|---|
-| Partiful | Title, place, description, cover image | Date and time (Partiful uses a custom picker) |
+| Partiful | Title, date, start and end time, place (Partiful's own map match), description, cover image | A time that isn't on the quarter hour (Partiful only offers :00, :15, :30, :45) |
 | Luma | Title, and date, time, place and description where they are text boxes | Anything behind a pop-up picker |
 | Meetup | Title, date, times, venue search text, description, photo | Picking the venue from Meetup's list |
 | Facebook group | The group's post box (full text) | For an event: click Create event, then Fill again |
 | Hylo | Title, start and end, place, description | Choosing the post type (Event) first |
 
 When a site changes its page, the panel's Copy buttons still work. Fixes for a changed form go in `src/filler.js` (the `RULES` list), with a new fixture and test.
+
+### Partiful
+
+Partiful's create page has no ordinary form, so it gets its own step, `src/partiful.js`, instead of the guesses above. It does what a person would, one part at a time:
+
+- **Title and description** are text that turns into a box when it gets focus. It focuses each one, types, and moves on.
+- **Date and time:** it opens the picker, moves the calendar to the month and picks the day. On a narrow window the times are a wheel, so it scrolls the start and then the end time into the middle and clicks **Confirm**. On a wide window the times are a list it clicks, and a click outside closes the picker.
+- **Place:** it opens Location, types the place and address, picks Partiful's matching suggestion (so the map pin is right; otherwise **Use "…"** with the words as typed), then **Save**.
+- **Cover image:** it opens Edit on the poster and gives the Upload box the flyer.
+
+It never clicks **Save draft**, **Publish** or **Login**. If Partiful asks **"We found an unsaved event!"**, it clicks **Keep editing** only when that unsaved event has this event's title (an earlier fill). Any other unsaved event is yours, so it waits for you to choose and fills once the editor shows. A part you already changed stays as it is unless you click **Fill again**. If Partiful changes its page, the parts it can't find show up in the panel with a Copy button.
 
 ## Privacy
 
@@ -102,6 +113,7 @@ chrome-extension/
   src/hub-bridge.js    Content script on the Event Hub (document_start)
   src/background.js    Service worker: opens sites, remembers which tab is for which site
   src/filler.js        Field finding and filling heuristics (no clicks, no submits)
+  src/partiful.js      Partiful's create page: opens each part, fills it, closes it (never Save draft or Publish)
   src/panel.js         The floating panel (shadow DOM; text only via textContent)
   src/site.js          Content script on the target sites: claim the draft, fill, watch, panel
   pages/               Popup, side panel and options page (shared ui.css, common.js)
@@ -150,7 +162,7 @@ npm install      # jsdom, for the tests only
 npm test
 ```
 
-They cover the field matching and filling on fixtures of each site (React-style controlled inputs, labels, rich-text editors, date and time inputs, a sign-in page that must not be filled, an image uploader outside the form that must stay empty), the hub message checks, the service worker's tab rules (including one automatic fill per tab), the panel, the popup, side panel and options pages, the manifest and the zip.
+They cover the field matching and filling on fixtures of each site (React-style controlled inputs, labels, rich-text editors, date and time inputs, a sign-in page that must not be filled, an image uploader outside the form that must stay empty), Partiful's create page as it works live (`tests/partiful-mock.js`: click-to-edit parts, the date dialog and drop-down, the place and upload dialogs, the unsaved-event question), the hub message checks, the service worker's tab rules (including one automatic fill per tab), the panel, the popup, side panel and options pages, the manifest and the zip.
 
 ### Building the zip
 
