@@ -93,7 +93,11 @@ a { color: var(--fern); }
   .who { padding: 3px; }
   .who > span:last-child { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 }
-@media (max-width: 400px) { #signout .ic { display: none; } }
+/* the smallest phones: the header stays one row, with the mark alone (the name stays for screen readers, and the page's heading says it) */
+@media (max-width: 400px) {
+  #signout .ic { display: none; }
+  .lock b { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+}
 /* save status: a small tab hanging from the top bar's right edge, so showing it never moves the page */
 .top .wrap { position: relative; }
 .savest { position: absolute; top: 100%; right: max(16px, env(safe-area-inset-right, 0px)); z-index: 1; display: flex; align-items: center; gap: 6px; padding: 5px 12px 6px; border: 1px solid var(--line); border-top: 0; border-radius: 0 0 12px 12px; background: var(--surface); color: var(--ink-2); font-size: 13px; font-weight: 700; line-height: 1.2; white-space: nowrap; box-shadow: 0 8px 18px rgba(27, 42, 33, .08); transition: opacity .6s; }
@@ -715,15 +719,63 @@ body.out .topbtns { margin-left: auto; }
 .marq .track { display: flex; gap: 14px; width: max-content; animation: marq 28s linear infinite; }
 .marq .ch { display: inline-flex; align-items: center; gap: 10px; padding: 8px 16px 8px 8px; border-radius: 999px; background: var(--surface); border: 1px solid var(--line); font-weight: 700; white-space: nowrap; }
 .marq .ch .logo { width: 30px; height: 30px; font-size: 11px; border-radius: 50%; }
+/* upcoming events: up to four published ones from the Sheet, each a link to its page */
 .nextup { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr)); gap: 16px; }
-.nextup button { border: 1px solid var(--line); border-radius: 16px; background: var(--raised); padding: 0; overflow: hidden; text-align: left; cursor: pointer; display: grid; transition: transform .2s, box-shadow .2s; }
-.nextup button:hover { transform: translateY(-3px); box-shadow: var(--shadow); }
+.nxcard { position: relative; border: 1px solid var(--line); border-radius: 16px; background: var(--raised); overflow: hidden; display: grid; align-content: start; text-decoration: none; color: var(--ink); transition: transform .2s, box-shadow .2s; }
+a.nxcard:hover { transform: translateY(-3px); box-shadow: var(--shadow); }
+.nxcard:focus-visible { border-radius: 16px; }
 .nextup .art { border-radius: 0; box-shadow: none; }
 .nextup .nb { padding: 14px 16px; display: grid; gap: 2px; }
 .nextup .nb b { font: 400 19px/1.2 var(--display); }
 .nextup .nb span { font-size: 13px; color: var(--ink-3); }
+.nextup .nb .nk { font: 600 11px/1.3 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--fern); margin-bottom: 2px; }
 .nb .meta { display: flex; align-items: center; gap: 6px; }
 .nb .meta .ic { width: 14px; height: 14px; }
+/* Today, Tomorrow or This Saturday, over the top right of the card's cover (the art's own mark is top left) */
+.soon { position: absolute; top: 12px; right: 12px; z-index: 1; display: inline-flex; align-items: center; gap: 5px; padding: 6px 10px; border-radius: 999px; background: var(--b-lemon); color: var(--b-canopy); font: 700 12px/1 var(--body); box-shadow: 0 2px 8px rgba(20, 35, 25, .2); }
+.soon .ic { width: 13px; height: 13px; }
+/* no upcoming events, or the Sheet didn't answer */
+.nxnote { grid-column: 1 / -1; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding: 18px 20px; border: 1px dashed var(--line-2); border-radius: 16px; background: var(--surface); color: var(--ink-2); }
+.nxnote > span { flex: 1 1 240px; min-width: 0; }
+.nxnote b { color: var(--ink); }
+.nxnote.warn .ic-chip { background: var(--flag-soft); color: var(--flag); }
+/* waiting for the Sheet: grey shapes where the cards will be */
+@keyframes shimmer { 50% { opacity: .55; } }
+@keyframes glow { 50% { background-color: var(--fern-soft); } }
+.skel .sk { display: block; border-radius: 8px; background: var(--line); animation: shimmer 1.4s ease-in-out infinite; }
+.nxcard.skel .sk.cover { width: 100%; aspect-ratio: 1; border-radius: 0; }
+.nxcard.skel .sk.ln { height: 12px; width: 60%; margin-top: 6px; }
+.nxcard.skel .sk.ln.s { width: 40%; }
+.nxcard.skel b { color: var(--ink-3); }
+@media (prefers-reduced-motion: reduce) { .skel .sk, .scene .sk { animation: none !important; } }
+/* the hero's card fan: grey cards while it waits, and a note in their place when there's nothing to show */
+.scene .sk { position: absolute; border-radius: 6px; background: var(--surface); border: 1px solid var(--line); box-shadow: 0 18px 40px rgba(20, 35, 25, .12); animation: glow 1.6s ease-in-out infinite; display: grid; place-items: center; font: 600 13px/1.2 var(--body); color: var(--ink-3); }
+.scene .sk.c1 { aspect-ratio: 8.5 / 11; }
+.scene .sk.c2 { aspect-ratio: 1; }
+.scene .sk.c3 { aspect-ratio: 9 / 16; }
+.scene-note { position: absolute; left: 50%; top: 40%; transform: translate(-50%, -50%); width: min(340px, 86%); display: grid; gap: 10px; justify-items: center; text-align: center; padding: 22px 24px; border-radius: 18px; background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow); color: var(--ink-2); font-size: 16px; }
+.scene-note b { color: var(--ink); font: 400 21px/1.2 var(--display); }
+.scene-note.warn .ic-chip { background: var(--flag-soft); color: var(--flag); }
+/* phones: no card fan; a compact Next up strip under the heading instead */
+.nextstrip { display: none; }
+@media (max-width: 600px) {
+  .scene { display: none; }
+  .nextstrip { position: relative; display: flex; align-items: center; gap: 12px; margin: -4px 0 18px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 16px; background: var(--raised); box-shadow: var(--shadow); }
+  .nextstrip .nsday { flex: none; width: 52px; height: 52px; border-radius: 50%; background: var(--b-lemon); color: var(--b-canopy); display: grid; place-content: center; text-align: center; }
+  .nextstrip .nsday span { font: 600 10px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; }
+  .nextstrip .nsday b { font: 400 22px/1 var(--display); }
+  .nextstrip .nsday .ic { width: 22px; height: 22px; }
+  .nextstrip.warn .nsday { background: var(--flag-soft); color: var(--flag); }
+  .nextstrip .nsb { flex: 1; min-width: 0; display: grid; gap: 1px; }
+  .nextstrip .nsk { font: 600 11px/1.3 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--fern); }
+  .nextstrip .nsb b { font: 400 17px/1.2 var(--display); display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+  .nextstrip .nsb > span:last-child { font-size: 13px; color: var(--ink-2); }
+  .nextstrip.note .nsb b { font-size: 16px; }
+  .nextstrip .nsgo { flex: none; display: inline-flex; align-items: center; gap: 4px; min-height: 44px; padding: 0 4px; font-weight: 700; font-size: 14px; color: var(--fern); text-decoration: none; }
+  .nextstrip .nsgo::after { content: ""; position: absolute; inset: 0; border-radius: 16px; } /* the whole strip is the link */
+  .nextstrip.skel .sk.nsday { background: var(--line); }
+  .nextstrip.skel b { color: var(--ink-3); }
+}
 .lcta { text-align: center; padding: 48px 20px; border-radius: 24px; background: var(--fern); color: var(--fern-ink); display: grid; gap: 14px; justify-items: center; position: relative; overflow: hidden; }
 .lcta h2 { font: 400 clamp(28px, 4vw, 40px)/1.1 var(--display); color: inherit; }
 .lcta p { opacity: .9; }
@@ -747,6 +799,11 @@ body.out .topbtns { margin-left: auto; }
 .pick small { display: block; font-weight: 400; color: var(--ink-3); font-size: 12px; }
 .pick button[aria-busy="true"] { border-color: var(--fern); background: var(--fern-soft); cursor: progress; }
 .pick button[aria-busy="true"] small { color: var(--fern); font-weight: 700; }
+/* the names come from the Sheet: grey shapes until it answers, and Continue when it has none to show */
+.pick .sk { height: 50px; border-radius: 12px; }
+.pick-note { grid-column: 1 / -1; font-size: 13px; color: var(--ink-2); }
+.pick button.first { grid-column: 1 / -1; justify-content: center; }
+.pick button.first .ic { width: 18px; height: 18px; color: var(--fern); }
 .si-wait { font-size: 13px; color: var(--ink-2); text-align: center; }
 .si-wait:not(:empty) { margin-top: 12px; }
 .chk { display: flex; align-items: center; gap: 10px; font-size: 14px; color: var(--ink-2); cursor: pointer; }
@@ -789,20 +846,6 @@ body.out .topbtns { margin-left: auto; }
 .org-link { font-size: 14px; opacity: .9; }
 .lcta .tog { color: var(--fern-ink); }
 
-.mcard { border: 1px solid var(--line); border-radius: 16px; background: var(--raised); overflow: hidden; display: grid; text-decoration: none; color: var(--ink); transition: transform .2s, box-shadow .2s; }
-.mcard:hover { transform: translateY(-3px); box-shadow: var(--shadow); }
-.mtop { aspect-ratio: 1; background: var(--b-canopy); color: var(--b-cream); position: relative; display: grid; align-content: end; gap: 8px; padding: 22px; overflow: hidden; }
-.mtop::before { content: ""; position: absolute; width: 70%; aspect-ratio: 1; border-radius: 50%; border: 2px solid rgba(246, 241, 227, .2); right: -18%; top: -18%; }
-.mday { position: absolute; top: 20px; left: 20px; width: 72px; aspect-ratio: 1; border-radius: 50%; background: var(--b-lemon); color: var(--b-canopy); display: grid; place-content: center; text-align: center; }
-.mday span { font: 600 11px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; }
-.mday b { font: 400 30px/1 var(--display); }
-.mk { font: 600 11px/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--b-lemon); }
-.mt { font: 400 28px/1.1 var(--display); }
-.nextup .nb .rsvp, .mcard .rsvp { color: var(--fern); font-weight: 700; font-size: 13px; display: inline-flex; align-items: center; gap: 6px; }
-.rsvp .ic { width: 14px; height: 14px; }
-.mcard .nb { padding: 14px 16px; display: grid; gap: 2px; }
-.mcard .nb b { font: 400 19px/1.2 var(--display); }
-.mcard .nb > span { font-size: 13px; color: var(--ink-3); }
 
 .gmap { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 18px; align-items: start; }
 @media (max-width: 800px) { .gmap { grid-template-columns: 1fr; } }
@@ -971,6 +1014,7 @@ td code, .code code { font: 400 13px/1.5 var(--mono); }
   <symbol id="i-out" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></g></symbol>
   <symbol id="i-x" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></g></symbol>
   <symbol id="i-arrow-left" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></g></symbol>
+  <symbol id="i-arrow-right" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></g></symbol>
   <symbol id="i-arrow-down" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="m19 12-7 7-7-7"/></g></symbol>
   <symbol id="i-log-in" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><path d="m10 17 5-5-5-5"/><path d="M15 12H3"/></g></symbol>
   <symbol id="i-log-out" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></g></symbol>
@@ -1041,11 +1085,12 @@ td code, .code code { font: 400 13px/1.5 var(--mono); }
       <div>
         <span class="k"><i></i>Oakland · Volunteer-led</span>
         <h1><span>East Bay</span><span>Permaculture Guild</span></h1>
+        <div class="nextstrip" id="nextstrip"></div>
         <p class="sub">A community for everyone interested in permaculture, from the permie-curious to new design-course graduates to longtime designers. We meet, share resources, work on projects together and teach each other.</p>
         <div class="cta"><a class="btn primary lg" href="#meet"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-calendar"/></svg>Come to a meeting</a><a class="btn ghost lg" href="#involved"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-users"/></svg>Get involved</a></div>
       </div>
-      <div class="scene" aria-hidden="true">
-        <svg class="land-bg" viewBox="0 0 600 540">
+      <div class="scene">
+        <svg class="land-bg" viewBox="0 0 600 540" aria-hidden="true">
           <circle class="sun" cx="470" cy="120" r="54"/>
           <path class="hill" d="M10 400 C110 330 210 330 300 380 C390 430 480 410 590 330"/>
           <path class="water" d="M20 460 C80 440 130 480 200 460 C270 440 320 480 390 460 C460 440 510 470 580 452"/>
@@ -1053,13 +1098,14 @@ td code, .code code { font: 400 13px/1.5 var(--mono); }
             <path d="M300 378 V300"/><path d="M300 330 C300 300 322 284 350 284 C350 312 328 330 300 330Z" fill="var(--fern-soft)"/><path d="M300 346 C300 322 278 306 252 308 C252 332 274 346 300 346Z" fill="var(--fern-soft)"/>
           </g>
         </svg>
-        <div class="cards" id="hero-cards"></div>
+        <div class="cards" id="hero-cards" aria-hidden="true"></div>
+        <div class="scene-note" id="hero-note" hidden></div>
       </div>
     </section>
 
     <section class="lsec" id="meet">
       <h2>Upcoming events</h2>
-      <p>Monthly meetings on 2nd Mondays with a potluck and speakers, plus garden work days at the Oakland Peace Center. Everyone is welcome, no experience needed.</p>
+      <p id="sched">Garden work days at the Oakland Peace Center, plus community meetings with a potluck. Everyone is welcome, no experience needed.</p>
       <div class="nextup" id="nextup"></div>
     </section>
 
@@ -1089,7 +1135,7 @@ td code, .code code { font: 400 13px/1.5 var(--mono); }
       <div class="combo-l">
         <h2>Join us</h2>
         <p>Get on the volunteer list and an organizer will reach out before the next meeting or work day. You can also join the listserv, follow along on Instagram, RSVP on Partiful, or donate.</p>
-        <div class="cta-row"><a class="btn lg" href="https://linktr.ee/eastbaypermacultureguild" target="_blank" rel="noopener">Listserv, Instagram, Partiful<svg class="ic" aria-hidden="true" focusable="false"><use href="#i-out"/></svg></a><a class="btn lg ghostw" href="https://collectiveresiliencenow.org/east-bay-permaculture-guild/" target="_blank" rel="noopener"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-heart"/></svg>Donate<svg class="ic" aria-hidden="true" focusable="false"><use href="#i-out"/></svg></a></div>
+        <div class="cta-row"><a class="btn lg" id="join-links" href="https://linktr.ee/eastbaypermacultureguild" target="_blank" rel="noopener">Listserv, Instagram, Partiful<svg class="ic" aria-hidden="true" focusable="false"><use href="#i-out"/></svg></a><a class="btn lg ghostw" href="https://collectiveresiliencenow.org/east-bay-permaculture-guild/" target="_blank" rel="noopener"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-heart"/></svg>Donate<svg class="ic" aria-hidden="true" focusable="false"><use href="#i-out"/></svg></a></div>
       </div>
       <div class="combo-r">
       <form class="joinf" id="joinf" novalidate>
@@ -1608,6 +1654,11 @@ let ME = 'Jessie';
 let remote = null, sync = () => {}, sheetUrl = '', problems = [], testOn = false; // set by the live (Apps Script) build; problems: Sheet rows it couldn't read; testOn: TEST_MODE
 // also set by the live build: say "Saved" only once the Sheet has it, mark events whose save failed, and ask before signing out with unsaved changes
 let whenSaved = f => f(), unsaved = id => false, leaveOk = () => true;
+/* The public page's data. The artifact draws its own events at once; the live build starts at 'loading' (grey shapes)
+   until the Sheet's public data arrives, and 'failed' says it never did. PUB: the Settings the public page shows. */
+let pubState = 'ready';
+const LINKTREE = 'https://linktr.ee/eastbaypermacultureguild';
+const PUB = { SCHEDULE_TEXT: '', LINKTREE_URL: LINKTREE };
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -1663,6 +1714,7 @@ const orList = a => a.length > 1 ? a.slice(0, -1).join(', ') + ' or ' + a[a.leng
 const lead = () => TEAM.find(t => t.role === 'lead');
 // what this person can't do, in plain words, and who to ask
 function cantNote(p) {
+  if (!p) return ''; // nobody to say it about yet (the live page before the Sheet's team arrives)
   const missing = PERMS.map(([k]) => k).filter(k => !p.perms[k]), l = lead();
   if (!missing.length) return '';
   return `You can't ${orList(missing.map(k => CANT[k]))}. Ask ${l && l.name !== p.name ? l.name.split(' ')[0] : 'the lead organizer'} if you need to.`;
@@ -1959,7 +2011,7 @@ function applyPerms() {
   if (msg) d.insertAdjacentHTML('afterbegin', `<div class="perm-note" id="perm-note">${ic('lock')}<span>${esc(msg)}</span></div>`);
 }
 function renderAs() {
-  if (!organizers().find(o => o.name === ME)) ME = TEAM[0].name;
+  if (TEAM.length && !organizers().find(o => o.name === ME)) ME = TEAM[0].name;
 /*PROTO*/
   $('#as').innerHTML = organizers().map(o => `<option ${o.name === ME ? 'selected' : ''}>${esc(o.name)}</option>`).join('');
 /*/PROTO*/
@@ -2639,15 +2691,6 @@ const AUTH = {
   set(n) { try { sessionStorage.setItem('ebpg-user', n); } catch {} },
   clear() { try { sessionStorage.removeItem('ebpg-user'); } catch {} },
 };
-function nextSecondMonday(from) {
-  const d = D(from);
-  for (let i = 0; i < 3; i++) {
-    const m = new Date(d.getFullYear(), d.getMonth() + i, 1, 12);
-    const first = (8 - m.getDay()) % 7 + 1; // first Monday
-    const sm = new Date(m.getFullYear(), m.getMonth(), first + 7, 12);
-    if (sm >= d) return sm;
-  }
-}
 const GARDENS = [
   { name: 'Oakland Peace Center garden', addr: '111 Fairmount Ave, Oakland, CA', what: 'Monthly meetings and garden work days', lat: 37.8136, lng: -122.2589 },
 ];
@@ -2687,19 +2730,76 @@ function bindJoin() {
     $('#vj-again').addEventListener('click', () => { $('#joinf').reset(); err.hidden = true; $('#joinf').hidden = false; $('#joined').hidden = true; });
   });
 }
+/* The public landing page, from the published events only: never a draft, never one that's over.
+   The live build fills EVENTS from the Sheet's public data (getPublic); until it answers, grey shapes. */
+const SCHED = $('#sched').textContent; // when the Settings tab's SCHEDULE_TEXT is blank
+// an event's public page (the live build reads ?ev= when it loads)
+const evHref = id => '?ev=' + encodeURIComponent(id);
+// 'Today', 'Tomorrow' or 'This Saturday' for an event in the coming week, else ''
+function soonWord(s) {
+  const n = Math.round((D(s) - D(TODAY)) / 864e5);
+  return n === 0 ? 'Today' : n === 1 ? 'Tomorrow' : n > 1 && n < 7 ? 'This ' + D(s).toLocaleDateString('en-US', { weekday: 'long' }) : '';
+}
+const hhmm = d => String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+// over already: today's event once its end time has passed (live only; the artifact's day is fixed)
+const ended = e => !!window.EBPG_GAS && e.date === TODAY && !!e.end && e.end <= hhmm(new Date());
+const upcoming = () => EVENTS.filter(e => !e.isNew && onSite(e) && e.date >= TODAY && !ended(e))
+  .sort((a, b) => (a.date + ' ' + (a.start || '')).localeCompare(b.date + ' ' + (b.start || '')));
+const linktree = () => safeUrl(PUB.LINKTREE_URL) || LINKTREE;
+const SOON_TEXT = () => `<b>Next dates coming soon.</b> <span><a href="#join">Join the list</a> and we'll tell you.</span>`;
+// aria-busy="true" while the Sheet's answer is on its way
+const busyAttr = (el, on) => { if (on) el.setAttribute('aria-busy', 'true'); else el.removeAttribute('aria-busy'); };
+const FAIL_TEXT = () => `<span>We couldn't load the latest dates. <a href="${esc(linktree())}" target="_blank" rel="noopener">See our Linktree${ic('out')}</a> for upcoming events.</span>`;
+const nextCard = e => {
+  const soon = soonWord(e.date);
+  return `<a class="nxcard" href="${esc(evHref(e.id))}" data-ev="${esc(e.id)}">${soon ? `<span class="soon">${ic('clock')}${esc(soon)}</span>` : ''}<div class="nxcover" aria-hidden="true">${igArt(e)}</div>`
+    + `<span class="nb"><span class="nk">${esc(kindOf(e))}</span><b>${esc(e.title)}</b><span class="meta">${ic('calendar')}${esc(longDate(e.date))}${e.start ? ' · ' + esc(t12(e.start)) : ''}</span>`
+    + `<span class="meta">${ic('map-pin')}${esc(e.place)}</span></span></a>`;
+};
+const skelCard = first => `<div class="nxcard skel"${first ? '' : ' aria-hidden="true"'}><span class="sk cover"></span><span class="nb">${first ? '<b>Loading events…</b>' : '<span class="sk ln"></span>'}<span class="sk ln"></span><span class="sk ln s"></span></span></div>`;
 function renderLanding() {
   renderMap();
-  const nm = nextSecondMonday(TODAY);
-  const meetIso = `${nm.getFullYear()}-${String(nm.getMonth() + 1).padStart(2, '0')}-${String(nm.getDate()).padStart(2, '0')}`;
-  const meetCard = `<a class="mcard" href="https://linktr.ee/eastbaypermacultureguild" target="_blank" rel="noopener"><span class="mtop"><span class="mday"><span>${nm.toLocaleDateString('en-US', { month: 'short' })}</span><b>${nm.getDate()}</b></span><span class="mk">Monthly meeting</span><b class="mt">Potluck, speakers and community</b></span><span class="nb"><b>Guild Monthly Meeting</b><span class="meta">${ic('calendar')}${esc(longDate(meetIso))} · 6:00 PM</span><span class="meta">${ic('map-pin')}Grace Room, Oakland Peace Center</span><span class="rsvp">Bring a dish to share. RSVP on Partiful${ic('out')}</span></span></a>`;
-  // the public page: published events only, never a draft
-  const nx = EVENTS.filter(e => !e.isNew && e.date >= TODAY && onSite(e)).sort((a, b) => a.date.localeCompare(b.date));
-  const hero = nx[0];
-  $('#hero-cards').innerHTML = hero ? flyerArt(hero).replace('art flyer', 'art flyer c1') + igArt(hero).replace('art ig', 'art ig c2') + storyArt(hero).replace('art story', 'art story c3') : '';
-  const evCards = nx.filter(e => e.series === 'workday').slice(0, 2).map(e => [e.date, `<button type="button" data-signin title="Organizers can sign in to see the plan">${igArt(e)}<span class="nb"><b>${esc(e.title)}</b><span class="meta">${ic('calendar')}${esc(longDate(e.date))} · ${t12(e.start)}</span><span class="meta">${ic('map-pin')}${esc(e.place)}</span></span></button>`]);
-  $('#nextup').innerHTML = evCards.concat([[meetIso, meetCard]]).sort((a, b) => a[0].localeCompare(b[0])).map(x => x[1]).join('');
-  $('#si-pick').innerHTML = organizers().map(o => `<button type="button" data-as="${esc(o.name)}">${avatar(o.name)}<span>${esc(o.name)}<small>${esc(ROLE[o.role] || '')}</small></span></button>`).join('');
-  $$('[data-as]').forEach(b => b.addEventListener('click', () => signIn(b.dataset.as)));
+  const loading = pubState === 'loading', failed = pubState === 'failed';
+  const nx = upcoming(), hero = nx[0];
+  $('#sched').textContent = PUB.SCHEDULE_TEXT || SCHED;
+  $('#join-links').href = linktree();
+  // the hero's card fan: the next event, grey cards while waiting, or a note when there's none
+  const cards = $('#hero-cards'), note = $('#hero-note');
+  busyAttr(cards, loading);
+  cards.innerHTML = loading ? '<span class="sk c1"></span><span class="sk c2">Loading events…</span><span class="sk c3"></span>'
+    : hero ? flyerArt(hero).replace('art flyer', 'art flyer c1') + igArt(hero).replace('art ig', 'art ig c2') + storyArt(hero).replace('art story', 'art story c3') : '';
+  cards.hidden = !loading && !hero;
+  note.hidden = loading || !!hero;
+  note.className = 'scene-note' + (failed ? ' warn' : '');
+  note.innerHTML = note.hidden ? '' : failed ? `<i class="ic-chip">${ic('alert-triangle')}</i>${FAIL_TEXT()}` : `<i class="ic-chip">${ic('sprout')}</i>${SOON_TEXT()}`;
+  // phones: the Next up strip under the heading
+  const strip = $('#nextstrip'), soon = hero ? soonWord(hero.date) : '';
+  strip.className = 'nextstrip' + (loading ? ' skel' : hero ? '' : failed ? ' note warn' : ' note');
+  busyAttr(strip, loading);
+  strip.innerHTML = loading ? '<span class="nsday sk"></span><span class="nsb"><span class="nsk">Next up</span><b>Loading events…</b></span>'
+    : hero ? `<span class="nsday"><span>${D(hero.date).toLocaleDateString('en-US', { month: 'short' })}</span><b>${D(hero.date).getDate()}</b></span>`
+      + `<span class="nsb"><span class="nsk">Next up${soon ? ' · ' + esc(soon) : ''}</span><b>${esc(hero.title)}</b><span>${hero.start ? esc(t12s(hero.start)) + ' · ' : ''}${esc(hero.place)}</span></span>`
+      + `<a class="nsgo" href="${esc(evHref(hero.id))}" data-ev="${esc(hero.id)}">Details<span class="vh">: ${esc(hero.title)}</span>${ic('arrow-right')}</a>`
+    : failed ? `<span class="nsday">${ic('alert-triangle')}</span><span class="nsb"><b>We couldn't load the latest dates.</b><span>See our Linktree for upcoming events.</span></span><a class="nsgo" href="${esc(linktree())}" target="_blank" rel="noopener">Linktree${ic('out')}</a>`
+    : `<span class="nsday">${ic('calendar')}</span><span class="nsb"><b>Next dates coming soon.</b><span>Join the list and we'll tell you.</span></span><a class="nsgo" href="#join">Join<span class="vh"> the list</span>${ic('arrow-down')}</a>`;
+  // Upcoming events: up to four, of any kind
+  const up = $('#nextup');
+  busyAttr(up, loading);
+  up.innerHTML = loading ? skelCard(true) + skelCard() + skelCard()
+    : nx.length ? nx.slice(0, 4).map(nextCard).join('')
+    : failed ? `<div class="nxnote warn"><i class="ic-chip">${ic('alert-triangle')}</i>${FAIL_TEXT()}</div>`
+    : `<div class="nxnote"><i class="ic-chip">${ic('calendar')}</i><span>${SOON_TEXT()}</span></div>`;
+  // the sign-in names: only the organizers the Sheet has. None to show (a Sheet nobody has set up, or one that
+  // didn't answer): Continue checks the code first, and the names come with the Sheet's answer.
+  const pick = $('#si-pick'), orgs = organizers();
+  pick.classList.toggle('skel', loading);
+  busyAttr(pick, loading);
+  pick.innerHTML = loading ? '<span class="sk" aria-hidden="true"></span>'.repeat(4) + '<p class="pick-note">Loading names…</p>'
+    : orgs.length ? orgs.map(o => `<button type="button" data-as="${esc(o.name)}">${avatar(o.name)}<span>${esc(o.name)}<small>${esc(ROLE[o.role] || '')}</small></span></button>`).join('')
+    : `<p class="pick-note">${failed ? "We couldn't load the organizers' names. Type the code and press Continue, then pick your name."
+      : 'The Guild Sheet has no organizers yet. Type the code and press Continue to set it up, then pick your name.'}</p>`
+      + `<button type="button" class="first" data-as="" data-first>${ic('log-in')}<span>Continue<small>Check the code</small></span></button>`;
+  $$('[data-as]', pick).forEach(b => b.addEventListener('click', () => signIn(b.dataset.as)));
 }
 function goSignIn() { showTab('signin'); history.replaceState(null, '', '#signin'); window.scrollTo({ top: 0 }); }
 function signIn(name) { if (remote) return remote.signIn(name); finishSignIn(name); }
@@ -2713,7 +2813,10 @@ function signOut() {
   if (!$('#modal').hidden) closeEvent();
   AUTH.clear(); document.body.classList.add('out'); renderLanding(); showTab('landing'); history.replaceState(null, '', '#welcome'); window.scrollTo({ top: 0 });
 }
-document.addEventListener('click', e => { if (e.target.closest('[data-signin]')) { e.preventDefault(); goSignIn(); } });
+/*PROTO*/
+// the artifact has no event page at ?ev= yet, so an event link stays on the home page
+document.addEventListener('click', e => { if (!remote && e.target.closest('a[data-ev]')) { e.preventDefault(); renderLanding(); window.scrollTo({ top: 0 }); } });
+/*/PROTO*/
 $('#signin-top').addEventListener('click', goSignIn);
 $('#signout').addEventListener('click', signOut);
 /*PROTO*/

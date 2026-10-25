@@ -126,15 +126,33 @@ async function openPage(t, before, sheet) {
   return p;
 }
 
-/* type the code and pick an organizer (the first one unless named); returns the name picked */
+/* type the code and pick an organizer (the first one unless named); returns the name picked.
+   A Sheet nobody has set up has no names to pick: Continue checks the code and fills the Sheet first,
+   and the names come with its answer ('' if Continue was turned down). */
+const NAMES = '#si-pick button[data-as]:not([data-first])';
 async function startSignIn(p, code, who) {
   p.$('#signin-top').click();
   await waitFor(() => p.shown('#p-signin'), 2000, 'the sign-in page');
   assert.ok(p.shown('#si-codew') && p.visible('#si-codew'), 'the organizer code field is shown');
   p.set('#si-code', code);
-  const pick = await waitFor(() => p.$(who ? `#si-pick button[data-as="${who}"]` : '#si-pick button[data-as]'), 2000, 'an organizer to pick');
+  const first = await waitFor(() => p.$('#si-pick [data-first]') || p.$(NAMES), 4000, 'the names, or Continue');
+  if (first.hasAttribute('data-first')) {
+    first.click();
+    await waitFor(() => p.shown('#si-err') || p.$(NAMES), 8000, 'the Sheet to answer Continue');
+    if (p.shown('#si-err')) return '';
+  }
+  const pick = await waitFor(() => p.$(who ? `#si-pick button[data-as="${who}"]` : NAMES), 2000, 'an organizer to pick');
   pick.click();
   return pick.dataset.as;
+}
+/* a mock Sheet an organizer has already set up: the starter events and the team are in it */
+async function seededSheet(t) {
+  const s = await openPage(t);
+  await signIn(s);
+  s.$('#signout').click();
+  await waitFor(s.idle, 2000, 'the first sign-in to finish');
+  s.noErrors();
+  return s.g;
 }
 async function signIn(p, who) {
   const name = await startSignIn(p, p.code(), who);
@@ -146,15 +164,15 @@ async function signIn(p, who) {
 test('the built page exists', () => assert.ok(fs.existsSync(SITE), MISSING));
 
 test('landing page renders with upcoming events', async t => {
-  const p = await openPage(t);
+  const p = await openPage(t, null, await seededSheet(t));
   assert.ok(p.shown('#p-landing'), 'landing page is visible');
   assert.ok(!p.shown('#p-events'), 'organizer pages stay hidden');
   assert.ok(p.d.body.classList.contains('out'), 'signed out');
   const cards = p.$$('#nextup > *');
   assert.ok(cards.length >= 1, 'at least one upcoming event card');
   assert.ok(cards.every(c => c.textContent.trim()), 'cards have text');
-  assert.ok(p.$$('#nextup button').length >= 1, 'at least one upcoming Guild event from the event list');
-  assert.ok(p.$$('#si-pick button[data-as]').length >= 1, 'organizers to sign in as');
+  assert.ok(p.$$('#nextup a.nxcard').length >= 1, 'at least one upcoming Guild event from the Sheet');
+  assert.ok(p.$$(NAMES).length >= 1, 'organizers to sign in as');
   assert.ok(!p.$('#err-bar') && !p.d.body.textContent.includes('Something went wrong'), 'no error bar');
   p.noErrors();
 });
@@ -305,7 +323,7 @@ test('the live page has none of the prototype wording; the artifact source keeps
 });
 
 test('the sign-in card asks only for the organizer code and who you are', async t => {
-  const p = await openPage(t);
+  const p = await openPage(t, null, await seededSheet(t));
   p.$('#signin-top').click();
   await waitFor(() => p.shown('#p-signin'), 2000, 'the sign-in page');
   const card = p.$('#p-signin .scard'), seen = [...card.querySelectorAll('input, button, select, textarea, a')].filter(p.visible);
@@ -399,7 +417,7 @@ test('the Netlify and Google-hosted pages use the same error script', () => {
 });
 
 /* ---------- icons and the event pop-up ---------- */
-const ICONS = ['x', 'arrow-left', 'arrow-down', 'log-in', 'log-out', 'calendar', 'calendar-plus', 'clock', 'map-pin', 'users', 'user-plus', 'user-minus', 'user-check',
+const ICONS = ['x', 'arrow-left', 'arrow-right', 'arrow-down', 'log-in', 'log-out', 'calendar', 'calendar-plus', 'clock', 'map-pin', 'users', 'user-plus', 'user-minus', 'user-check',
   'pencil', 'send', 'link', 'copy', 'share', 'file-text', 'list-ordered', 'package', 'lightbulb', 'alert-triangle', 'heart', 'sprout', 'shovel', 'handshake', 'image',
   'lock', 'mail', 'phone', 'message-circle', 'history', 'eye', 'rotate-ccw', 'printer', 'help-circle', 'download', 'plus', 'check', 'out'];
 const GLYPHS = /[↗←×↓✓]/;
@@ -417,7 +435,7 @@ function checkIcons(p, where) {
 }
 
 test('icons: the sprite has the set, every icon resolves, and none are read aloud', async t => {
-  const p = await openPage(t);
+  const p = await openPage(t, null, await seededSheet(t));
   for (const n of ICONS) {
     const sym = p.$('symbol#i-' + n);
     assert.ok(sym, 'symbol i-' + n);
@@ -429,7 +447,8 @@ test('icons: the sprite has the set, every icon resolves, and none are read alou
   assert.ok(p.$('#signin-top use[href="#i-log-in"]') && p.$('#signout use[href="#i-log-out"]'), 'sign in and sign out icons');
   assert.ok(p.$$('#involved .ic-chip').length === 3 && p.$$('#involved .ic-chip').every(i => i.tagName === 'I'), 'the three get-involved cards have an icon chip (an <i>, not a span)');
   assert.ok(!p.$('#join > svg'), 'the Join us watermark is drawn by CSS, so every svg in #join is an icon');
-  assert.ok(p.$$('#nextup button .meta use[href="#i-calendar"]').length >= 1 && p.$$('#nextup button .meta use[href="#i-map-pin"]').length >= 1, 'when and where on the event cards');
+  assert.ok(p.$$('#nextup a .meta use[href="#i-calendar"]').length >= 1 && p.$$('#nextup a .meta use[href="#i-map-pin"]').length >= 1, 'when and where on the event cards');
+  assert.ok(p.$('#nextstrip .nsgo use[href="#i-arrow-right"]'), 'the Next up strip has an arrow on Details');
   for (const id of ['vj-err', 'si-err', 'ap-err']) assert.equal(p.$('#' + id).getAttribute('role'), 'alert', id + ' is announced');
 
   // an error message keeps its words when the script sets them (the warning icon is CSS)
@@ -699,7 +718,7 @@ test('two quick edits go out one at a time, the newest last', async t => {
 });
 
 test("an HTML error page during sign-in reads as the Sheet not answering, and picking a name again works", async t => {
-  const p = await openPage(t);
+  const p = await openPage(t, null, await seededSheet(t));
   p.api.fail = 'signIn';
   await startSignIn(p, p.code(), 'Phil');
   const err = await waitFor(() => p.shown('#si-err') && p.$('#si-err'), 3000, 'the sign-in error');
@@ -715,7 +734,7 @@ test("an HTML error page during sign-in reads as the Sheet not answering, and pi
 });
 
 test('sign-in shows Signing in… on the name and a waking-up line; the device is remembered only when asked', async t => {
-  const p = await openPage(t);
+  const p = await openPage(t, null, await seededSheet(t));
   p.api.latency = 300;
   await startSignIn(p, p.code(), 'Phil');
   const btn = p.$('#si-pick button[data-as="Phil"]');
@@ -888,8 +907,13 @@ test('a save that fails with the event pop-up open: the pop-up shows Not saved w
 });
 
 test('Signing in… stays on the name when the public events arrive while it signs in', async t => {
-  // the public read is still out when the name is picked, and comes back before the sign-in does
-  const p = loadPage(t, SITE, 'http://localhost:8766/site', (w, g, api) => { g.ctx.getPublic(); api.latency = 300; });
+  // the names on show are the last visit's (kept on this device); the public read is still out when one is picked,
+  // and comes back before the sign-in does. The Sheet was emptied since (resetStarterData), so it gets filled first.
+  const p = loadPage(t, SITE, 'http://localhost:8766/site', (w, g, api) => {
+    const sheet = g.ctx.getPublic(); // makes the Settings tab with the organizer code
+    w.localStorage.setItem('ebpg-public-v1', JSON.stringify({ at: 0, st: { ...sheet, team: [{ name: 'Jessie', role: 'lead' }, { name: 'Phil', role: 'co' }] } }));
+    api.latency = 300;
+  });
   p.api.latency = 1500;
   p.$('#signin-top').click();
   p.set('#si-code', p.code());
@@ -898,6 +922,33 @@ test('Signing in… stays on the name when the public events arrive while it sig
   pick.click();
   assert.equal(pick.getAttribute('aria-busy'), 'true');
   p.api.latency = 500; // for the seed that follows
+  await waitFor(() => !pick.isConnected && p.api.done.some(c => c.fn === 'getPublic'), 3000, 'the picker to be redrawn with what the Sheet has');
+  // nobody on the Team tab yet, so the redrawn picker offers Continue, which waits too
+  assert.deepEqual(p.$$('#si-pick button').map(b => [b.dataset.as, b.disabled]), [['', true]]);
+  assert.ok(!p.api.done.some(c => c.fn === 'signIn'), 'the sign-in is still going');
+  assert.equal(p.$('#si-wait').textContent, 'Waking up the Guild Sheet. This can take a few seconds.');
+  // an empty Sheet gets filled first, and the line says so
+  await waitFor(() => p.api.out.seed === 1, 3000, 'the Sheet to be filled');
+  assert.equal(p.$('#si-wait').textContent, 'Setting up the Guild Sheet for the first time. This can take up to a minute.');
+  await waitFor(() => p.shown('#p-events') && !p.d.body.classList.contains('out'), 4000, 'the events page');
+  assert.equal(p.$('#who > span:last-child').textContent, 'Signed in as Jessie · Lead organizer');
+  await waitFor(p.idle, 2000, 'calls to finish');
+  assert.deepEqual(p.api.calls.filter(c => c === 'signIn' || c === 'seed'), ['signIn', 'seed'], 'one sign-in call');
+  p.noErrors();
+});
+
+test('Signing in… stays on the name when the Sheet\'s names replace the ones kept from the last visit', async t => {
+  const p = loadPage(t, SITE, 'http://localhost:8766/site', (w, g, api) => {
+    w.localStorage.setItem('ebpg-public-v1', JSON.stringify({ at: 0, st: g.ctx.getPublic() }));
+    api.latency = 300;
+  }, await seededSheet(t));
+  p.api.latency = 1500;
+  p.$('#signin-top').click();
+  p.set('#si-code', p.code());
+  const pick = p.$('#si-pick button[data-as="Jessie"]');
+  pick.focus();
+  pick.click();
+  assert.equal(pick.getAttribute('aria-busy'), 'true');
   await waitFor(() => !pick.isConnected, 3000, 'the picker to be redrawn with what the Sheet has');
   assert.ok(!p.api.done.some(c => c.fn === 'signIn'), 'the sign-in is still going');
   const btn = p.$('#si-pick button[data-as="Jessie"]');
@@ -907,12 +958,10 @@ test('Signing in… stays on the name when the public events arrive while it sig
   assert.ok(p.$$('#si-pick button').filter(b => b !== btn).every(b => b.disabled), 'the other names still wait');
   assert.equal(p.$('#si-wait').textContent, 'Waking up the Guild Sheet. This can take a few seconds.');
   btn.click(); // still does nothing while it works
-  // an empty Sheet gets filled first, and the line says so
-  await waitFor(() => p.api.out.seed === 1, 3000, 'the Sheet to be filled');
-  assert.equal(p.$('#si-wait').textContent, 'Setting up the Guild Sheet for the first time. This can take up to a minute.');
   await waitFor(() => p.shown('#p-events') && !p.d.body.classList.contains('out'), 4000, 'the events page');
   await waitFor(p.idle, 2000, 'calls to finish');
   assert.equal(p.api.calls.filter(c => c === 'signIn').length, 1, 'one sign-in call');
+  assert.ok(!p.api.calls.includes('seed'), 'the Sheet was set up already');
   assert.ok(p.$$('#si-pick button').every(b => !b.disabled && !b.hasAttribute('aria-busy')), 'the names are back to normal');
   assert.ok(!p.$$('#si-pick small').some(s => /Signing in/.test(s.textContent)));
   assert.equal(p.$('#si-wait').textContent, '');
@@ -920,7 +969,7 @@ test('Signing in… stays on the name when the public events arrive while it sig
 });
 
 test('a remembered device stays remembered when signing back in fails and the name is picked again', async t => {
-  const p = loadPage(t, SITE, 'http://localhost:8766/site', (w, g, api) => { withCode('device', 'Kalynn', 864e5)(w, g, api); api.fail = 'signIn'; });
+  const p = loadPage(t, SITE, 'http://localhost:8766/site', (w, g, api) => { withCode('device', 'Kalynn', 864e5)(w, g, api); api.fail = 'signIn'; }, await seededSheet(t));
   assert.ok(p.shown('#p-resume'), 'the signing-back-in card');
   await waitFor(() => p.shown('#p-signin') && p.shown('#si-err'), 3000, 'the sign-in card after the Sheet did not answer');
   assert.equal(p.$('#si-rem').checked, true, 'Remember this device is still ticked');
@@ -1072,7 +1121,7 @@ test("after too many wrong codes the sign-in page says to wait, and a remembered
   const p = loadPage(t, SITE, 'http://localhost:8766/site', (w, g, api) => {
     withCode('device', 'Kalynn', 864e5)(w, g, api);
     for (let i = 0; i < 21; i++) try { g.ctx.signIn('guess-' + i); } catch {} // someone else guessing
-  });
+  }, await seededSheet(t));
   const err = await waitFor(() => p.shown('#p-signin') && p.shown('#si-err') && p.$('#si-err'), 4000, 'the sign-in card');
   assert.equal(err.textContent, 'Too many tries. Wait 10 minutes and try again.');
   assert.equal(JSON.parse(p.w.localStorage.getItem('ebpg-remember')).code, p.code(), 'the device keeps the code');
@@ -1658,7 +1707,8 @@ test('Publish puts a draft on the public page, says so once the Sheet has it, an
   p.$('#signout').click();
   const q = await openPage(t, null, p.g);
   assert.ok(q.shown('#p-landing'));
-  assert.ok(q.$$('#hero-cards .art').length === 3 && q.$$('#nextup button').length === 1, 'the next work day is on the landing page');
+  assert.ok(q.$$('#hero-cards .art').length === 3, 'the next event is in the hero');
+  assert.deepEqual(q.$$('#nextup a.nxcard').map(a => a.dataset.ev), ['w7', 'm2'], 'Community Meeting #2 is on the landing page now, after Workday #7');
   await waitFor(p.idle, 2000, 'calls to finish');
   p.noErrors(); q.noErrors();
 });
@@ -1735,8 +1785,291 @@ test('a new event starts as a draft, and a Sheet with nothing published shows no
   p.g.sheets.get('Events').set(p.g.tab('Events').findIndex(r => r[0] === 'w7') + 1, p.g.tab('Events')[0].indexOf('status') + 1, 'draft');
   p.g.ctx.saveTeam(p.code(), JSON.parse(JSON.stringify(p.g.ctx.signIn(p.code()).team))); // drops the cached public copy
   const q = await openPage(t, null, p.g);
-  assert.deepEqual([q.$$('#hero-cards .art').length, q.$$('#nextup button').length], [0, 0], 'no draft on the landing page');
-  assert.ok(q.$$('#si-pick button[data-as]').length >= 1, 'organizers can still sign in');
+  assert.deepEqual([q.$$('#hero-cards .art').length, q.$$('#nextup a.nxcard').length], [0, 0], 'no draft on the landing page');
+  assert.equal(q.$('#nextup').textContent, "Next dates coming soon. Join the list and we'll tell you.");
+  assert.ok(q.$$(NAMES).length >= 1, 'organizers can still sign in');
   await waitFor(p.idle, 2000, 'calls to finish');
   p.noErrors(); q.noErrors();
+});
+
+/* ---------- the landing page, built only from the Sheet's published events ---------- */
+const URL_SITE = 'http://localhost:8766/site';
+const CACHE = 'ebpg-public-v1';
+// what the page itself drew, without its scripts: none of the page's own starter plans may show before the Sheet answers
+const drawn = p => p.d.body.innerHTML.replace(/<script[\s\S]*?<\/script>/g, '');
+const STARTER = ['OPC Garden Work Party', 'Community Meeting', 'Workday #', 'Jessie', 'Kalynn'];
+const LOADING = "Loading events…";
+const SOON = "Next dates coming soon. Join the list and we'll tell you.";
+const FAIL = "We couldn't load the latest dates. See our Linktree for upcoming events.";
+
+test('the landing: Workday #7 from the Sheet, not the draft Community Meeting #2, as a link with Tomorrow; the intro and the names are the Sheet\'s', async t => {
+  const sheet = await seededSheet(t);
+  // the Settings tab's line about when the Guild meets, and a name changed on the Team tab, both typed by hand
+  sheet.sheets.get('Settings').set(sheet.tab('Settings').findIndex(r => r[0] === 'SCHEDULE_TEXT') + 1, 2, 'Work days on 4th Sundays & potlucks <b>monthly</b>.');
+  sheet.sheets.get('Team').set(sheet.tab('Team').findIndex(r => r[0] === 'Sky') + 1, 1, 'Skylar');
+  delete sheet.cache['public:v1'];
+  const p = await openPage(t, null, sheet);
+  const cards = p.$$('#nextup > *');
+  assert.deepEqual(cards.map(c => [c.tagName, c.getAttribute('href'), c.dataset.ev]), [['A', '?ev=w7', 'w7']], 'Workday #7 only: no draft, no past event, nothing made up');
+  const card = cards[0];
+  assert.equal(card.querySelector('.soon').textContent, 'Tomorrow');
+  assert.ok(card.querySelector('.soon use[href="#i-clock"]'), 'with a clock icon');
+  assert.ok(card.querySelector('.nxcover[aria-hidden="true"] .art.ig'), 'the Instagram art is its cover, and screen readers skip it');
+  assert.deepEqual([...card.querySelector('.nb').children].map(x => x.textContent), ['Work party', 'OPC Garden Work Party', 'Sunday, October 25 · 10:00 AM', 'Oakland Peace Center']);
+  assert.ok(!p.$('[data-signin]'), 'no event card sends people to the sign-in page');
+  for (const s of ['Grace Room', 'Guild Monthly Meeting', '2nd Monday']) assert.ok(!drawn(p).includes(s), s);
+  // the hero and the phones' Next up strip use the same event
+  assert.equal(p.$$('#hero-cards .art').length, 3);
+  assert.ok(p.shown('#hero-cards') && !p.shown('#hero-note'));
+  const strip = p.$('#nextstrip');
+  assert.equal(strip.className, 'nextstrip');
+  assert.equal(strip.querySelector('.nsday').textContent, 'Oct25');
+  assert.equal(strip.querySelector('.nsk').textContent, 'Next up · Tomorrow');
+  assert.equal(strip.querySelector('.nsb b').textContent, 'OPC Garden Work Party');
+  assert.equal(strip.querySelector('.nsb > span:last-child').textContent, '10am · Oakland Peace Center');
+  const det = strip.querySelector('a.nsgo');
+  assert.equal(det.getAttribute('href'), '?ev=w7');
+  assert.equal(det.textContent, 'Details: OPC Garden Work Party', 'Details says which event to a screen reader');
+  // the intro is the Settings tab's line, as plain text
+  assert.equal(p.$('#sched').textContent, 'Work days on 4th Sundays & potlucks <b>monthly</b>.');
+  // the names to sign in as are the Sheet's organizers, not the page's own list
+  assert.deepEqual(p.$$(NAMES).map(b => b.dataset.as), ['Jessie', 'Phil', 'Kalynn', 'Skylar']);
+  for (const id of ['#nextup', '#hero-cards', '#nextstrip', '#si-pick']) assert.ok(!p.$(id).hasAttribute('aria-busy'), id + ' is not busy');
+  assert.ok(!p.$('.skel, .sk'), 'no grey shapes left');
+  checkIcons(p, 'landing from the Sheet');
+  p.noErrors();
+});
+
+/* a published event as the Sheet keeps it, for a Sheet filled by hand */
+const sheetEv = (id, date, start, end, status, series = 'workday', title = 'Garden work day ' + id) => ({
+  id, data: { id, series, num: 1, label: '', photo: 'trellis', tags: ['beginner'], plan: { roles: [['Host', ['Jessie']]], notes: [], timeline: [] } },
+  cols: { label: '', title, date, start, end, place: 'Oakland Peace Center', address: '', host: 'Jessie', cohosts: '', about: 'Garden work.', bring: '', tags: 'beginner', notes: '', timeline: '', status },
+  tasks: [], posts: [], log: [],
+});
+const LEAD = { name: 'Jessie', role: 'lead', contact: '', via: '', perms: { create: true, edit: true, approve: true, tasks: true, team: true } };
+
+test('up to four upcoming events of any kind, soonest first, with Today and This Tuesday; never a draft, a cancelled, a past or an ended one', async t => {
+  // Saturday Oct 24 2026 on the page's clock
+  const events = [
+    sheetEv('late', '2026-11-20', '10:00', '14:00', 'published'),
+    sheetEv('sat', '2026-10-31', '10:00', '14:00', 'published'),
+    sheetEv('tue', '2026-10-27', '18:00', '20:00', 'published', 'meeting', 'Seed library night'),
+    sheetEv('fri', '2026-10-30', '10:00', '12:00', 'published', '', 'Seed swap'),
+    sheetEv('tonight', '2026-10-24', '23:58', '23:59', 'published', 'meeting', 'Potluck under the oak'),
+    sheetEv('over', '2026-10-24', '00:00', '00:01', 'published'),
+    sheetEv('draft', '2026-10-25', '10:00', '14:00', 'draft'),
+    sheetEv('gone', '2026-10-26', '10:00', '14:00', 'cancelled'),
+    sheetEv('past', '2026-10-01', '10:00', '14:00', 'published'),
+  ];
+  const p = await openPage(t, (w, g) => { g.ctx.doGet({}); g.ctx.seed('garden-test-2468', { events, team: [LEAD], vols: [], gardens: [] }); });
+  const cards = p.$$('#nextup a.nxcard');
+  assert.deepEqual(cards.map(a => a.dataset.ev), ['tonight', 'tue', 'fri', 'sat'], 'four, soonest first');
+  assert.deepEqual(cards.map(a => a.querySelector('.soon')?.textContent || ''), ['Today', 'This Tuesday', 'This Friday', ''], 'a week away has no chip');
+  assert.deepEqual(cards.map(a => a.querySelector('.nk').textContent), ['Community meeting', 'Community meeting', 'Skill share', 'Work party']);
+  assert.equal(p.$('#nextstrip .nsk').textContent, 'Next up · Today');
+  assert.equal(p.$('#nextstrip .nsb > span:last-child').textContent, '11:58pm · Oakland Peace Center');
+  assert.match(p.$('#hero-cards .art.ig').textContent, /Potluck under the oak/, 'the hero is the next one');
+  p.noErrors();
+});
+
+test("until the Sheet answers: grey cards that say Loading events…, the names wait, and the page's own starter plans never show", async t => {
+  const p = loadPage(t, SITE, URL_SITE, (w, g, api) => { api.latency = 400; }, await seededSheet(t));
+  assert.ok(p.shown('#p-landing'));
+  assert.equal(p.$('#nextup').getAttribute('aria-busy'), 'true');
+  assert.equal(p.$$('#nextup .nxcard.skel').length, 3, 'three grey cards');
+  assert.equal(p.$('#nextup').textContent, LOADING, 'saying Loading events… once');
+  assert.deepEqual(p.$$('#nextup .nxcard.skel').map(c => c.getAttribute('aria-hidden')), [null, 'true', 'true'], 'the other two are skipped by screen readers');
+  assert.equal(p.$('#hero-cards').getAttribute('aria-busy'), 'true');
+  assert.equal(p.$$('#hero-cards .sk').length, 3);
+  assert.ok(!p.$('#hero-cards .art') && !p.shown('#hero-note'));
+  assert.equal(p.$('#nextstrip').getAttribute('aria-busy'), 'true');
+  assert.match(p.$('#nextstrip').textContent, /Loading events…/);
+  assert.equal(p.$('#si-pick').getAttribute('aria-busy'), 'true');
+  assert.equal(p.$$('#si-pick button').length, 0, 'no names to pick yet');
+  assert.equal(p.$('#si-pick').textContent, 'Loading names…');
+  for (const s of STARTER) assert.ok(!drawn(p).includes(s), s + ' is not on the page');
+  assert.equal(p.$('#sched').textContent, 'Garden work days at the Oakland Peace Center, plus community meetings with a potluck. Everyone is welcome, no experience needed.');
+  await waitFor(() => p.$('#nextup a.nxcard'), 3000, "the Sheet's events");
+  assert.ok(!p.$('#nextup').hasAttribute('aria-busy') && !p.$('#si-pick').hasAttribute('aria-busy') && !p.$('.sk'));
+  assert.deepEqual(p.$$(NAMES).map(b => b.dataset.as), ['Jessie', 'Phil', 'Kalynn', 'Sky']);
+  await waitFor(p.idle, 2000, 'calls to finish');
+  p.noErrors();
+});
+
+test("the Sheet's last public answer is kept on this device, shown at once on the next visit, then brought up to date", async t => {
+  const sheet = await seededSheet(t);
+  const p = await openPage(t, null, sheet);
+  const kept = JSON.parse(p.w.localStorage.getItem(CACHE));
+  assert.deepEqual(kept.st, JSON.parse(JSON.stringify(sheet.ctx.getPublic())), "getPublic's answer, as it came");
+  assert.ok(Math.abs(kept.at - p.w.Date.now()) < 60000, 'with when it came');
+  const raw = JSON.stringify(kept);
+  for (const bad of ['ORGANIZER_CODE', p.code(), 'perms', 'leadNote', 'hard out', 'TEST_MODE']) assert.ok(!raw.includes(bad), bad + ' is not kept');
+  // Community Meeting #2 is published meanwhile
+  sheet.sheets.get('Events').set(sheet.tab('Events').findIndex(r => r[0] === 'm2') + 1, sheet.tab('Events')[0].indexOf('status') + 1, 'published');
+  delete sheet.cache['public:v1'];
+  const q = loadPage(t, SITE, URL_SITE, (w, g, api) => { w.localStorage.setItem(CACHE, JSON.stringify(kept)); api.latency = 300; }, sheet);
+  assert.deepEqual(q.$$('#nextup a.nxcard').map(a => a.dataset.ev), ['w7'], "last visit's events, before the Sheet answers");
+  assert.ok(!q.$('#nextup').hasAttribute('aria-busy') && !q.$('.sk'), 'no grey shapes');
+  assert.deepEqual(q.$$(NAMES).map(b => b.dataset.as), ['Jessie', 'Phil', 'Kalynn', 'Sky'], 'names to pick at once');
+  await waitFor(() => q.$$('#nextup a.nxcard').length === 2, 3000, "the Sheet's newer events");
+  assert.deepEqual(q.$$('#nextup a.nxcard').map(a => a.dataset.ev), ['w7', 'm2']);
+  assert.deepEqual(JSON.parse(q.w.localStorage.getItem(CACHE)).st.events.map(e => e.id), ['w7', 'm2'], 'and keeps the newer answer');
+  // a device that won't keep anything (private window, blocked storage) still gets the page
+  const r = await openPage(t, w => { Object.defineProperty(w, 'localStorage', { configurable: true, get() { throw new w.DOMException('blocked', 'SecurityError'); } }); }, sheet);
+  assert.deepEqual(r.$$('#nextup a.nxcard').map(a => a.dataset.ev), ['w7', 'm2']);
+  await waitFor(() => q.idle() && r.idle(), 2000, 'calls to finish');
+  p.noErrors(); q.noErrors(); r.noErrors();
+});
+
+test("when the Sheet doesn't answer and nothing is kept: the Linktree note, no events, and Continue still signs in", async t => {
+  const p = await openPage(t, (w, g, api) => { api.fail = 'getPublic'; }, await seededSheet(t));
+  assert.equal(p.$('#nextup').textContent, FAIL);
+  const link = p.$('#nextup a');
+  assert.equal(link.getAttribute('href'), 'https://linktr.ee/eastbaypermacultureguild');
+  assert.equal(link.target, '_blank');
+  assert.ok(!p.$('.nxcard') && !p.$('#hero-cards .art') && !p.shown('#hero-cards'), 'no events, and no card fan');
+  assert.ok(p.shown('#hero-note') && p.$('#hero-note').textContent === FAIL);
+  assert.equal(p.$('#nextstrip').className, 'nextstrip note warn');
+  assert.match(p.$('#nextstrip').textContent, /^We couldn't load the latest dates\./);
+  assert.equal(p.$('#nextstrip a').getAttribute('href'), 'https://linktr.ee/eastbaypermacultureguild');
+  for (const s of STARTER) assert.ok(!drawn(p).includes(s), s + ' is not on the page');
+  assert.ok(!p.$('[aria-busy]') && !p.$('.sk'), 'not loading any more');
+  // the sign-in card has no names to show, so Continue checks the code and brings them
+  p.$('#signin-top').click();
+  assert.equal(p.$('#si-pick .pick-note').textContent, "We couldn't load the organizers' names. Type the code and press Continue, then pick your name.");
+  p.set('#si-code', p.code());
+  p.$('#si-pick [data-first]').click();
+  await waitFor(() => p.$$(NAMES).length, 3000, 'the names from the Sheet');
+  assert.deepEqual(p.$$(NAMES).map(b => b.dataset.as), ['Jessie', 'Phil', 'Kalynn', 'Sky']);
+  p.$('#si-pick button[data-as="Kalynn"]').click();
+  await waitFor(() => p.shown('#p-events') && !p.d.body.classList.contains('out'), 3000, 'the events page');
+  assert.equal(p.$('#who > span:last-child').textContent, 'Signed in as Kalynn · Co-organizer');
+  assert.deepEqual(p.api.calls.filter(c => c === 'signIn' || c === 'seed'), ['signIn'], 'one sign-in call, and no seed');
+  await waitFor(p.idle, 2000, 'calls to finish');
+  p.noErrors();
+});
+
+test("with the server out of reach and nothing kept, the page shows the Linktree note and no events", async t => {
+  const p = await openPage(t, (w, g, api) => {
+    const send = w.fetch;
+    w.fetch = (url, opts) => /"fn":"getPublic"/.test(String(opts && opts.body)) ? (api.calls.push('getPublic'), w.Promise.reject(new w.TypeError('Failed to fetch'))) : send(url, opts);
+  }, await seededSheet(t));
+  assert.equal(p.$('#nextup').textContent, FAIL);
+  assert.ok(!p.$('.nxcard') && !p.shown('#hero-cards') && p.shown('#hero-note'));
+  assert.equal(p.w.localStorage.getItem(CACHE), null, 'nothing kept from a failed read');
+  for (const s of STARTER) assert.ok(!drawn(p).includes(s), s + ' is not on the page');
+  p.noErrors();
+});
+
+test('an event link (?ev=) shows the home page to a visitor; an organizer who signs in from there gets its plan', async t => {
+  const p = loadPage(t, SITE, URL_SITE + '?ev=w7', null, await seededSheet(t));
+  await waitFor(() => p.$('#nextup a.nxcard'), 3000, 'the events');
+  assert.ok(p.shown('#p-landing') && !p.shown('#p-signin'), 'the home page, not the sign-in card');
+  await startSignIn(p, p.code(), 'Jessie');
+  await waitFor(() => p.$('#detail #dp-plan') && !p.d.body.classList.contains('out'), 3000, "Workday #7's plan");
+  assert.match(p.$('#detail').textContent, /OPC Garden Work Party/);
+  await waitFor(p.idle, 2000, 'calls to finish');
+  p.noErrors();
+});
+
+test("when the Sheet doesn't answer: last visit's events stay on show, and coming back to the tab tries again", async t => {
+  const sheet = await seededSheet(t);
+  const kept = JSON.stringify({ at: 0, st: sheet.ctx.getPublic() });
+  const p = await openPage(t, (w, g, api) => { w.localStorage.setItem(CACHE, kept); api.fail = 'getPublic'; }, sheet);
+  assert.deepEqual(p.$$('#nextup a.nxcard').map(a => a.dataset.ev), ['w7'], 'the kept events');
+  assert.ok(!drawn(p).includes("couldn't load") && !p.shown('#hero-note'), 'no failure note while there are events to show');
+  assert.equal(p.$('#nextstrip .nsb b').textContent, 'OPC Garden Work Party');
+  // nothing kept, nothing to show: the note, until the Sheet answers again
+  const q = await openPage(t, (w, g, api) => { api.fail = 'getPublic'; }, sheet);
+  assert.equal(q.$('#nextup').textContent, FAIL);
+  q.api.fail = '';
+  q.d.dispatchEvent(new q.w.Event('visibilitychange'));
+  await waitFor(() => q.$('#nextup a.nxcard'), 3000, 'the events once the Sheet answers');
+  assert.ok(!q.shown('#hero-note') && q.$$('#hero-cards .art').length === 3);
+  assert.deepEqual(q.$$(NAMES).map(b => b.dataset.as), ['Jessie', 'Phil', 'Kalynn', 'Sky']);
+  assert.equal(q.api.calls.filter(c => c === 'getPublic').length, 2);
+  await waitFor(() => p.idle() && q.idle(), 2000, 'calls to finish');
+  p.noErrors(); q.noErrors();
+});
+
+test("a Sheet nobody has set up: Next dates coming soon, and Continue fills it, then the names come from the Sheet", async t => {
+  const p = await openPage(t);
+  assert.equal(p.$('#nextup').textContent, SOON);
+  assert.equal(p.$('#nextup a').getAttribute('href'), '#join');
+  assert.ok(p.shown('#hero-note') && !p.shown('#hero-cards'), 'a note in place of the card fan');
+  assert.equal(p.$('#hero-note').textContent, SOON);
+  assert.equal(p.$('#hero-note a').getAttribute('href'), '#join');
+  assert.equal(p.$('#nextstrip').className, 'nextstrip note');
+  assert.match(p.$('#nextstrip').textContent, /^Next dates coming soon\./);
+  assert.equal(p.$('#nextstrip a').getAttribute('href'), '#join');
+  for (const s of STARTER) assert.ok(!drawn(p).includes(s), s + ' is not on the page');
+  // sign in: no names yet
+  p.$('#signin-top').click();
+  assert.deepEqual(p.$$('#si-pick button').map(b => b.dataset.as), [''], 'only Continue');
+  const cont = p.$('#si-pick [data-first]');
+  assert.equal(cont.textContent, 'ContinueCheck the code');
+  assert.ok(cont.querySelector('use[href="#i-log-in"]'));
+  assert.equal(p.$('#si-pick .pick-note').textContent, 'The Guild Sheet has no organizers yet. Type the code and press Continue to set it up, then pick your name.');
+  checkIcons(p, 'sign-in with Continue');
+  cont.click();
+  assert.equal(p.$('#si-err').textContent, 'Type the organizer code first.');
+  // the Sheet answers with an HTML error page: try again
+  p.set('#si-code', p.code());
+  p.api.fail = 'signIn';
+  cont.click();
+  await waitFor(() => p.shown('#si-err'), 3000, 'the sign-in error');
+  assert.equal(p.$('#si-err').textContent, "The Guild Sheet didn't answer. Check your internet, then press Continue to try again.");
+  p.api.fail = ''; p.api.latency = 200;
+  p.$('#si-pick [data-first]').click();
+  assert.equal(p.$('#si-pick [data-first]').getAttribute('aria-busy'), 'true');
+  assert.match(p.$('#si-pick [data-first]').textContent, /Signing in…$/);
+  await waitFor(() => p.api.out.seed === 1, 3000, 'the Sheet to be filled');
+  assert.equal(p.$('#si-wait').textContent, 'Setting up the Guild Sheet for the first time. This can take up to a minute.');
+  await waitFor(() => p.$$(NAMES).length, 3000, 'the names from the Sheet');
+  assert.deepEqual(p.$$(NAMES).map(b => b.dataset.as), ['Jessie', 'Phil', 'Kalynn', 'Sky']);
+  assert.ok(p.$$(NAMES).every(b => !b.disabled && !b.hasAttribute('aria-busy')), 'ready to pick');
+  assert.equal(p.$('#si-wait').textContent, 'The Guild Sheet is ready. Pick your name.');
+  assert.equal(p.d.activeElement, p.$('#si-pick button[data-as="Jessie"]'), 'focus on the first name');
+  assert.ok(p.d.body.classList.contains('out') && p.shown('#p-signin'), 'not signed in until a name is picked');
+  // picking a name finishes at once: the Sheet has already answered
+  p.$('#si-pick button[data-as="Phil"]').click();
+  await waitFor(() => p.shown('#p-events') && !p.d.body.classList.contains('out'), 2000, 'the events page');
+  assert.equal(p.$('#who > span:last-child').textContent, 'Signed in as Phil · Co-organizer');
+  assert.deepEqual(p.api.calls.filter(c => c === 'signIn' || c === 'seed'), ['signIn', 'signIn', 'seed'], 'no third sign-in call for the name');
+  assert.equal(p.$('#si-wait').textContent, '');
+  // signed out again, the landing page has the Sheet's published events
+  p.$('#signout').click();
+  assert.deepEqual(p.$$('#nextup a.nxcard').map(a => a.dataset.ev), ['w7']);
+  await waitFor(p.idle, 2000, 'calls to finish');
+  p.noErrors();
+});
+
+test('the built page has no made-up meeting, and phones get the Next up strip in place of the card fan', () => {
+  const live = fs.readFileSync(SITE, 'utf8'), src = fs.readFileSync(ARTIFACT, 'utf8');
+  for (const s of ['Grace Room', 'Guild Monthly Meeting', '2nd Monday', 'nextSecondMonday', 'data-signin']) {
+    assert.ok(!live.includes(s), s + ' is not in site/index.html');
+    assert.ok(!src.includes(s), s + ' is not in event-hub/src.html');
+  }
+  const css = live.slice(live.indexOf('<style>'), live.indexOf('</style>'));
+  const block = w => { const i = css.indexOf(`@media (max-width: ${w}px) {\n`); assert.ok(i >= 0, `a ${w}px block`); return css.slice(i, css.indexOf('\n}', i)); };
+  assert.match(block(600), /\.scene \{ display: none; \}/, 'no card fan under 600px');
+  assert.match(block(600), /\.nextstrip \{ position: relative; display: flex;/, 'the Next up strip instead');
+  assert.match(css, /\.nextstrip \{ display: none; \}/, 'and only there');
+  assert.match(block(400), /\.lock b \{ position: absolute; width: 1px; height: 1px; overflow: hidden; clip:/, 'under 400px the mark alone, the name kept for screen readers');
+});
+
+test('the prototype artifact draws its own events at once, with the same cards, and an event link stays on the home page', async t => {
+  const p = loadPage(t, ARTIFACT, 'http://localhost/artifact');
+  await waitFor(() => p.shown('#p-landing'), 2000, 'the artifact landing page');
+  assert.ok(!p.$('.skel, .sk, [aria-busy]'), 'no grey shapes');
+  assert.deepEqual(p.$$('#nextup a.nxcard').map(a => [a.getAttribute('href'), a.querySelector('.soon').textContent]), [['?ev=w7', 'Tomorrow']]);
+  assert.deepEqual([...p.$('#nextup .nb').children].map(x => x.textContent), ['Work party', 'OPC Garden Work Party', 'Sunday, October 25 · 10:00 AM', 'Oakland Peace Center']);
+  assert.equal(p.$$('#hero-cards .art').length, 3);
+  assert.equal(p.$('#nextstrip .nsk').textContent, 'Next up · Tomorrow');
+  assert.deepEqual(p.$$('#si-pick button').map(b => b.dataset.as), ['Jessie', 'Phil', 'Kalynn', 'Sky']);
+  p.$('#nextup a.nxcard').click();
+  p.$('#nextstrip a.nsgo').click();
+  assert.ok(p.shown('#p-landing') && p.$('#nextup a.nxcard'), 'still on the home page');
+  assert.deepEqual(p.api.calls, [], 'the artifact calls no server');
+  p.noErrors();
 });

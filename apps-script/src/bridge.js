@@ -127,15 +127,29 @@ if (window.EBPG_GAS) {
     CHANNELS.forEach(ch => { ev.posts[ch.id] = { status: 'off', text: '', edited: false, ...NO_TRAIL, open: false }; });
     return ev;
   }
-  // signed out: the Sheet's public view. A Sheet nobody has signed in to yet (no team) keeps the Guild's starter events on show.
+  // names and roles only: what each person can do comes with signing in
+  const namesOnly = team => (Array.isArray(team) ? team : []).map(t => ({ name: String(t?.name ?? ''), role: ROLE[t?.role] ? t.role : 'vol', contact: '', via: '', perms: allPerms(false) }));
+  /* signed out: the Sheet's public view, and nothing else. A Sheet nobody has set up yet has no events and no
+     organizers, and the page says so; the Guild's starter plans in this file are only for filling it (SEED). */
   function loadPublic(st) {
-    if (!(st && (st.events?.length || st.team?.length))) return;
-    EVENTS.length = 0; (st.events || []).forEach(e => EVENTS.push(fromPublic(e)));
-    // names and roles only: what each person can do comes with signing in
-    if (st.team?.length) TEAM.splice(0, TEAM.length, ...st.team.map(t => ({ name: String(t.name ?? ''), role: ROLE[t.role] ? t.role : 'vol', contact: '', via: '', perms: allPerms(false) })));
+    if (!st || !Array.isArray(st.events)) return false;
+    EVENTS.length = 0; st.events.forEach(e => EVENTS.push(fromPublic(e)));
+    TEAM.splice(0, TEAM.length, ...namesOnly(st.team));
     if (st.gardens?.length) GARDENS.splice(0, GARDENS.length, ...st.gardens);
+    const set = st.settings || {};
+    PUB.SCHEDULE_TEXT = String(set.SCHEDULE_TEXT ?? '').trim();
+    PUB.LINKTREE_URL = safeUrl(set.LINKTREE_URL) || LINKTREE;
     if (!EVENTS.find(e => e.id === S.sel)) S.sel = nextEvent()?.id;
+    pubState = 'ready';
+    return true;
   }
+  /* The last public data the Sheet sent, kept on this device so the next visit shows it at once (then reads the
+     Sheet again). Public data only: getPublic's answer, which has no plans, contacts or codes. */
+  const PUBLIC_CACHE = 'ebpg-public-v1';
+  const cached = () => {
+    try { const c = JSON.parse(localStorage.getItem(PUBLIC_CACHE) || 'null'); return c && c.st && Array.isArray(c.st.events) ? c.st : null; } catch { return null; }
+  };
+  const keepPublic = st => { try { localStorage.setItem(PUBLIC_CACHE, JSON.stringify({ at: Date.now(), st })); } catch {} };
   const snapEv = ev => JSON.stringify(payload(ev));
   const snapTeam = () => JSON.stringify(TEAM.map(({ name, role, contact, via, perms }) => ({ name, role, contact, via, perms })));
   const vols = list => list.map(v => ({ ...v, help: v.help.map(l => (HELP.find(h => h[1].toLowerCase() === l.toLowerCase()) || [l])[0]) }));
@@ -284,8 +298,11 @@ if (window.EBPG_GAS) {
   /* ---------- reading the Sheet ---------- */
   // the first sign-in fills an empty Sheet with this: the Guild's real plans, the team with contacts still blank, and no volunteers
   const SEED = { events: EVENTS.map(payload), team: JSON.parse(JSON.stringify(TEAM)), vols: [], gardens: GARDENS.slice() };
+  // ...and nothing else uses them: every page shows only what the Sheet sends
+  EVENTS.length = 0; TEAM.length = 0; S.sel = undefined;
+  pubState = 'loading';
   function load(st) {
-    if (st.events.length) { EVENTS.length = 0; st.events.forEach(r => EVENTS.push(fromRows(r))); }
+    EVENTS.length = 0; st.events.forEach(r => EVENTS.push(fromRows(r))); // the public copies go: these are the Sheet's own rows
     if (st.team?.length) TEAM.splice(0, TEAM.length, ...st.team);
     if (st.vols) VOLS.splice(0, VOLS.length, ...vols(st.vols));
     if (st.gardens?.length) GARDENS.splice(0, GARDENS.length, ...st.gardens);
@@ -296,6 +313,7 @@ if (window.EBPG_GAS) {
     st.events.forEach(r => { base['e:' + r.cols.id] = JSON.stringify(r); });
     base.team = JSON.stringify(st.team || []); base.vols = JSON.stringify(st.vols || []);
     if (!EVENTS.find(e => e.id === S.sel)) S.sel = nextEvent()?.id;
+    pubState = 'ready'; // the landing page now draws from the Sheet's own rows (published ones only)
   }
   // start over: a new sign-in, or signing out
   function reset() {
@@ -395,9 +413,12 @@ if (window.EBPG_GAS) {
   }
 
   /* ---------- signing in and out ---------- */
-  // while a sign-in is going: who it's for, and the line under the name picker
-  let signing = false, signingAs = '', waitLine = '';
+  // while a sign-in is going: who it's for, and the line under the name picker (pickLine: the line once it's done)
+  let signing = false, signingAs = '', waitLine = '', pickLine = '';
   const WAKING = 'Waking up the Guild Sheet. This can take a few seconds.';
+  /* Continue, on a Sheet with no names to show (nobody has set it up yet, or its public data didn't arrive): the
+     Sheet's answer to the code, kept until a name is picked, so picking one finishes signing in without asking again. */
+  let held = null;
   // the name picker shows the sign-in that's going: that name says "Signing in…", the others wait.
   // Run again after the picker is redrawn (the Sheet's team can arrive mid sign-in), so it isn't lost.
   function showSigning() {
@@ -409,7 +430,17 @@ if (window.EBPG_GAS) {
       else { b.removeAttribute('aria-busy'); b.removeAttribute('aria-disabled'); }
       if (small) small.textContent = me ? 'Signing in…' : small.dataset.role;
     });
-    $('#si-wait').textContent = signing ? waitLine : '';
+    $('#si-wait').textContent = signing ? waitLine : pickLine;
+  }
+  // Continue worked: the code is right (and an empty Sheet is now filled). The names to pick come from the Sheet's answer.
+  function hold(c, st, info) {
+    const team = namesOnly(st.team);
+    if (!team.some(t => t.role !== 'vol')) throw new Error('Nobody is on the Team tab as an organizer yet. Add yourself there with the role lead or co, then try again.');
+    held = { c, st, info };
+    TEAM.splice(0, TEAM.length, ...team);
+    signing = false; signingAs = ''; pickLine = 'The Guild Sheet is ready. Pick your name.';
+    redrawLanding();
+    $('#si-pick button[data-as]')?.focus();
   }
   // redraw the landing page without losing a sign-in that's going, or the name that has keyboard focus
   function redrawLanding() {
@@ -425,28 +456,36 @@ if (window.EBPG_GAS) {
       const c = typed || (stale ? '' : code); // the code this page had was turned down, so only a typed one
       if (!c) { err.textContent = 'Type the organizer code first.'; err.hidden = false; $('#si-code').focus(); return; }
       err.hidden = true;
+      // a name picked after Continue: the Sheet has already answered for this code
+      const h = held && name && held.c === c ? held : null;
+      held = null; pickLine = '';
       signing = true; signingAs = name; waitLine = WAKING;
       showSigning();
       try {
-        let st = await run('signIn', c);
-        sheetUrl = st.sheetUrl || '';
-        if (live && stale && !st.empty) {
-          // the same session with the new code: keep the changes made here, take the rest from the Sheet, and save now
-          code = c; stale = false; tries = 0; failShown = false;
-          testBar(st); merge(st, Date.now());
-          store.keep(c, name, resume ? undefined : $('#si-rem').checked);
-          $('#si-err').hidden = true;
-          if (!person(name) || person(name).role === 'vol') name = (organizers()[0] || TEAM[0]).name;
-          finishSignIn(name);
-          retryNow(true);
-          return;
+        let st, info;
+        if (h) ({ st, info } = h);
+        else {
+          st = info = await run('signIn', c); // info: seed's answer has no test-mode details
+          sheetUrl = st.sheetUrl || '';
+          if (live && stale && !st.empty) {
+            // the same session with the new code: keep the changes made here, take the rest from the Sheet, and save now
+            code = c; stale = false; tries = 0; failShown = false;
+            testBar(st); merge(st, Date.now());
+            store.keep(c, name, resume ? undefined : $('#si-rem').checked);
+            $('#si-err').hidden = true;
+            if (!person(name) || person(name).role === 'vol') name = (organizers()[0] || TEAM[0]).name;
+            finishSignIn(name);
+            retryNow(true);
+            return;
+          }
+          if (st.empty) {
+            waitLine = 'Setting up the Guild Sheet for the first time. This can take up to a minute.';
+            showSigning();
+            st = await run('seed', c, SEED);
+          }
+          if (!name) return hold(c, st, info); // Continue: now pick a name from the Sheet's team
         }
-        const info = st; // seed's answer has no test-mode details
-        if (st.empty) {
-          waitLine = 'Setting up the Guild Sheet for the first time. This can take up to a minute.';
-          showSigning();
-          st = await run('seed', c, SEED);
-        }
+        if (!(st.team || []).length) throw new Error('Nobody is on the Team tab yet. Add yourself there with the role lead, then sign in again.');
         code = c; reset(); load(st); live = true; testBar(info);
         renderVols(); renderMaterials(); renderLanding();
         if (!person(name) || person(name).role === 'vol') name = (organizers()[0] || TEAM[0]).name;
@@ -458,7 +497,7 @@ if (window.EBPG_GAS) {
         // a wrong code is forgotten; when the Sheet just didn't answer, or sign-in is paused after too many
         // wrong codes (someone else's), the stored code is kept for another try
         if (!er.net && !/^Too many tries/.test(er.message)) { store.clear(); code = ''; }
-        err.textContent = er.net ? "The Guild Sheet didn't answer. Check your internet, then pick your name to try again." : er.message;
+        err.textContent = er.net ? `The Guild Sheet didn't answer. Check your internet, then ${name ? 'pick your name' : 'press Continue'} to try again.` : er.message;
         err.hidden = false;
         if (!$('#p-signin').hidden || !typed) goSignIn();
       } finally {
@@ -517,16 +556,35 @@ if (window.EBPG_GAS) {
   $('#si-code').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); $('#si-pick button')?.focus(); } });
 
   const boot = () => {
+    loadPublic(cached()); // last visit's public data, shown at once; the Sheet's answer replaces it below
     renderAs(); render(); renderMaterials(); renderTeam(); renderLanding(); bindJoin(); renderVols();
     const user = AUTH.get() || store.kept().name;
     // a remembered device stays remembered when signing back in fails and someone picks their name again
     if (store.kept().code) $('#si-rem').checked = true;
     document.body.classList.add('out');
     if (user && code) { showTab('resume'); remote.signIn(user, true); } // not the landing page: we're signing straight back in
-    else showTab(G.ev ? 'signin' : 'landing');
+    else showTab('landing'); // an event link (?ev=) shows the home page for now; signing in opens that event
   };
-  // show the page right away, then swap in what's in the Sheet (Apps Script can take a few seconds to wake up)
+  /* The public data: published events, the organizers' names, gardens and a few settings. Until it arrives (Apps
+     Script can take a few seconds to wake up) the page shows grey shapes, or what the last visit got. If it never
+     does, the page says so and points to the Linktree, and tries again when the tab comes back or the connection does. */
+  let readingPublic = false;
+  const publicFailed = () => {
+    if (live || held) return; // signed in meanwhile, or Continue already has the Sheet's answer
+    pubState = 'failed'; redrawLanding(); // last visit's events stay on show, if there were any
+  };
+  function readPublic() {
+    if (readingPublic || live) return;
+    readingPublic = true;
+    run('getPublic').then(st => {
+      if (!st || !Array.isArray(st.events)) return publicFailed();
+      keepPublic(st);
+      if (live || held) return; // the Sheet's own rows win
+      loadPublic(st); render(); renderMaterials(); redrawLanding();
+    }, publicFailed).finally(() => { readingPublic = false; });
+  }
+  window.addEventListener('online', () => { if (pubState === 'failed') readPublic(); });
+  document.addEventListener('visibilitychange', () => { if (!document.hidden && pubState === 'failed') readPublic(); });
   boot();
-  run('getPublic').then(st => { if (live) return; loadPublic(st); render(); renderMaterials(); redrawLanding(); })
-    .catch(er => toast(er.net ? "Couldn't reach the Guild Sheet. Refresh the page to try again." : "Couldn't reach the Sheet: " + er.message));
+  readPublic();
 }
