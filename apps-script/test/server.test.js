@@ -108,11 +108,11 @@ test('hand edits in the Sheet are read back, including typed dates and times', (
 
 test('values that look like formulas are stored as text', () => {
   const g = seeded();
-  g.ctx.addVolunteer({ name: '=IMPORTXML("x")', contact: '+1 510 555 0000', help: ['@everyone'], note: '-1' });
+  g.ctx.addVolunteer({ name: 'Sam Lee', phone: '+1 510 555 0000', help: ['Garden work days'], note: '=IMPORTXML("x")' });
   const row = g.sheets.get('Volunteers').cells[2];
-  assert.equal(row[1], "'=IMPORTXML(\"x\")");
+  assert.equal(row[4], "'=IMPORTXML(\"x\")");
   assert.equal(row[2], "'+1 510 555 0000");
-  assert.equal(g.tab('Volunteers')[2][1], '=IMPORTXML("x")', 'shows normally');
+  assert.equal(g.tab('Volunteers')[2][4], '=IMPORTXML("x")', 'shows normally');
 });
 
 test('volunteer sign-up: row, welcome email and lead alert, all to the owner in test mode', () => {
@@ -651,7 +651,7 @@ test('resetStarterData empties only the app\'s own columns', () => {
   const sh = g.sheets.get('Volunteers');
   sh.insertColumnsAfter(2, 1); sh.set(1, 3, 'met at'); sh.set(2, 3, 'the plant sale');
   g.ctx.resetStarterData();
-  assert.deepEqual(g.tab('Volunteers')[1], ['', '', 'the plant sale', '', '', ''], 'the hand-added column is kept');
+  assert.deepEqual(g.tab('Volunteers')[1], ['', '', 'the plant sale', '', '', '', '', '', '', '', '', '', '', ''], 'the hand-added column is kept');
   assert.equal(g.tab('Events').length, 1);
 });
 
@@ -800,10 +800,10 @@ test('with 20 emails left today, welcome emails wait (noted on the Reminders tab
 
 test("a welcome email that fails doesn't fail the sign-up", () => {
   const g = seeded();
-  g.mailbox.fail = (to, subject) => /Welcome/.test(subject) && 'Invalid email: sam@example';
-  assert.equal(g.ctx.addVolunteer({ name: 'Sam Lee', contact: 'sam@example', help: [], note: '' }), true);
+  g.mailbox.fail = (to, subject) => /Welcome/.test(subject) && 'Invalid email: sam@example.org';
+  assert.equal(g.ctx.addVolunteer({ name: 'Sam Lee', contact: 'sam@example.org', help: [], note: '' }), true);
   assert.equal(g.tab('Volunteers').length, 3);
-  assert.deepEqual(g.tab('Reminders').slice(1).map(r => r.slice(1)), [['welcome', 'sam@example', 'failed: Invalid email: sam@example']]);
+  assert.deepEqual(g.tab('Reminders').slice(1).map(r => r.slice(1)), [['welcome', 'sam@example.org', 'failed: Invalid email: sam@example.org']]);
   assert.match(g.mail[0].subject, /New volunteer: Sam Lee/, 'the lead still hears about it');
 });
 
@@ -1254,4 +1254,185 @@ test('signIn and seed return the channels as the page uses them: yes or no, http
   assert.equal(by.chats.name, 'WhatsApp group');
   assert.deepEqual(by.partiful, { id: 'partiful', name: 'Partiful', used: true, link: 'https://partiful.com/', onNew: true }, 'the first row for a channel wins');
   assert.ok(!('channels' in plain(g.ctx.getPublic())), 'not in the public view');
+});
+
+/* ---------- volunteer sign-up: the form's answers, bots, retries and people signing up again ---------- */
+const VOL = (over = {}) => ({ name: 'Maya Ortiz', email: 'maya@example.org', phone: '', best: 'Email', help: ['Garden work days'], free: ['Weekend mornings'], heard: 'Instagram', note: '', list: false, event: '', id: 'c-' + Math.random().toString(36).slice(2, 12), elapsed: 9000, website: '', ...over });
+const volRows = g => { const [head, ...rows] = g.tab('Volunteers'); return rows.filter(r => r.some(Boolean)).map(r => Object.fromEntries(head.map((h, i) => [h, r[i] == null ? '' : r[i]]))); };
+const welcomes = g => g.mail.filter(m => /Welcome to the East Bay Permaculture Guild/.test(m.subject));
+const HOUR = 3600e3;
+
+test('a sign-up fills the new Volunteers columns, keeps contact filled, and the welcome links the next event and says to reply', () => {
+  const g = seeded({ now: BEFORE });
+  assert.deepEqual(g.tab('Volunteers')[0].slice(5), ['id', 'email', 'phone', 'best way', 'free', 'heard from', 'email list', 'event'], 'added at the end');
+  assert.equal(g.ctx.addVolunteer(VOL({ phone: '(510) 555-0101', best: 'Text', help: ['Garden work days', 'Host a project'], free: ['Weekend mornings', 'One-off projects'], heard: 'A flyer', list: true, event: 'w7', note: 'I have a truck' })), true);
+  const r = volRows(g).find(x => x.name === 'Maya Ortiz');
+  assert.match(r.id, /^[0-9a-f]{8}$/, 'a short id');
+  assert.deepEqual([r['signed up'], r.contact, r.email, r.phone, r['best way'], r['wants to help with'], r.free, r['heard from'], r['email list'], r.event, r.note],
+    ['2026-10-24', 'maya@example.org', 'maya@example.org', '(510) 555-0101', 'Text', 'Garden work days, Host a project', 'Weekend mornings, One-off projects', 'A flyer', 'yes', 'w7', 'I have a truck']);
+  // phone only: contact is the phone, and the best way is a text
+  g.ctx.addVolunteer(VOL({ name: 'Ana Ruiz', email: '', phone: '510 555 0199', best: '' }));
+  const a = volRows(g).find(x => x.name === 'Ana Ruiz');
+  assert.deepEqual([a.contact, a.email, a.phone, a['best way'], a['email list']], ['510 555 0199', '', '510 555 0199', 'Text', '']);
+  // the welcome: to Maya, about the event she's coming to, with its page, ending with the reply line
+  const w = welcomes(g);
+  assert.equal(w.length, 1, 'only Maya has an email');
+  assert.equal(w[0].subject, '[TEST to maya@example.org] Welcome to the East Bay Permaculture Guild');
+  assert.match(w[0].body, /^Hi Maya,\n\nThanks for signing up to help with garden work days, host a project\./);
+  assert.match(w[0].body, /See you at OPC Garden Work Party, Sunday, October 25 at 10 AM, Oakland Peace Center\.\nDetails and directions: http:\/\/localhost:8766\/\?ev=w7\n/);
+  assert.match(w[0].body, /\n\nJust reply to this email if you have questions\.$/);
+  assert.equal(w[0].opts.replyTo, 'jessie@example.org', 'replies go to the lead (REPLY_TO is blank)');
+  // the lead hears everything the form asked
+  const lead = g.mail.find(m => /New volunteer: Maya Ortiz/.test(m.subject));
+  for (const line of ['Email: maya@example.org', 'Phone: (510) 555-0101', 'Best way to reach them: a text', 'Wants to help with: Garden work days, Host a project',
+    'Usually free: Weekend mornings, One-off projects', 'Heard about us from: A flyer', 'Guild email list: yes, please add them', 'Coming to: OPC Garden Work Party, Sunday, October 25 at 10 AM, Oakland Peace Center', 'Note: I have a truck']) {
+    assert.ok(lead.body.split('\n').includes(line), line);
+  }
+  // with SITE_URL set, the link is the public site's event page
+  setSetting(g, 'SITE_URL', 'https://ebpg-event-hub.netlify.app/');
+  g.ctx.addVolunteer(VOL({ name: 'Lee Park', email: 'lee@example.org' }));
+  assert.match(welcomes(g).at(-1).body, /Our next gathering: OPC Garden Work Party, .*\nDetails and directions: https:\/\/ebpg-event-hub\.netlify\.app\/\?ev=w7\n/);
+});
+
+test('a filled-in honeypot, or a form sent 1 second after it opened, writes nothing and sends nothing, but says it went fine', () => {
+  const g = seeded({ now: BEFORE });
+  const before = JSON.stringify(g.tab('Volunteers'));
+  assert.equal(g.ctx.addVolunteer(VOL({ website: 'https://spam.example' })), true);
+  assert.equal(g.ctx.addVolunteer(VOL({ elapsed: 1000 })), true);
+  assert.equal(g.ctx.addVolunteer(VOL({ website: 'x', name: '' })), true, 'not even checked');
+  assert.equal(JSON.stringify(g.tab('Volunteers')), before);
+  assert.equal(g.mail.length, 0);
+  assert.equal(call(g, 'addVolunteer', [VOL({ elapsed: 1000 })]).value, true, 'the same through the web app');
+  assert.equal(JSON.stringify(g.tab('Volunteers')), before);
+  // 3 seconds is fine
+  g.ctx.addVolunteer(VOL({ elapsed: 3000 }));
+  assert.equal(volRows(g).length, 2);
+});
+
+test('the server checks every answer: name, email, phone, choices and the note', () => {
+  const g = seeded({ now: BEFORE });
+  const no = (over, re) => assert.throws(() => g.ctx.addVolunteer(VOL(over)), re, JSON.stringify(over));
+  no({ name: '' }, /^Error: Add your name so we know who to welcome\.$/);
+  no({ name: 'Maya <b>' }, /letters, spaces and \. ' - only/);
+  no({ name: '1234' }, /letters, spaces/);
+  no({ name: 'M'.repeat(81) }, /80 characters at most/);
+  no({ email: 'maya@example' }, /That email address doesn't look right/);
+  no({ email: 'maya example.org' }, /email address/);
+  no({ email: '', phone: '' }, /Add an email or phone number/);
+  no({ email: '', phone: '555-012' }, /at least 7 digits/);
+  no({ email: '', phone: 'call me maybe 5105550101' }, /phone number/);
+  no({ help: ['Garden work days', '@everyone'] }, /isn't on the form anymore/);
+  no({ free: ['Never'] }, /isn't on the form anymore/);
+  no({ heard: 'A billboard' }, /isn't on the form anymore/);
+  no({ best: 'Carrier pigeon' }, /isn't on the form anymore/);
+  no({ note: 'x'.repeat(1001) }, /under 1,000 characters/);
+  assert.equal(volRows(g).length, 1, 'nothing saved');
+  assert.deepEqual(call(g, 'addVolunteer', [VOL({ email: 'nope' })]), { error: "That email address doesn't look right. Please check it." });
+  // these are fine: accents, apostrophes (straight and curly), hyphens, initials, a 1,000-character note, choices in any case
+  for (const name of ["Zoë D'Angelo", 'Mary-Kate O’Neil', 'J. R. Smith', 'Nguyễn Văn An']) g.ctx.addVolunteer(VOL({ name, email: '', phone: '+1 510 555 ' + String(1000 + volRows(g).length) }));
+  g.ctx.addVolunteer(VOL({ email: 'kai@example.org', name: 'Kai', note: 'y'.repeat(1000), help: ['garden WORK days'] }));
+  assert.equal(volRows(g).length, 6);
+  assert.equal(volRows(g).at(-1)['wants to help with'], 'Garden work days', 'kept in the form\'s own words');
+});
+
+test('the welcome greeting is a plain first name, or "there"', () => {
+  const g = seeded({ now: BEFORE });
+  g.ctx.addVolunteer(VOL({ name: "Zoë D'Angelo", email: 'zoe@example.org' }));
+  g.ctx.addVolunteer(VOL({ name: 'Www.spam.example Click now', email: 'victim@example.org' }));
+  g.ctx.addVolunteer(VOL({ name: 'Mary-Kate Olsen', email: 'mk@example.org' }));
+  assert.deepEqual(welcomes(g).map(m => m.body.split('\n')[0]), ['Hi Zoë,', 'Hi there,', 'Hi Mary-Kate,']);
+});
+
+test('someone already on the list (the same email or phone) gets their row updated, with one row and one welcome', () => {
+  const g = seeded({ now: BEFORE });
+  g.ctx.addVolunteer(VOL({ phone: '(510) 555-0101', help: ['Garden work days'], free: ['Weekend mornings'], note: 'Has a truck' }));
+  const id = volRows(g).find(r => r.name === 'Maya Ortiz').id;
+  g.clock.now += HOUR + 1000; // after the hour's cooldown
+  g.ctx.addVolunteer(VOL({ name: 'Maya O', email: 'MAYA@example.org ', phone: '', help: ['Host a project', 'Garden work days'], free: ['Weekday evenings'], heard: 'A friend', list: true, event: 'w7', note: 'Now with a project' }));
+  let rows = volRows(g).filter(r => r.email.toLowerCase() === 'maya@example.org');
+  assert.equal(rows.length, 1, 'one row');
+  let r = rows[0];
+  assert.deepEqual([r.id, r.name, r['wants to help with'], r.free, r['heard from'], r['email list'], r.event, r.phone],
+    [id, 'Maya Ortiz', 'Garden work days, Host a project', 'Weekend mornings, Weekday evenings', 'Instagram', 'yes', 'w7', '(510) 555-0101'], 'choices added, the name and first answer kept');
+  assert.equal(r.note, 'Has a truck\nSigned up again 2026-10-24: Now with a project');
+  assert.equal(welcomes(g).length, 1, 'one welcome in all');
+  assert.equal(g.mail.at(-1).subject, '[TEST to jessie@example.org] Volunteer signed up again: Maya O');
+  // the phone, written another way, with a new email
+  g.clock.now += HOUR + 1000;
+  g.ctx.addVolunteer(VOL({ email: 'maya.o@example.org', phone: '+1 510 555 0101', note: '' }));
+  rows = volRows(g).filter(x => x.id === id);
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].note, 'Has a truck\nSigned up again 2026-10-24: Now with a project\nSigned up again 2026-10-24 with email maya.o@example.org');
+  assert.equal(rows[0].email, 'maya@example.org', 'the email on file stays');
+  assert.equal(welcomes(g).length, 1);
+  // a row from before the email and phone columns is found by its contact
+  const sh = g.sheets.get('Volunteers'), head = g.tab('Volunteers')[0];
+  const alex = volRows(g).findIndex(x => x.name === 'Alex R.') + 2;
+  assert.equal(g.tab('Volunteers')[alex - 1][head.indexOf('contact')], 'alex@example.org');
+  sh.set(alex, head.indexOf('email') + 1, '');
+  g.ctx.addVolunteer(VOL({ name: 'Alex Rivera', email: 'alex@example.org', help: ['Meeting setup'] }));
+  assert.equal(volRows(g).filter(x => x.contact === 'alex@example.org').length, 1);
+  assert.equal(volRows(g).find(x => x.contact === 'alex@example.org')['wants to help with'], 'Garden work days, Meeting setup');
+});
+
+test('the same client id twice gives one row, and the same email or phone within the hour changes nothing', () => {
+  const g = seeded({ now: BEFORE });
+  const one = VOL({ id: 'a1b2c3d4-0000-4000-8000-000000000001' });
+  assert.equal(g.ctx.addVolunteer(one), true);
+  assert.equal(g.ctx.addVolunteer(one), true, 'Try again after a send that got through');
+  assert.equal(g.ctx.addVolunteer({ ...one, email: 'someone.else@example.org', name: 'Someone Else' }), true, 'the same id is ignored for 10 minutes');
+  assert.equal(volRows(g).length, 2, 'Alex and Maya');
+  assert.equal(welcomes(g).length, 1);
+  // a new id, the same email: the hour's cooldown
+  g.ctx.addVolunteer(VOL({ note: 'Again' }));
+  g.ctx.addVolunteer(VOL({ email: '', phone: '510 555 0101' }));
+  g.ctx.addVolunteer(VOL({ email: 'other@example.org', phone: '(510) 555-0101' }));
+  assert.equal(volRows(g).length, 3, 'one more row, for the phone; the third send has that phone, so it waits');
+  assert.equal(volRows(g).find(r => r.name === 'Maya Ortiz' && r.email).note, '', 'nothing added within the hour');
+  g.clock.now += 11 * 60e3;
+  g.ctx.addVolunteer({ ...one, email: 'someone.else@example.org', name: 'Someone Else' });
+  assert.equal(volRows(g).length, 4, 'after 10 minutes the id counts as new');
+});
+
+test('the global limit: 60 sign-ups every 10 minutes, then a friendly message', () => {
+  const g = seeded({ now: '2026-10-24T10:00:30-07:00' });
+  for (let i = 0; i < 60; i++) g.ctx.addVolunteer(VOL({ name: 'Volunteer', email: `v${i}@example.org` }));
+  assert.equal(volRows(g).length, 61);
+  assert.throws(() => g.ctx.addVolunteer(VOL({ email: 'late@example.org' })), /^Error: Lots of sign-ups right now\. Please try again in a few minutes\.$/);
+  // bots and retries don't use it up
+  assert.equal(g.ctx.addVolunteer(VOL({ website: 'x' })), true);
+  g.clock.now += 10 * 60e3;
+  g.ctx.addVolunteer(VOL({ email: 'late@example.org' }));
+  assert.equal(volRows(g).length, 62, 'the next 10 minutes');
+});
+
+test('with 20 emails left today a sign-up is saved and its welcome waits', () => {
+  const g = seeded({ now: BEFORE, quota: 20 });
+  g.ctx.addVolunteer(VOL({ phone: '510 555 0101', free: ['One-off projects'] }));
+  const r = volRows(g).find(x => x.name === 'Maya Ortiz');
+  assert.deepEqual([r.email, r.phone, r.free], ['maya@example.org', '510 555 0101', 'One-off projects'], 'saved, with every answer');
+  assert.equal(g.mail.length, 0);
+  assert.deepEqual(g.tab('Reminders').slice(1).map(x => x[3]), ['skipped (quota): Welcome to the East Bay Permaculture Guild', 'skipped (quota): New volunteer: Maya Ortiz']);
+});
+
+test('volunteers with no id (from before the column, or typed in by hand) get one; signIn hands organizers every answer', () => {
+  const g = seeded({ now: BEFORE });
+  const sh = g.sheets.get('Volunteers'), head = g.tab('Volunteers')[0], col = h => head.indexOf(h) + 1;
+  assert.match(g.tab('Volunteers')[1][col('id') - 1], /^[0-9a-f]{8}$/, 'the seed gives one');
+  sh.set(2, col('id'), '');
+  sh.set(3, col('signed up'), '2026-10-20'); sh.set(3, col('name'), 'Typed In'); sh.set(3, col('contact'), '(510) 555-0144');
+  g.ctx.doGet({});
+  const t = g.tab('Volunteers');
+  assert.match(t[1][col('id') - 1], /^[0-9a-f]{8}$/);
+  assert.match(t[2][col('id') - 1], /^[0-9a-f]{8}$/);
+  assert.notEqual(t[1][col('id') - 1], t[2][col('id') - 1]);
+  const id = t[1][col('id') - 1];
+  g.ctx.doGet({});
+  assert.equal(g.tab('Volunteers')[1][col('id') - 1], id, 'an id never changes');
+  g.ctx.addVolunteer(VOL({ phone: '510 555 0101', best: 'Text', list: true, event: 'w7', free: ['Weekday evenings'], heard: 'Partiful' }));
+  const vols = plain(g.ctx.signIn(CODE).vols);
+  assert.deepEqual(vols.find(v => v.name === 'Typed In'), { date: '2026-10-20', name: 'Typed In', contact: '(510) 555-0144', help: [], note: '', id: g.tab('Volunteers')[2][col('id') - 1], email: '', phone: '(510) 555-0144', best: '', free: [], heard: '', list: false, event: '' });
+  const m = vols.find(v => v.name === 'Maya Ortiz');
+  assert.deepEqual([m.email, m.phone, m.best, m.help, m.free, m.heard, m.list, m.event], ['maya@example.org', '510 555 0101', 'Text', ['Garden work days'], ['Weekday evenings'], 'Partiful', true, 'w7']);
+  assert.ok(!('vols' in plain(g.ctx.getPublic())), 'never in the public view');
 });

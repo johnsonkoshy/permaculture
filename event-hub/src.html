@@ -497,6 +497,13 @@ legend { font-size: 13px; font-weight: 700; color: var(--ink-2); margin-bottom: 
 .team th .ic { width: 15px; height: 15px; }
 .warnchip { display: inline-block; margin-top: 2px; padding: 2px 8px; border-radius: 999px; background: var(--flag-soft); color: var(--flag); font-size: 12px; font-weight: 700; line-height: 1.4; white-space: nowrap; }
 .team td.vol-empty { white-space: normal; padding: 16px 14px; }
+/* the Volunteer list: how to reach them, and their note, one line each */
+.team td.vcell { white-space: normal; min-width: 180px; }
+.vcell > span { display: block; }
+.vcell > span + span { margin-top: 3px; }
+.vcell .tag { display: inline-flex; align-items: center; gap: 4px; margin-top: 4px; }
+.vcell .tag .ic { width: 12px; height: 12px; margin: 0; color: inherit; }
+.vnote { white-space: pre-line; overflow-wrap: anywhere; min-width: 200px; }
 .av { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font: 700 12px/1 var(--body); color: #1C3A2B; flex: none; }
 .addp { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.2fr) minmax(0, .8fr) minmax(0, 1fr) auto; gap: 8px; align-items: end; margin-top: 14px; }
 @media (max-width: 760px) { .addp { grid-template-columns: 1fr 1fr; } }
@@ -1029,18 +1036,41 @@ a.nxcard:hover { transform: translateY(-3px); box-shadow: var(--shadow); }
 .lsteps .linkcard a { display: grid; gap: 8px; padding: 22px; color: inherit; text-decoration: none; height: 100%; }
 .lsteps .linkcard .go { color: var(--fern); font-weight: 700; font-size: 14px; display: inline-flex; align-items: center; gap: 6px; }
 .lsteps .linkcard .go .ic { width: 15px; height: 15px; }
-#vj-picks span .ic { display: none; width: 13px; height: 13px; }
-#vj-picks input:checked + span .ic { display: block; }
+#vj-picks span .ic, #vj-free span .ic { display: none; width: 13px; height: 13px; }
+#vj-picks input:checked + span .ic, #vj-free input:checked + span .ic { display: block; }
+#vj-best span .ic { width: 14px; height: 14px; }
 .join { display: grid; grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr); gap: 32px; align-items: start; padding: 32px; border-radius: 22px; background: var(--surface); border: 1px solid var(--line); scroll-margin-top: 80px; }
 @media (max-width: 800px) { .join { grid-template-columns: 1fr; padding: 20px; } }
 .join h2 { margin-bottom: 8px; }
 .joinf { display: grid; gap: 14px; }
+.joinf legend .hint, .joinf .fld .hint { font-weight: 400; }
+.vj-reach .r2 { margin-bottom: 4px; }
+@media (max-width: 440px) { .vj-reach .r2 { grid-template-columns: 1fr; } }
+/* the box only bots fill in: off the screen, out of the tab order, and hidden from screen readers */
+.vj-hp { position: absolute; left: -10000px; top: auto; width: 1px; height: 1px; overflow: hidden; }
+.vj-list { align-items: flex-start; color: var(--ink); }
+.vj-list input { margin-top: 2px; }
+.vj-list .hint { display: block; }
+#vj-err { flex-wrap: wrap; align-items: center; }
+#vj-err > span { flex: 1 1 200px; }
+#vj-err .btn { font-weight: 700; }
+#vj-send[aria-busy="true"] .ic { animation: spin 1s linear infinite; }
+@media (prefers-reduced-motion: reduce) { #vj-send .ic { animation: none !important; } }
 .joinrow { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
-.joined { grid-column: 2; padding: 22px; border-radius: 16px; background: var(--fern-soft); display: grid; gap: 6px; }
+.joined { grid-column: 2; padding: 22px; border-radius: 16px; background: var(--fern-soft); display: grid; gap: 10px; }
 @media (max-width: 800px) { .joined { grid-column: 1; } }
-.joined b { font: 400 24px/1.2 var(--display); display: flex; align-items: center; gap: 10px; }
-.joined b .ic-chip { width: 32px; height: 32px; background: var(--fern); color: var(--fern-ink); }
-.joined b .ic { width: 18px; height: 18px; }
+.joined > b { font: 400 24px/1.2 var(--display); display: flex; align-items: center; gap: 10px; }
+.joined > b:focus { outline: none; }
+.joined > b .ic-chip { width: 32px; height: 32px; background: var(--fern); color: var(--fern-ink); }
+.joined > b .ic { width: 18px; height: 18px; }
+/* the thank-you's Next up: the event, with Add to calendar and Directions as on its own page */
+.vj-next { display: grid; gap: 8px; padding: 14px; border-radius: 12px; background: var(--raised); border: 1px solid var(--line); min-width: 0; }
+.vj-next .eyebrow { color: var(--fern); }
+.vj-next a.vj-ev { font: 400 20px/1.25 var(--display); color: var(--ink); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; overflow-wrap: anywhere; justify-self: start; }
+.vj-next ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: 14px; color: var(--ink-2); }
+.vj-next li { display: flex; gap: 8px; align-items: flex-start; min-width: 0; overflow-wrap: anywhere; }
+.vj-next li .ic { width: 15px; height: 15px; margin-top: 3px; flex: none; color: var(--ink-3); }
+.vj-acts { display: flex; flex-wrap: wrap; gap: 8px; }
 
 .lcta.combo { text-align: left; justify-items: stretch; display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); gap: 32px; align-items: center; padding: 40px; scroll-margin-top: 80px; }
 @media (max-width: 860px) { .lcta.combo { grid-template-columns: 1fr; padding: 24px; } }
@@ -1253,8 +1283,8 @@ td code, .code code { font: 400 13px/1.5 var(--mono); }
       <p>There are lots of ways in, whether you have an afternoon or a whole project.</p>
       <ul class="lsteps plain">
         <li class="linkcard"><a href="#join"><i class="ic-chip"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-shovel"/></svg></i><b>Volunteer</b><span>Help set up for meetings, pitch in at a garden work day, or volunteer with a partner organization.</span><span class="go">Join the volunteer list<svg class="ic" aria-hidden="true" focusable="false"><use href="#i-arrow-down"/></svg></span></a></li>
-        <li><i class="ic-chip"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-sprout"/></svg></i><b>Host a project</b><span>Does your permaculture or community resilience project need support? Got an idea for one? We're testing ways to help.</span></li>
-        <li><i class="ic-chip"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-handshake"/></svg></i><b>Become a partner</b><span>Join a growing network of groups doing land-based and social permaculture and community resilience work.</span></li>
+        <li class="linkcard"><a href="#join" data-join="host"><i class="ic-chip"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-sprout"/></svg></i><b>Host a project</b><span>Does your permaculture or community resilience project need support? Got an idea for one? Tell us about it and we'll see how the Guild can help.</span><span class="go">Tell us about your project<svg class="ic" aria-hidden="true" focusable="false"><use href="#i-arrow-down"/></svg></span></a></li>
+        <li class="linkcard"><a href="#join" data-join="partner"><i class="ic-chip"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-handshake"/></svg></i><b>Become a partner</b><span>Join a growing network of groups doing land-based and social permaculture and community resilience work.</span><span class="go">Tell us about your group<svg class="ic" aria-hidden="true" focusable="false"><use href="#i-arrow-down"/></svg></span></a></li>
       </ul>
     </section>
 
@@ -1279,12 +1309,23 @@ td code, .code code { font: 400 13px/1.5 var(--mono); }
       <div class="combo-r">
       <form class="joinf" id="joinf" novalidate>
         <input type="hidden" id="vj-ev" name="ev" value="">
+        <input type="hidden" id="vj-opened" name="opened" value="">
+        <div class="vj-hp" aria-hidden="true"><label>Website<input id="vj-website" name="website" type="text" tabindex="-1" autocomplete="off"></label></div>
         <div class="vj-for" id="vj-for" hidden></div>
-        <div class="r2"><label class="fld">Name<input id="vj-name" autocomplete="name"></label><label class="fld">Email or phone<input id="vj-contact" autocomplete="email"></label></div>
+        <label class="fld">Name<input id="vj-name" name="name" autocomplete="name" maxlength="80" required aria-required="true"></label>
+        <fieldset class="vj-reach" aria-describedby="vj-reach-h"><legend>How can we reach you?</legend>
+          <div class="r2"><label class="fld"><span class="fl"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-mail"/></svg>Email</span><input id="vj-email" name="email" type="email" inputmode="email" autocomplete="email" maxlength="120" spellcheck="false"></label><label class="fld"><span class="fl"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-phone"/></svg>Phone</span><input id="vj-phone" name="phone" type="tel" inputmode="tel" autocomplete="tel" maxlength="30"></label></div>
+          <p class="hint" id="vj-reach-h">An email or a phone number is enough.</p>
+        </fieldset>
+        <fieldset><legend>Best way to reach you</legend><div class="picks" id="vj-best"><label><input type="radio" name="vj-best" value="Email"><span><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-mail"/></svg>Email</span></label><label><input type="radio" name="vj-best" value="Text"><span><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-message-circle"/></svg>Text</span></label></div></fieldset>
         <fieldset><legend>I'd like to help with</legend><div class="picks" id="vj-picks"></div></fieldset>
-        <label class="fld">Anything else? <span class="hint" style="font-weight:400">optional</span><textarea id="vj-note" rows="2" placeholder="Skills, availability, languages you speak"></textarea></label>
+        <fieldset><legend>When are you usually free? <span class="hint">optional</span></legend><div class="picks" id="vj-free"></div></fieldset>
+        <label class="fld">How did you hear about us? <span class="hint">optional</span><select id="vj-heard" name="heard"><option value="">Choose one</option></select></label>
+        <label class="fld">Anything else? <span class="hint">optional</span><textarea id="vj-note" name="note" rows="2" maxlength="1000" placeholder="Skills, languages you speak, anything we should know"></textarea></label>
+        <label class="chk vj-list"><input type="checkbox" id="vj-list" name="list"><span>Add me to the Guild email list<span class="hint">News about work days and meetings, a few times a month.</span></span></label>
         <p class="err" id="vj-err" role="alert" hidden></p>
-        <div class="joinrow"><button class="btn primary lg" type="submit"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-user-plus"/></svg>Join the list</button>
+        <p class="vh" id="vj-status" role="status"></p>
+        <div class="joinrow"><button class="btn primary lg" type="submit" id="vj-send"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-user-plus"/></svg>Join the list</button>
 <!--PROTO-->
 <span class="hint">Prototype: sign-ups stay in this browser tab.</span>
 <!--/PROTO-->
@@ -1764,6 +1805,11 @@ await supabase.from('volunteers').insert({
       <section aria-labelledby="hp-helper">
         <h2 id="hp-helper">Filling in Partiful and the other sites</h2>
         <div id="help-helper"></div>
+      </section>
+      <section aria-labelledby="hp-vols">
+        <h2 id="hp-vols">Volunteer sign-ups</h2>
+        <p>The form on the home page asks for a name, an email or phone (and which is best), how they'd like to help, when they're usually free, how they heard about the Guild and whether to add them to the Guild email list. Each sign-up is a row on the <b>Volunteers</b> tab, with an <code>event</code> column when they signed up from an event's page. The <b>Volunteer list</b> on the Team page shows them all.</p>
+        <p>The volunteer gets a welcome email about the next event (replies go to <code>REPLY_TO</code>), and the lead organizer gets one with every answer. Someone who signs up again with the same email or phone gets their row updated, with <i>Signed up again</i> and the date in the note, and no second welcome. People who ask for the email list aren't added to the Google Group automatically: add them there by hand.</p>
       </section>
       <section aria-labelledby="hp-edit">
         <h2 id="hp-edit">Fixing things in the Sheet</h2>
@@ -3280,35 +3326,143 @@ function renderMap() {
   $('#glist').innerHTML = GARDENS.map((g, i) => `<li><a href="${link(g)}" target="_blank" rel="noopener" data-gl="${i}"><span class="n">${i + 1}</span><span><b>${esc(g.name)}</b><span>${esc(g.addr.replace(', CA', ''))}</span><span>${esc(g.what)}</span><span class="go">Open in Google Maps${ic('out')}</span></span></a></li>`).join('');
   $$('[data-gl]').forEach(a => { const pin = $(`.mpin[data-g="${a.dataset.gl}"]`); a.addEventListener('mouseenter', () => pin?.classList.add('on')); a.addEventListener('mouseleave', () => pin?.classList.remove('on')); });
 }
-const HELP = [['setup', 'Meeting setup'], ['workdays', 'Garden work days'], ['projects', 'Partner projects'], ['outreach', 'Outreach & photos'], ['teach', 'Teaching a skill']];
+/* The volunteer form's choices. The Sheet keeps their words (Code.js has the same lists, and a test checks they match). */
+const HELP = [['setup', 'Meeting setup'], ['workdays', 'Garden work days'], ['projects', 'Partner projects'], ['outreach', 'Outreach & photos'], ['teach', 'Teaching a skill'],
+  ['plant', 'Adopt a plant'], ['host', 'Host a project'], ['partner', 'Partner organization']];
+const FREE = ['Weekend mornings', 'Weekday evenings', 'One-off projects'];
+const HEARD = ['Instagram', 'Partiful', 'Google Group', 'Facebook', 'A friend', 'Walked by the garden', 'A flyer', 'Other'];
 const VOLS = []; // filled by sign-ups on the home page
 function renderVols() {
-  const H = new Map(HELP);
-  $('#vol-tbl').innerHTML = `<thead><tr><th>Name</th><th>Contact</th><th>Wants to help with</th><th>Note</th><th>Signed up</th></tr></thead><tbody>${VOLS.length ? '' : '<tr><td colspan="5" class="hint vol-empty">No sign-ups yet. People who join on the home page show up here.</td></tr>'}${VOLS.slice().sort((a, b) => String(b.date).localeCompare(String(a.date))).map(v => `<tr><td><span class="nm">${avatar(v.name)}<b>${esc(v.name)}</b></span></td><td>${ic(String(v.contact).includes('@') ? 'mail' : 'phone')}${esc(v.contact)}</td><td>${(v.help || []).map(h => `<span class="tag">${esc(H.get(h) || h)}</span>`).join(' ')}</td><td>${esc(v.note) || '<span class="hint">—</span>'}</td><td>${esc(mdy(v.date))}</td></tr>`).join('')}</tbody>`;
+  const H = new Map(HELP), tags = l => (l || []).map(h => `<span class="tag">${esc(H.get(h) || h)}</span>`).join(' ');
+  const evTitle = id => (EVENTS.find(e => e.id === id) || {}).title || id;
+  const reach = v => {
+    const email = v.email ?? (String(v.contact).includes('@') ? v.contact : ''), phone = v.phone ?? (email ? '' : v.contact);
+    return [email && `<span class="vline">${ic('mail')}${esc(email)}</span>`, phone && `<span class="vline">${ic('phone')}${esc(phone)}</span>`,
+      v.best && (email && phone) ? `<span class="hint">Prefers ${v.best === 'Text' ? 'a text' : 'email'}</span>` : '', v.list ? `<span class="tag">${ic('check')}Email list</span>` : ''].filter(Boolean).join('');
+  };
+  const about = v => [v.event && `<span class="vline">${ic('calendar')}Coming to ${esc(evTitle(v.event))}</span>`, v.heard && `<span class="vline hint">Heard about us: ${esc(v.heard)}</span>`,
+    v.note && `<span class="vnote">${esc(v.note)}</span>`].filter(Boolean).join('') || '<span class="hint">—</span>';
+  $('#vol-tbl').innerHTML = `<thead><tr><th>Name</th><th>Reach them</th><th>Wants to help with</th><th>Usually free</th><th>Note</th><th>Signed up</th></tr></thead><tbody>${VOLS.length ? '' : '<tr><td colspan="6" class="hint vol-empty">No sign-ups yet. People who join on the home page show up here.</td></tr>'}${VOLS.slice().sort((a, b) => String(b.date).localeCompare(String(a.date))).map(v => `<tr><td><span class="nm">${avatar(v.name)}<b>${esc(v.name)}</b></span></td><td class="vcell">${reach(v)}</td><td>${tags(v.help)}</td><td>${tags(v.free) || '<span class="hint">—</span>'}</td><td class="vcell">${about(v)}</td><td>${esc(mdy(v.date))}</td></tr>`).join('')}</tbody>`;
 }
 const mdy = s => D(s).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
+/* ---------- the volunteer form ----------
+   Sending it waits for the Sheet: the thank-you shows only once the sign-up is saved. If it doesn't go through,
+   everything typed stays, and Try again sends it with the same id, so the Sheet keeps it once however often it's sent.
+   #vj-opened: when the form was opened (the Sheet ignores a form sent within 3 seconds: that's a bot), and #vj-website
+   is a box only bots fill in. */
+const NOTE_PH = 'Skills, languages you speak, anything we should know';
+const NOTE_ASK = { host: 'Tell us about your project: what it is, where it is, and the help it needs', partner: 'Tell us about your group and how you would like to work with the Guild' };
+const NAME_OK = /^\p{L}[\p{L}\p{M} .'’-]{0,79}$/u, EMAIL_OK = /^[^\s@<>"'(),;:]+@[^\s@<>"'(),;:]+\.[^\s@<>"'(),;:.]{2,}$/; // as Code.js checks them
+const newId = () => { try { if (window.crypto && crypto.randomUUID) return crypto.randomUUID(); } catch {} return 'j' + Date.now().toString(36) + Math.random().toString(36).slice(2, 12).padEnd(10, '0'); };
+let joinId = '', joinBusy = false, joinEv = null;
+// a fresh, empty form (after a sign-up, for the next person)
+function newJoin() {
+  $('#joinf').reset(); $('#vj-err').hidden = true; $('#vj-err').textContent = ''; $('#vj-status').textContent = '';
+  $('#joinf').hidden = false; $('#joined').hidden = true; $('#joined').innerHTML = '';
+  $('#vj-note').placeholder = NOTE_PH; $('#vj-opened').value = String(Date.now()); joinId = '';
+}
+const joinErr = (msg, el) => { const e = $('#vj-err'); e.textContent = msg; e.hidden = false; if (el) el.focus(); };
+// what the form says, or what's missing (with the field to go to)
+function joinForm() {
+  const v = {
+    name: $('#vj-name').value.trim().replace(/\s+/g, ' '), email: $('#vj-email').value.trim(), phone: $('#vj-phone').value.trim(),
+    best: $('input[name=vj-best]:checked')?.value || '', help: $$('input[name=vj-help]:checked').map(i => i.value), free: $$('input[name=vj-free]:checked').map(i => i.value),
+    heard: $('#vj-heard').value, note: $('#vj-note').value.trim(), list: $('#vj-list').checked, event: $('#vj-ev').value,
+  };
+  const digits = v.phone.replace(/\D/g, '').length;
+  const bad = !v.name ? ['Add your name so we know who to welcome.', '#vj-name']
+    : !NAME_OK.test(v.name) ? ["Please write your name with letters, spaces and . ' - only.", '#vj-name']
+    : !v.email && !v.phone ? ['Add an email or phone number so an organizer can reach you.', '#vj-email']
+    : v.email && !EMAIL_OK.test(v.email) ? ["That email address doesn't look right. Please check it.", '#vj-email']
+    : v.phone && (digits < 7 || digits > 15 || !/^[0-9+().\s-]+$/.test(v.phone)) ? ['Please check your phone number. It needs at least 7 digits.', '#vj-phone']
+    : v.best === 'Email' && !v.email ? ['Add your email, or pick Text as the best way to reach you.', '#vj-email']
+    : v.best === 'Text' && !v.phone ? ['Add your phone number, or pick Email as the best way to reach you.', '#vj-phone']
+    : v.list && !v.email ? ['Add your email to get the Guild email list.', '#vj-email']
+    : !v.help.length ? ['Pick at least one way you would like to help.', '#vj-picks input'] : null;
+  if (!v.best) v.best = v.email ? 'Email' : 'Text';
+  return { v, bad };
+}
+async function sendJoin() {
+  if (joinBusy) return;
+  const { v, bad } = joinForm();
+  if (bad) return joinErr(bad[0], $(bad[1]));
+  joinId = joinId || newId(); // the same id until it's saved, so Try again never adds a second row
+  const btn = $('#vj-send'), opened = Number($('#vj-opened').value) || 0;
+  joinBusy = true; $('#vj-err').hidden = true;
+  btn.disabled = true; btn.setAttribute('aria-busy', 'true'); btn.innerHTML = ic('loader') + 'Sending…';
+  $('#vj-status').textContent = 'Sending your sign-up…';
+  try {
+    if (remote) await remote.join({ ...v, id: joinId, elapsed: opened ? Date.now() - opened : '', website: $('#vj-website').value });
+    else VOLS.push({ ...v, contact: v.email || v.phone, date: TODAY }); // the artifact keeps sign-ups in this tab
+  } catch (er) {
+    const e = $('#vj-err');
+    e.innerHTML = `<span>${esc(er && er.message ? er.message : "Your sign-up didn't go through.")}</span><button class="btn ghost sm" type="button" id="vj-retry">${ic('rotate-ccw')}Try again</button>`;
+    e.hidden = false; $('#vj-status').textContent = '';
+    $('#vj-retry').focus();
+    return;
+  } finally {
+    joinBusy = false; btn.disabled = false; btn.removeAttribute('aria-busy'); btn.innerHTML = ic('user-plus') + 'Join the list';
+  }
+  joinId = ''; $('#vj-status').textContent = '';
+  renderVols();
+  showJoined(v);
+}
+/* the thank-you: the event they're coming to (or the next one), with Add to calendar and Directions */
+function showJoined(v) {
+  const ups = upcoming(), pick = ups.find(e => e.id === v.event) || ups[0], e = pick && pubShape(pick);
+  joinEv = e || null;
+  const first = v.name.split(' ')[0];
+  // no event to show: coming soon, unless the Sheet's dates haven't arrived (then nothing, rather than a wrong "soon")
+  let next = pubState === 'ready' ? `<p>${ic('calendar')}<b>Next dates coming soon.</b> An organizer will let you know when the next one is set.</p>` : '';
+  if (e) {
+    const cal = gcalUrl(e), dir = directionsUrl(e), when = HM.test(e.start) ? (HM.test(e.end) ? range(e.start, e.end) : t12(e.start)) : '';
+    next = `<p class="eyebrow">Next up</p><a class="vj-ev" href="${esc(evHref(e.id))}" data-ev="${esc(e.id)}">${esc(e.title)}</a>`
+      + `<ul><li>${ic('calendar')}<span>${esc(longDate(e.date))}${when ? ', ' + esc(when) : ''}</span></li>${e.place || e.address ? `<li>${ic('map-pin')}<span>${esc([e.place, e.address].filter(Boolean).join(', '))}</span></li>` : ''}</ul>`
+      + `<div class="vj-acts">${cal ? `<a class="btn ghost sm" id="vj-gcal" href="${esc(cal)}" target="_blank" rel="noopener">${ic('calendar-plus')}Add to Google Calendar${ic('out')}</a><button class="btn ghost sm" type="button" id="vj-ics" data-vj="ics">${ic('download')}Download .ics</button>` : ''}`
+      + `${dir ? `<a class="btn ghost sm" id="vj-dir" href="${esc(dir)}" target="_blank" rel="noopener">${ic('map-pin')}Directions${ic('out')}</a>` : ''}</div>`;
+  }
+  $('#joinf').hidden = true;
+  const box = $('#joined');
+  box.hidden = false;
+  box.innerHTML = `<b tabindex="-1" id="vj-thanks"><i class="ic-chip">${ic('check')}</i>Thanks, ${esc(first)}!</b><span>You're on the volunteer list. An organizer will reach out before the next meeting or work day.</span>`
+    + (next ? `<div class="vj-next">${next}</div>` : '') + `<button class="tog" type="button" id="vj-again" style="justify-self:start">${ic('user-plus')}Sign up someone else</button>`;
+  $('#vj-thanks').focus();
+}
 function bindJoin() {
-  $('#vj-picks').innerHTML = HELP.map(([k, l]) => `<label><input type="checkbox" name="vj-help" value="${k}"><span>${ic('check')}${l}</span></label>`).join('');
+  const chip = (name, k, l) => `<label><input type="checkbox" name="${name}" value="${esc(k)}"><span>${ic('check')}${esc(l)}</span></label>`;
+  $('#vj-picks').innerHTML = HELP.map(([k, l]) => chip('vj-help', k, l)).join('');
+  $('#vj-free').innerHTML = FREE.map(l => chip('vj-free', l, l)).join('');
+  $('#vj-heard').innerHTML = '<option value="">Choose one</option>' + HEARD.map(l => `<option>${esc(l)}</option>`).join('');
+  $('#vj-opened').value = String(Date.now());
   // the "Coming to <event>" chip's x: a sign-up for no event in particular
   $('#vj-for').addEventListener('click', e => {
     if (!e.target.closest('#vj-for-x')) return;
     $('#vj-ev').value = ''; $('#vj-for').hidden = true; $('#vj-for').innerHTML = '';
     $('#vj-name').focus();
   });
-  $('#joinf').addEventListener('submit', e => {
-    e.preventDefault();
-    const name = $('#vj-name').value.trim(), contact = $('#vj-contact').value.trim(), help = $$('input[name=vj-help]:checked').map(i => i.value), err = $('#vj-err');
-    if (!name) { err.textContent = 'Add your name so we know who to welcome.'; err.hidden = false; $('#vj-name').focus(); return; }
-    if (!contact) { err.textContent = 'Add an email or phone number so an organizer can reach you.'; err.hidden = false; $('#vj-contact').focus(); return; }
-    if (!help.length) { err.textContent = 'Pick at least one way you would like to help.'; err.hidden = false; return; }
-    const vol = { name, contact, help, note: $('#vj-note').value.trim(), date: TODAY };
-    VOLS.push(vol); remote?.join(vol);
-    renderVols();
-    $('#joinf').hidden = true;
-    $('#joined').hidden = false;
-    $('#joined').innerHTML = `<b><i class="ic-chip">${ic('check')}</i>Thanks, ${esc(name.split(' ')[0])}!</b><span>You're on the volunteer list. An organizer will reach out before the next meeting or work day.</span><button class="tog" type="button" id="vj-again" style="justify-self:start">Sign up someone else</button>`;
-    $('#vj-again').addEventListener('click', () => { $('#joinf').reset(); err.hidden = true; $('#joinf').hidden = false; $('#joined').hidden = true; });
+  $('#joinf').addEventListener('submit', e => { e.preventDefault(); sendJoin(); });
+  $('#vj-err').addEventListener('click', e => { if (e.target.closest('#vj-retry')) sendJoin(); });
+  $('#joined').addEventListener('click', e => {
+    if (e.target.closest('#vj-again')) { newJoin(); $('#vj-name').focus(); }
+    else if (e.target.closest('#vj-ics') && joinEv) downloadIcs(joinEv);
   });
+  // Host a project and Become a partner: the form, with that choice ticked, ready for them to tell us about it
+  $('#involved').addEventListener('click', e => {
+    const a = e.target.closest('a[data-join]');
+    if (!a || e.button || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return; // a new tab gets the plain #join link
+    e.preventDefault();
+    joinAs(a.dataset.join);
+  });
+}
+function joinAs(k) {
+  if ($('#joinf').hidden) newJoin();
+  const box = $(`#vj-picks input[value="${k}"]`);
+  if (box) box.checked = true;
+  $('#vj-note').placeholder = NOTE_ASK[k] || NOTE_PH;
+  urlTo(homeHref('#join'), true);
+  $('#vj-note').scrollIntoView({ block: 'center' });
+  $('#vj-note').focus({ preventScroll: true });
 }
 /* The public landing page, from the published events only: never a draft, never one that's over.
    The live build fills EVENTS from the Sheet's public data (getPublic); until it answers, grey shapes. */
@@ -3555,7 +3709,7 @@ function goHome(hash = '#welcome', push) {
 }
 // "I'm new: sign me up": the volunteer form, saying which event they're coming to (the form keeps its id in #vj-ev)
 function joinFor(e) {
-  if ($('#joinf').hidden) { $('#joinf').reset(); $('#vj-err').hidden = true; $('#joinf').hidden = false; $('#joined').hidden = true; }
+  if ($('#joinf').hidden) newJoin();
   if (e) {
     $('#vj-ev').value = e.id;
     const c = $('#vj-for');

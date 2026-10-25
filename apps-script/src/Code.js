@@ -9,7 +9,7 @@ const TABS = {
   Bringing: ['event id', 'what', 'who', 'status', 'task id', 'last time'],
   Posts: ['event id', 'channel', 'status', 'posted by', 'text', 'edited', 'approved by', 'approved at', 'posted at', 'post url', 'calendar id', 'stale'],
   Team: ['name', 'role', 'email or phone', 'reminders by', 'create events', 'edit events', 'post', 'assign tasks', 'manage team'],
-  Volunteers: ['signed up', 'name', 'contact', 'wants to help with', 'note'],
+  Volunteers: ['signed up', 'name', 'contact', 'wants to help with', 'note', 'id', 'email', 'phone', 'best way', 'free', 'heard from', 'email list', 'event'],
   Activity: ['event id', 'when', 'what'],
   Gardens: ['name', 'address', 'what happens there', 'lat', 'lng'],
   Reminders: ['sent', 'key', 'to', 'subject'],
@@ -62,6 +62,17 @@ TABS.Posts.forEach((h, i) => { PCOL[h] = i; });
 const MAX_LEN = { title: 200, about: 4000, bring: 500 };
 /* Emails that can wait. They go out only while more than MAIL_RESERVE of the day's quota is left, so reminders still can. */
 const CAN_WAIT = ['welcome', 'lead-alert', 'thanks', 'steward', 'invite'];
+/* The volunteer form's choices, in the words the Volunteers tab keeps. The same lists as HELP, FREE, HEARD and the
+   'Best way to reach you' buttons on the page (a test checks they match). Anything else is a hand-made request. */
+const VOL_HELP = ['Meeting setup', 'Garden work days', 'Partner projects', 'Outreach & photos', 'Teaching a skill', 'Adopt a plant', 'Host a project', 'Partner organization'];
+const VOL_FREE = ['Weekend mornings', 'Weekday evenings', 'One-off projects'];
+const VOL_HEARD = ['Instagram', 'Partiful', 'Google Group', 'Facebook', 'A friend', 'Walked by the garden', 'A flyer', 'Other'];
+const VOL_BEST = ['Email', 'Text'];
+const VOL_NAME = /^\p{L}[\p{L}\p{M} .'’-]{0,79}$/u; // letters, spaces and . ' - (80 at most), starting with a letter
+const VOL_EMAIL = /^[^\s@<>"'(),;:]+@[^\s@<>"'(),;:]+\.[^\s@<>"'(),;:.]{2,}$/;
+const JOIN_LIMIT = 60; // sign-ups every 10 minutes, everyone together
+const VCOL = {}; // each Volunteers column's place in a row from rows_('Volunteers'), e.g. VCOL['best way']
+TABS.Volunteers.forEach((h, i) => { VCOL[h] = i; });
 
 /* ---------- page ---------- */
 function doGet(e) {
@@ -165,7 +176,7 @@ function getPublic() {
   const cache = CacheService.getScriptCache(), hit = cache.get(PUBLIC_KEY);
   if (hit) { try { return JSON.parse(hit); } catch (e) { /* worked out again below */ } }
   const gen = cache.get(PUBLIC_GEN);
-  ensure_();
+  ensure_(true);
   const out = publicView_(), json = JSON.stringify(out);
   // a save that started while this was reading the Sheet changed the generation, so an older copy is never kept
   if (bytes_(json) <= PUBLIC_MAX && cache.get(PUBLIC_GEN) === gen) cache.put(PUBLIC_KEY, json, 300);
@@ -279,27 +290,135 @@ function saveTeam(code, team) {
   return writing_(() => { writeTeam_(team); return true; });
 }
 
+/* The volunteer form, for anyone (no organizer code). v: { name, email, phone, best, help, free, heard, note, list,
+   event, id, elapsed, website }. help, free and heard are the words on the form's choices; id is the page's own id for
+   this sign-up, sent again when the visitor presses Try again; elapsed is how long the form was open, in ms, measured on
+   the visitor's device (so a clock that's off doesn't matter); website is a box only bots can see.
+   A bot (the hidden box filled in, or the form sent within 3 seconds of opening), a second send of the same id within
+   10 minutes, and the same email or phone again within the hour are told all went well and change nothing.
+   Someone already on the Volunteers tab (the same email or phone) gets their row updated, not a second row, and no
+   second welcome email. Returns true. */
 function addVolunteer(v) {
+  v = v && typeof v === 'object' ? v : {};
   const s = x => String(x == null ? '' : x).trim();
-  const name = s(v && v.name).slice(0, 120), contact = s(v && v.contact).slice(0, 160);
-  const help = ((v && v.help) || []).slice(0, 10).map(h => s(h).slice(0, 60)), note = s(v && v.note).slice(0, 1000);
-  if (!name || !contact) throw new Error('Add your name and an email or phone.');
-  const cache = CacheService.getScriptCache(), n = Number(cache.get('joins') || 0);
-  if (n > 30) throw new Error('Lots of sign-ups right now. Try again in a few minutes.');
-  cache.put('joins', String(n + 1), 600);
-  locked_(() => append_('Volunteers', [volRow_({ date: today_(), name: name, contact: contact, help: help, note: note })]));
-  if (on_('WELCOME_EMAILS')) {
-    // the sign-up is saved already, so an email that fails is noted on the Reminders tab instead of failing the sign-up
-    const tryMail = (to, subject, body, kind) => { try { mail_(to, subject, body, kind); } catch (e) { log_(kind, to, 'failed: ' + msg_(e)); } };
-    const next = upcoming_()[0]; // published events only: a draft isn't announced to anyone yet
-    if (/@/.test(contact)) tryMail(contact, 'Welcome to the East Bay Permaculture Guild',
-      'Hi ' + name.split(' ')[0] + ',\n\nThanks for signing up to help' + (help.length ? ' with ' + help.join(', ').toLowerCase() : '') + '. An organizer will reach out soon.' +
-      (next ? '\n\nOur next gathering: ' + next.title + ', ' + niceDate_(next.date) + ' at ' + niceTime_(next.start) + ', ' + next.place + '.' : '') +
-      '\n\nSee you in the garden,\nThe East Bay Permaculture Guild', 'welcome');
-    tryMail(leadEmail_() || owner_(), 'New volunteer: ' + name,
-      name + ' signed up.\nContact: ' + contact + '\nWants to help with: ' + (help.join(', ') || '-') + (note ? '\nNote: ' + note : '') + '\n\nThey are on the Volunteers tab of the Event Hub Sheet.', 'lead-alert');
+  if (s(v.website)) return true;
+  const took = Number(v.elapsed);
+  if (s(v.elapsed) !== '' && !isNaN(took) && took < 3000) return true;
+  const name = s(v.name).replace(/\s+/g, ' ');
+  if (!name) throw new Error('Add your name so we know who to welcome.');
+  if (!VOL_NAME.test(name)) throw new Error("Please write your name with letters, spaces and . ' - only (80 characters at most).");
+  let email = s(v.email), phone = s(v.phone);
+  const one = s(v.contact); // a page from before the separate email and phone boxes sends one 'contact'
+  if (!email && !phone && one) { if (/@/.test(one)) email = one; else phone = one; }
+  if (!email && !phone) throw new Error('Add an email or phone number so an organizer can reach you.');
+  if (email && (email.length > 120 || !VOL_EMAIL.test(email))) throw new Error("That email address doesn't look right. Please check it.");
+  const digits = phone.replace(/\D/g, '');
+  if (phone && (phone.length > 30 || !/^[0-9+().\s-]+$/.test(phone) || digits.length < 7 || digits.length > 15)) throw new Error('Please check your phone number. It needs at least 7 digits.');
+  const pick = (list, vals) => {
+    const out = [];
+    (Array.isArray(vals) ? vals.slice(0, 20) : s(vals) ? [vals] : []).forEach(x => {
+      const hit = list.find(l => key_(l) === key_(x));
+      if (!hit) throw new Error("One of your choices isn't on the form anymore. Please refresh the page and try again.");
+      if (out.indexOf(hit) < 0) out.push(hit);
+    });
+    return out;
+  };
+  const help = pick(VOL_HELP, v.help), free = pick(VOL_FREE, v.free), heard = pick(VOL_HEARD, v.heard)[0] || '';
+  let best = pick(VOL_BEST, v.best)[0] || (email ? 'Email' : 'Text');
+  if (best === 'Email' && !email) best = 'Text';
+  if (best === 'Text' && !phone) best = 'Email';
+  const note = s(v.note);
+  if (note.length > 1000) throw new Error('Your note is a little long. Please keep it under 1,000 characters.');
+  const list = email && (v.list === true || /^(true|yes|on|1)$/i.test(s(v.list))) ? 'yes' : '';
+  const evId = ID_RE.test(s(v.event)) ? s(v.event) : '';
+  const cid = /^[A-Za-z0-9-]{8,64}$/.test(s(v.id)) ? s(v.id) : '';
+
+  const cache = CacheService.getScriptCache(), today = today_();
+  const mail = email.toLowerCase(), tel = phoneKey_(phone);
+  const cool = [mail && 'join-e:' + mail, tel && 'join-p:' + tel].filter(Boolean);
+  const bucket = 'joins:' + Math.floor(Date.now() / 6e5);
+  const done = locked_(() => {
+    if (cid && cache.get('join-id:' + cid)) return null; // Try again, after a send the Sheet did get
+    if (cool.some(k => cache.get(k))) return null; // this email or phone signed up within the hour
+    const n = Number(cache.get(bucket) || 0);
+    if (n >= JOIN_LIMIT) throw new Error('Lots of sign-ups right now. Please try again in a few minutes.');
+    const all = rows_('Volunteers', true), C = VCOL;
+    const i = all.findIndex(r => {
+      if (!r.some(String)) return false;
+      const was = volContact_(r);
+      return (mail && was.email.toLowerCase() === mail) || (tel && phoneKey_(was.phone) === tel);
+    });
+    let id, again = i >= 0;
+    if (again) {
+      // already on the list: their row, with the new choices added and a line in the note. The name stays as it is.
+      const r = all[i].slice(), was = volContact_(r), also = [];
+      const merge = (cell, add) => { const had = String(cell || '').split(',').map(x => x.trim()).filter(String); add.forEach(x => { if (had.indexOf(x) < 0) had.push(x); }); return had.join(', '); };
+      if (email && was.email && was.email.toLowerCase() !== mail) also.push('email ' + email);
+      if (phone && was.phone && phoneKey_(was.phone) !== tel) also.push('phone ' + phone);
+      r[C['wants to help with']] = merge(r[C['wants to help with']], help);
+      r[C.free] = merge(r[C.free], free);
+      r[C.note] = (r[C.note] ? r[C.note] + '\n' : '') + 'Signed up again ' + today + (also.length ? ' with ' + also.join(' and ') : '') + (note ? ': ' + note : '');
+      r[C.email] = was.email || email; r[C.phone] = was.phone || phone;
+      if (!String(r[C.contact]).trim()) r[C.contact] = r[C.email] || r[C.phone];
+      r[C['best way']] = best;
+      if (heard && !r[C['heard from']]) r[C['heard from']] = heard;
+      if (list) r[C['email list']] = 'yes';
+      if (evId) r[C.event] = evId;
+      id = r[C.id] = r[C.id] || newVolId_();
+      put_('Volunteers', i + 2, [r], ['contact', 'wants to help with', 'note', 'id', 'email', 'phone', 'best way', 'free', 'heard from', 'email list', 'event'].map(h => C[h]));
+      all[i] = r;
+    } else {
+      id = newVolId_();
+      append_('Volunteers', [volRow_({ date: today, name: name, email: email, phone: phone, help: help, note: note, id: id, best: best, free: free, heard: heard, list: list, event: evId })]);
+    }
+    backfillVolIds_(all); // rows from before the id column, or typed in by hand
+    cache.put(bucket, String(n + 1), 600);
+    if (cid) cache.put('join-id:' + cid, id, 600);
+    cool.forEach(k => cache.put(k, id, 3600));
+    return { again: again };
+  });
+  if (!done || !on_('WELCOME_EMAILS')) return true;
+  // the sign-up is saved already, so an email that fails is noted on the Reminders tab instead of failing the sign-up
+  const tryMail = (to, subject, body, kind) => { try { mail_(to, subject, body, kind); } catch (e) { log_(kind, to, 'failed: ' + msg_(e)); } };
+  const ups = upcoming_(), coming = evId ? ups.find(e => e.id === evId) : null, next = coming || ups[0]; // published events only
+  const when = e => e.title + ', ' + niceDate_(e.date) + (/^\d{2}:\d{2}$/.test(e.start) ? ' at ' + niceTime_(e.start) : '') + (e.place ? ', ' + e.place : '');
+  if (email && !done.again) {
+    // the greeting is the first name only when it's plain letters: a name can't carry a link or a message to a stranger
+    const first = name.split(' ')[0], hi = /^[\p{L}\p{M}-]{1,30}$/u.test(first) ? first : 'there';
+    const link = next ? eventLink_(next.id) : '';
+    tryMail(email, 'Welcome to the East Bay Permaculture Guild',
+      'Hi ' + hi + ',\n\nThanks for signing up to help' + (help.length ? ' with ' + help.join(', ').toLowerCase() : '') + '. An organizer will reach out soon.' +
+      (next ? '\n\n' + (coming ? 'See you at ' : 'Our next gathering: ') + when(next) + '.' + (link ? '\nDetails and directions: ' + link : '') : '') +
+      '\n\nSee you in the garden,\nThe East Bay Permaculture Guild\n\nJust reply to this email if you have questions.', 'welcome');
   }
+  const lines = [
+    name + (done.again ? ' signed up again. Their row on the Volunteers tab now has these choices too.' : ' signed up to volunteer.'),
+    email && 'Email: ' + email, phone && 'Phone: ' + phone, 'Best way to reach them: ' + (best === 'Text' ? 'a text' : 'email'),
+    'Wants to help with: ' + (help.join(', ') || '-'), free.length && 'Usually free: ' + free.join(', '), heard && 'Heard about us from: ' + heard,
+    list && 'Guild email list: yes, please add them', coming && 'Coming to: ' + when(coming), note && 'Note: ' + note,
+  ].filter(Boolean);
+  tryMail(leadEmail_() || owner_(), (done.again ? 'Volunteer signed up again: ' : 'New volunteer: ') + name,
+    lines.join('\n') + '\n\nThey are on the Volunteers tab of the Event Hub Sheet.', 'lead-alert');
   return true;
+}
+/* digits only, without a leading US 1, so (510) 555-0101 and +1 510 555 0101 are the same phone; '' when too short */
+function phoneKey_(p) {
+  const d = String(p == null ? '' : p).replace(/\D/g, '');
+  return d.length < 7 ? '' : d.length === 11 && d[0] === '1' ? d.slice(1) : d;
+}
+/* A Volunteers row's email and phone. Rows from before those columns have only 'contact': an email or a phone. */
+function volContact_(r) {
+  const c = String(r[VCOL.contact] || '').trim(), at = /@/.test(c);
+  return { email: String(r[VCOL.email] || '').trim() || (at ? c : ''), phone: String(r[VCOL.phone] || '').trim() || (at ? '' : c) };
+}
+function newVolId_() { return Utilities.getUuid().slice(0, 8); }
+/* An event's public page: on SITE_URL when it's set, else this web app (doGet sends ?ev= on to SITE_URL too). */
+function eventLink_(id) {
+  const site = setting_('SITE_URL'), q = '?ev=' + encodeURIComponent(id);
+  if (/^https:\/\/[^\s"'<>]+$/.test(site)) return site.replace(/\/$/, '') + '/' + q;
+  let url = '';
+  try { url = String(ScriptApp.getService().getUrl() || ''); } catch (e) { /* no web app yet */ }
+  return url ? url + q : '';
 }
 
 /* The Post button for the Google Group and the Calendar. ev is the event as the page has it: it's saved first,
@@ -452,7 +571,8 @@ function book_() {
   return ss;
 }
 
-function ensure_() {
+/* pub: for getPublic, which reads only the Events, Team, Gardens and Settings tabs (so the volunteer ids wait). */
+function ensure_(pub) {
   const ss = book_();
   Object.keys(TABS).forEach(name => {
     if (ss.getSheetByName(name)) { addCols_(name); return; } // an update may have added columns
@@ -464,6 +584,7 @@ function ensure_() {
     // only a tab made just now gets the Guild's channels: rows deleted or changed by hand later stay that way
     if (name === 'Channels') sh.getRange(2, 1, CHANNEL_ROWS.length, head.length).setValues(CHANNEL_ROWS);
   });
+  if (!pub) backfillVolIds_();
   const blank = ss.getSheetByName('Sheet1');
   if (blank && ss.getSheets().length > 1 && blank.getLastRow() === 0) ss.deleteSheet(blank);
   const settings = rows_('Settings'), have = settings.map(r => r[0]);
@@ -814,7 +935,20 @@ function writeTeam_(team) {
   const n = team.length, sh = sheet_('Team');
   if (n) runs_('Team', PERM_KEYS.map((k, i) => 4 + i)).forEach(run => sh.getRange(2, run.col, n, run.idx.length).insertCheckboxes());
 }
-function volRow_(v) { return [v.date || today_(), v.name, v.contact, (v.help || []).join(', '), v.note || '']; }
+/* A Volunteers row, in TABS order. 'contact' is kept filled (the email, else the phone) for anything that reads only it. */
+function volRow_(v) {
+  const c = String(v.contact || '').trim(), email = v.email || (/@/.test(c) ? c : ''), phone = v.phone || (email ? '' : c);
+  return [v.date || today_(), v.name, email || phone, (v.help || []).join(', '), v.note || '', v.id || newVolId_(), email, phone,
+    v.best || '', (v.free || []).join(', '), v.heard || '', v.list ? 'yes' : '', v.event || ''];
+}
+/* Sign-ups from before the id column, and rows added by hand, get a short id (one write for the whole column).
+   all: the tab's rows with their places kept (rows_('Volunteers', true)), if just read. */
+function backfillVolIds_(all) {
+  all = all || rows_('Volunteers', true);
+  const at = VCOL.id;
+  if (!all.some(r => !String(r[at]).trim() && r.some(String))) return;
+  put_('Volunteers', 2, all.map(r => { const out = []; out[at] = String(r[at]).trim() || (r.some(String) ? newVolId_() : ''); return out; }), [at]);
+}
 
 function readAll_() {
   const byEv = (name, f) => {
@@ -833,11 +967,18 @@ function readAll_() {
       return { data: e.data, cols: e.cols, tasks: tasks[e.cols.id] || [], posts: ps, log: log[e.cols.id] || [] };
     }),
     team: readTeam_(),
-    vols: rows_('Volunteers').map(r => ({ date: normDate_(r[0]), name: r[1], contact: r[2], help: String(r[3]).split(',').map(s => s.trim()).filter(String), note: r[4] })),
+    vols: rows_('Volunteers').map(volOf_),
     gardens: readGardens_(),
     channels: readChannels_(),
     problems: problems,
   };
+}
+/* A Volunteers row for the organizers' Volunteer list. help and free are lists of the form's words. */
+function volOf_(r) {
+  const C = VCOL, list = v => String(v || '').split(',').map(x => x.trim()).filter(String), c = volContact_(r);
+  return { date: normDate_(r[C['signed up']]), name: r[C.name], contact: r[C.contact] || c.email || c.phone, help: list(r[C['wants to help with']]), note: r[C.note],
+    id: r[C.id], email: c.email, phone: c.phone, best: r[C['best way']], free: list(r[C.free]), heard: r[C['heard from']],
+    list: /^(yes|true|x|1)$/i.test(String(r[C['email list']]).trim()), event: r[C.event] };
 }
 /* The Channels tab, as the page uses it: whether the Guild uses each channel, its name, the link its Open button goes to
    (https:// only) and whether new events start with it. A channel id the app doesn't know, and a second row for the same

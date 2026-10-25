@@ -564,8 +564,14 @@ if (window.EBPG_GAS) {
       }
       return (out && out.message) || 'Posted.';
     },
-    join: v => run('addVolunteer', { ...v, help: v.help.map(k => Object.fromEntries(HELP)[k] || k) })
-      .catch(er => toast(er.net ? "Couldn't send your sign-up. The Guild Sheet didn't answer, so please try again in a minute." : "Couldn't send your sign-up: " + er.message)),
+    /* the volunteer form: resolves once the Sheet has the sign-up. A failure is thrown, for the form to show with Try again. */
+    join: async v => {
+      try { return await run('addVolunteer', { ...v, help: v.help.map(k => Object.fromEntries(HELP)[k] || k) }); }
+      catch (er) {
+        if (!er.net) throw er; // the Sheet's own words, e.g. "That email address doesn't look right."
+        throw Object.assign(new Error("We couldn't reach the Guild Sheet, so your sign-up didn't go through. Your answers are still here."), { net: true });
+      }
+    },
   };
   // signing out with changes the Sheet doesn't have yet asks first
   leaveOk = () => {

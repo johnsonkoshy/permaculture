@@ -47,6 +47,16 @@ test('dev server: /_ctl slows /_api calls and fails the ones named with an HTML 
   assert.equal(gas.mail.length, sent, 'held back');
   assert.ok(gas.tab('Reminders').some(r => r[3] === 'skipped (quota): Welcome to the East Bay Permaculture Guild'));
   await ctl('?quota=100');
+  // ?fail=addVolunteer: the volunteer form's send gets the error page; once cleared, Try again (the same id) is kept once
+  const join = { name: 'Maya Ortiz', email: 'maya@example.org', help: ['Garden work days'], id: 'devserver-join-1', elapsed: 8000 };
+  await ctl('?fail=addVolunteer');
+  r = await call('addVolunteer', [join]);
+  assert.equal(r.status, 502);
+  await ctl('?fail=');
+  const rows = () => gas.tab('Volunteers').filter(x => x[1] === 'Maya Ortiz').length;
+  assert.equal((await (await call('addVolunteer', [join])).json()).value, true);
+  assert.equal((await (await call('addVolunteer', [join])).json()).value, true);
+  assert.equal(rows(), 1);
 
   const html = await (await fetch(base + '/site')).text();
   assert.ok(html.includes(`"${base}/_api"`), 'the page calls this server');
