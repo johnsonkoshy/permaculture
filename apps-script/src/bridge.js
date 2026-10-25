@@ -116,6 +116,13 @@ if (window.EBPG_GAS) {
      only the newest version goes next. A failed save is retried after 2 s, 5 s, 15 s, then every 60 s. */
   const saved = {}, base = {}, touched = {};
   let Q = {}, mine = new Set(), waits = [], gen = 0, timer = 0, retryTimer = 0, tries = 0, manual = false, failShown = false;
+  /* The organizer code changed (or was cleared) on the Settings tab while this page was open. Trying again can't
+     help, and every try counts as a wrong code (20 in 10 minutes pause sign-in for everyone). So the page stops
+     calling the Sheet, keeps its changes, and asks for the new code; signing in with it sends them (see remote.signIn). */
+  let stale = false;
+  const CODE_GONE = /organizer code isn't (right|set up yet)/;
+  const codeGone = er => !!er && !er.net && CODE_GONE.test(er.message);
+  const STALE = 'The organizer code was changed. Sign in again with the new code, and your changes here will be saved.';
   const WAIT = [2000, 5000, 15000, 60000];
   const keyOf = ev => 'e:' + ev.id;
   const snapOf = k => {
@@ -135,6 +142,7 @@ if (window.EBPG_GAS) {
     const s = snapOf(k);
     if (s == null) { delete Q[k]; return; }
     if (s === saved[k]) { q.failed = false; return; }
+    if (stale) { q.failed = true; return; } // kept here until signed in with the new code
     q.busy = true; touched[k] = Date.now();
     const g = gen;
     run(k === 'team' ? 'saveTeam' : 'saveEvent', code, JSON.parse(s))
@@ -143,7 +151,7 @@ if (window.EBPG_GAS) {
       .then(() => {
         if (g !== gen) return;
         q.busy = false; touched[k] = Date.now();
-        if (q.failed) { retryLater(); noteFailure(q.err); }
+        if (q.failed) { if (codeGone(q.err)) staleCode(); else if (!stale) { retryLater(); noteFailure(q.err); } }
         else if (!timer && dirty(k)) send(k); // changes made while it was out
         status();
       });
@@ -169,6 +177,25 @@ if (window.EBPG_GAS) {
     failShown = true;
     toast(!er || er.net ? NO_ANSWER : "Not saved. " + er.message, 'alert-triangle');
   }
+  // the Sheet turned down this page's code: stop calling it, say so once, and go to the sign-in card
+  // (unless an event pop-up is open or something is being typed: then the toast and the chip say it)
+  function staleCode() {
+    if (stale || !live) return;
+    stale = true; waits = [];
+    clearTimeout(timer); clearTimeout(retryTimer); timer = retryTimer = 0;
+    status();
+    const err = $('#si-err'), a = document.activeElement;
+    err.textContent = STALE; err.hidden = false;
+    $('#si-code').value = '';
+    if ($('#modal').hidden && !(a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName))) { goSignIn(); $('#si-code').focus(); }
+    else toast('The organizer code was changed. Sign in again with the new code.', 'alert-triangle');
+  }
+  // the chip's Sign in again: close the pop-up, and ask for the new code
+  function signInAgain() {
+    if (!$('#modal').hidden) closeEvent();
+    $('#si-err').textContent = STALE; $('#si-err').hidden = false;
+    goSignIn(); $('#si-code').focus();
+  }
   // save whatever changed, a moment after it changed
   sync = () => { if (!live) return; clearTimeout(timer); timer = setTimeout(flush, 800); status(); };
   whenSaved = f => {
@@ -180,7 +207,7 @@ if (window.EBPG_GAS) {
 
   /* the status chip: one in the top bar (#savest), and one in the event pop-up's bar (#m-savest), since the
      page behind an open pop-up is inert. Only one can be seen or heard at a time. */
-  const CHIP = { saving: ['loader', 'Saving…'], saved: ['check', 'All changes saved'], failed: ['alert-triangle', 'Not saved'] };
+  const CHIP = { saving: ['loader', 'Saving…'], saved: ['check', 'All changes saved'], failed: ['alert-triangle', 'Not saved'], stale: ['alert-triangle', 'Not saved'] };
   let chipState = 'idle', fadeT = 0, failedIds = '';
   function chip(st) {
     if (st === chipState) return;
@@ -190,7 +217,9 @@ if (window.EBPG_GAS) {
       const btn = el.querySelector('button'), hadFocus = document.activeElement === btn;
       el.classList.remove('fade'); el.dataset.state = st;
       el.firstElementChild.innerHTML = CHIP[st] ? ic(CHIP[st][0]) + esc(CHIP[st][1]) : '';
-      btn.hidden = st !== 'failed';
+      const [bi, bt] = st === 'stale' ? ['log-in', 'Sign in again'] : ['rotate-ccw', 'Retry'];
+      if (btn.textContent !== bt) btn.innerHTML = ic(bi) + esc(bt);
+      btn.hidden = st !== 'failed' && st !== 'stale';
       if (hadFocus && btn.hidden) el.focus(); // keep keyboard focus nearby while it retries
     });
     if (st === 'saved') fadeT = setTimeout(() => { $$('.savest').forEach(el => el.classList.add('fade')); fadeT = setTimeout(() => chip('idle'), 650); }, 3000);
@@ -200,10 +229,11 @@ if (window.EBPG_GAS) {
     if (!out) manual = false;
     let st;
     if (!live) st = 'idle';
+    else if (stale && (bad.length || ks.some(dirty))) st = 'stale';
     else if (bad.length && !manual) st = 'failed';
     else if (out || ks.some(dirty)) st = 'saving';
     else st = chipState === 'idle' ? 'idle' : 'saved';
-    if (st === 'failed') waits = [];
+    if (st === 'failed' || st === 'stale') waits = [];
     if (st === 'idle' || st === 'saved') {
       failShown = false; tries = 0; clearTimeout(retryTimer); retryTimer = 0;
       const w = waits; waits = []; w.forEach(f => f());
@@ -212,8 +242,8 @@ if (window.EBPG_GAS) {
     const ids = bad.filter(k => k !== 'team').sort().join(',');
     if (ids !== failedIds) { failedIds = ids; markUnsaved(); }
   }
-  $$('.savest button').forEach(b => b.addEventListener('click', () => retryNow(true)));
-  window.addEventListener('online', () => { if (live && failedKeys().length) retryNow(false); });
+  $$('.savest button').forEach(b => b.addEventListener('click', () => stale ? signInAgain() : retryNow(true)));
+  window.addEventListener('online', () => { if (live && !stale && failedKeys().length) retryNow(false); });
   // closing the tab: send what's left; if anything still isn't saved, the browser asks first
   window.addEventListener('beforeunload', e => {
     if (!live) return;
@@ -239,7 +269,7 @@ if (window.EBPG_GAS) {
   }
   // start over: a new sign-in, or signing out
   function reset() {
-    gen++; Q = {}; mine = new Set(); waits = []; tries = 0; manual = false; failShown = false;
+    gen++; Q = {}; mine = new Set(); waits = []; tries = 0; manual = false; failShown = false; stale = false;
     clearTimeout(timer); clearTimeout(retryTimer); timer = retryTimer = 0;
     [saved, base, touched].forEach(o => Object.keys(o).forEach(k => delete o[k]));
     chip('idle'); failedIds = '';
@@ -249,7 +279,7 @@ if (window.EBPG_GAS) {
      take what's there unless they have changes of their own here, or are being edited. */
   let reading = false, lastRead = 0;
   async function refresh(force) {
-    if (!live || reading || document.hidden) return;
+    if (!live || stale || reading || document.hidden) return;
     if (!force && Date.now() - lastRead < 10000) return;
     reading = true;
     const g = gen, t0 = Date.now();
@@ -260,7 +290,7 @@ if (window.EBPG_GAS) {
       if (g === gen && live && !st.empty && merge(st, t0)) toast('Updated with the latest changes', 'check');
       // the Sheet is answering again: send what didn't go through now, not at the next retry (up to a minute away)
       if (g === gen && live && failedKeys().length) retryNow(false);
-    } catch {} finally { reading = false; }
+    } catch (er) { if (g === gen && codeGone(er)) staleCode(); } finally { reading = false; }
   }
   function merge(st, t0) {
     const open = $('#detail') ? S.sel : null;
@@ -315,21 +345,22 @@ if (window.EBPG_GAS) {
   }
   setInterval(() => refresh(true), 120000);
   document.addEventListener('visibilitychange', () => {
-    if (!live) return;
+    if (!live || stale) return;
     if (document.hidden) { leaving = true; flush(); leaving = false; } // a phone may close the page without warning
     else { if (failedKeys().length) retryNow(false); refresh(); } // back on the tab: try failed saves again now
   });
 
   /* ---------- test mode ----------
      While TEST_MODE is on, every page an organizer sees says where the emails go, with a link to the Sheet. */
+  let testHTML = ''; // what the banner was last given (the browser writes <use/> back as <use></use>, so not bar.innerHTML)
   function testBar(st) {
     const bar = $('#testbar'), on = !!(st && st.testMode);
     bar.hidden = !on;
-    if (!on) { bar.innerHTML = ''; return; }
+    if (!on) { bar.innerHTML = testHTML = ''; return; }
     const link = safeUrl(st.sheetUrl);
     const html = `${ic('mail')}<span class="grow"><b>Test mode:</b> every email goes only to ${esc(st.owner || 'the Sheet owner')}. Turn it off on the Settings tab when you're ready to go live.</span>`
       + (link ? `<a class="btn ghost sm" href="${esc(link)}" target="_blank" rel="noopener">Open the Sheet${ic('out')}</a>` : '');
-    if (bar.innerHTML !== html) bar.innerHTML = html; // redrawn only when it changes, so a focused link keeps focus
+    if (html !== testHTML) bar.innerHTML = testHTML = html; // redrawn only when it changes, so a focused link keeps focus
   }
 
   /* ---------- signing in and out ---------- */
@@ -360,7 +391,7 @@ if (window.EBPG_GAS) {
     async signIn(name, resume) {
       if (signing) return;
       const typed = $('#si-code').value.trim(), err = $('#si-err');
-      const c = typed || code;
+      const c = typed || (stale ? '' : code); // the code this page had was turned down, so only a typed one
       if (!c) { err.textContent = 'Type the organizer code first.'; err.hidden = false; $('#si-code').focus(); return; }
       err.hidden = true;
       signing = true; signingAs = name; waitLine = WAKING;
@@ -368,6 +399,17 @@ if (window.EBPG_GAS) {
       try {
         let st = await run('signIn', c);
         sheetUrl = st.sheetUrl || '';
+        if (live && stale && !st.empty) {
+          // the same session with the new code: keep the changes made here, take the rest from the Sheet, and save now
+          code = c; stale = false; tries = 0; failShown = false;
+          testBar(st); merge(st, Date.now());
+          store.keep(c, name, resume ? undefined : $('#si-rem').checked);
+          $('#si-err').hidden = true;
+          if (!person(name) || person(name).role === 'vol') name = (organizers()[0] || TEAM[0]).name;
+          finishSignIn(name);
+          retryNow(true);
+          return;
+        }
         const info = st; // seed's answer has no test-mode details
         if (st.empty) {
           waitLine = 'Setting up the Guild Sheet for the first time. This can take up to a minute.';
@@ -395,9 +437,13 @@ if (window.EBPG_GAS) {
     },
     // post after the event's own save is in, so the Sheet has what's being posted
     post: async (ev, ch) => {
+      if (stale) throw new Error(STALE);
       await settle(keyOf(ev));
       try { return await run('postTo', code, ev.id, ch, ev.posts[ch].text); }
-      catch (er) { throw er.net ? new Error("The Guild Sheet didn't answer, so we can't tell if it went out. Check before posting again.") : er; }
+      catch (er) {
+        if (codeGone(er)) { staleCode(); throw new Error(STALE); }
+        throw er.net ? new Error("The Guild Sheet didn't answer, so we can't tell if it went out. Check before posting again.") : er;
+      }
     },
     join: v => run('addVolunteer', { ...v, help: v.help.map(k => Object.fromEntries(HELP)[k] || k) })
       .catch(er => toast(er.net ? "Couldn't send your sign-up. The Guild Sheet didn't answer, so please try again in a minute." : "Couldn't send your sign-up: " + er.message)),

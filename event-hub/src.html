@@ -107,8 +107,8 @@ a { color: var(--fern); }
 .savest .ic { width: 15px; height: 15px; }
 .savest[data-state="saving"] .ic { animation: spin 1s linear infinite; }
 .savest[data-state="saved"] .ic { color: var(--fern); }
-.savest[data-state="failed"] { background: var(--flag-soft); border-color: var(--flag); color: var(--ink); }
-.savest[data-state="failed"] > span > .ic { color: var(--flag); }
+.savest[data-state="failed"], .savest[data-state="stale"] { background: var(--flag-soft); border-color: var(--flag); color: var(--ink); }
+.savest[data-state="failed"] > span > .ic, .savest[data-state="stale"] > span > .ic { color: var(--flag); }
 .savest button { display: inline-flex; align-items: center; gap: 5px; min-height: 30px; margin-left: 4px; padding: 0 2px 0 10px; border: 0; border-left: 1px solid var(--line-2); background: none; color: var(--fern); font-weight: 700; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
 .savest button .ic { width: 14px; height: 14px; }
 body.out .savest { display: none; }
@@ -1526,7 +1526,7 @@ await supabase.from('volunteers').insert({
       </section>
       <section aria-labelledby="hp-code">
         <h2 id="hp-code">Changing the organizer code</h2>
-        <p>Open the <b>Settings</b> tab of the Sheet and type a new code next to <code>ORGANIZER_CODE</code>, at least 8 characters long. It works right away, and everyone signs in again with the new code, so tell the other organizers first. After 20 wrong codes in 10 minutes, sign-in pauses for everyone until the 10 minutes are up.</p>
+        <p>Open the <b>Settings</b> tab of the Sheet and type a new code next to <code>ORGANIZER_CODE</code>, at least 8 characters long. It works right away, so tell the other organizers first. A page that's already open asks for the new code the next time it saves or checks the Sheet, and keeps its changes until someone signs in with it. After 20 wrong codes in 10 minutes, sign-in pauses for everyone until the 10 minutes are up.</p>
       </section>
       <section aria-labelledby="hp-test">
         <h2 id="hp-test">Test mode</h2>

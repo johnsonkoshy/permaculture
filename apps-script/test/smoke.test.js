@@ -1075,3 +1075,119 @@ test("after too many wrong codes the sign-in page says to wait, and a remembered
   await waitFor(p.idle, 2000, 'calls to finish');
   assert.deepEqual(p.api.errors, []);
 });
+
+/* ---------- the organizer code changed while a page was open ---------- */
+// timers run 200 times faster, so the retry schedule's ten minutes take three seconds (the 800 ms save delay stays);
+// the 2-minute read of the Sheet runs when the test says, as api.tick()
+const fastTimers = (w, g, api) => {
+  const later = w.setTimeout, every = w.setInterval;
+  w.setTimeout = (f, ms, ...a) => later.call(w, f, ms >= 1000 ? ms / 200 : ms, ...a);
+  w.setInterval = (f, ms, ...a) => { if (ms === 120000) { api.tick = f; return 0; } return every.call(w, f, ms, ...a); };
+};
+const newCode = (p, c) => p.g.sheets.get('Settings').set(p.g.tab('Settings').findIndex(r => r[0] === 'ORGANIZER_CODE') + 1, 2, c);
+
+test("after the organizer code changes, an open page stops sending the old one, keeps its changes, and saves them once signed in with the new code", async t => {
+  const p = await openPage(t, fastTimers);
+  const OLD = p.code(), NEW = 'garden-new-1357';
+  await signIn(p, 'Jessie');
+  assert.equal(typeof p.api.tick, 'function', 'the page reads the Sheet every 2 minutes');
+  // the code is changed on the Settings tab while Jessie has the page open, and she edits two events
+  newCode(p, NEW);
+  const from = p.api.sent.length, oldSent = () => p.api.sent.slice(from).filter(c => c.args[0] === OLD).length;
+  const wrong = () => Object.entries(p.g.cache).filter(([k]) => k.startsWith('fail:')).reduce((n, [, c]) => n + Number(c.v), 0);
+  await editTitle(p, 'w7', 'Rain Plan Work Party');
+  p.$('#m-x').click();
+  await editTitle(p, 'm2', 'Winter Potluck');
+  p.$('#m-x').click();
+
+  // the Sheet turns the old code down once: the page asks for the new code and keeps the changes
+  const STALE = 'The organizer code was changed. Sign in again with the new code, and your changes here will be saved.';
+  await waitFor(() => p.shown('#p-signin') && p.shown('#si-err') && p.$('#si-err').textContent === STALE, 3000, 'the sign-in card asking for the new code');
+  assert.equal(p.d.activeElement, p.$('#si-code'), 'the code field has focus');
+  assert.equal(p.$('#si-code').value, '', 'and is empty');
+  await waitFor(p.idle, 2000, 'calls to finish');
+  const chip = p.$('#savest'), btn = p.$('#savest-retry');
+  assert.equal(chip.dataset.state, 'stale');
+  assert.equal(chipText(p), 'Not saved');
+  assert.ok(!btn.hidden && btn.textContent === 'Sign in again' && btn.querySelector('use[href="#i-log-in"]'), 'the chip offers Sign in again');
+  assert.ok(['w7', 'm2'].every(id => p.$(`#tiles [data-open="${id}"]`).classList.contains('unsaved')), 'both tiles say Not saved');
+  assert.equal(p.$('#tiles [data-open="w7"] h3').textContent, 'Rain Plan Work Party', 'the change is still on the page');
+  assert.ok(unloadWarns(p), 'closing the tab asks first');
+
+  // ten minutes of retries, 2-minute reads, coming back to the tab, the connection coming back and Retry
+  for (let i = 0; i < 10; i++) {
+    p.api.tick();
+    p.d.dispatchEvent(new p.w.Event('visibilitychange'));
+    p.w.dispatchEvent(new p.w.Event('online'));
+    if (i === 5) { p.$('.tabs a[data-tab=events]').click(); btn.click(); assert.ok(p.shown('#p-signin'), 'Sign in again opens the sign-in card'); }
+    await sleep(300);
+  }
+  await waitFor(p.idle, 2000, 'calls to finish');
+  assert.ok(oldSent() >= 1 && oldSent() <= 2, `the old code went out ${oldSent()} times, not on every retry`);
+  assert.ok(wrong() <= 2, `${wrong()} wrong codes counted, far from the 20 that pause sign-in`);
+  assert.equal(p.api.toasts.filter(s => /organizer code isn't right/.test(s)).length, 0, 'no "code isn\'t right" toast');
+  assert.doesNotThrow(() => p.g.ctx.signIn(NEW), 'another organizer can still sign in with the new code');
+  assert.notEqual(rowOf(p, 'w7')[titleCol(p)], 'Rain Plan Work Party');
+
+  // signing in with the new code sends both changes, without reading the starter events again
+  p.api.latency = 200;
+  await startSignIn(p, NEW, 'Jessie');
+  await waitFor(() => p.shown('#p-events') && chipText(p) === 'Saving…', 3000, 'the events page, saving');
+  await waitFor(() => chipText(p) === 'All changes saved', 3000, 'All changes saved');
+  assert.equal(rowOf(p, 'w7')[titleCol(p)], 'Rain Plan Work Party', 'the Sheet has the first change');
+  assert.equal(rowOf(p, 'm2')[titleCol(p)], 'Winter Potluck', 'and the second');
+  assert.ok(!p.$$('#tiles .unsaved').length, 'no tile says Not saved');
+  assert.equal(p.api.sent.slice(from).filter(c => c.fn === 'seed').length, 0, 'no seed');
+  assert.equal(p.w.sessionStorage.getItem('ebpg-code'), NEW, 'the new code is kept for this tab');
+  assert.ok(p.api.toasts.includes('Signed in as Jessie'));
+  assert.ok(!btn.textContent.includes('Sign in again'), 'the chip button is Retry again');
+  assert.ok(![...p.api.toasts, p.$('#si-err').textContent].some(s => /^Too many tries/.test(s)), 'sign-in never paused');
+  assert.ok(!unloadWarns(p), 'nothing left to warn about');
+
+  // the next 2-minute read uses the new code
+  const reads = p.api.sent.filter(c => c.fn === 'signIn').length;
+  p.api.tick();
+  await waitFor(() => p.api.sent.filter(c => c.fn === 'signIn').length > reads && p.idle(), 2000, 'the next read');
+  assert.equal(p.api.sent.at(-1).args[0], NEW);
+  p.noErrors();
+});
+
+test('the test-mode banner is not redrawn when nothing in it changed, so a focused link keeps focus', async t => {
+  const p = await openPage(t);
+  await signIn(p, 'Jessie');
+  const link = p.$('#testbar a');
+  link.focus();
+  const reads = p.api.calls.filter(c => c === 'signIn').length;
+  p.d.dispatchEvent(new p.w.Event('visibilitychange'));
+  await waitFor(() => p.api.calls.filter(c => c === 'signIn').length > reads && p.idle(), 3000, 'the Sheet to be read again');
+  assert.ok(link.isConnected && p.d.activeElement === link, 'the same link still has focus');
+  p.noErrors();
+});
+
+test('when the 2-minute read finds the code changed while an event is open, the pop-up stays open and its chip offers Sign in again', async t => {
+  const p = await openPage(t, fastTimers);
+  await signIn(p, 'Jessie');
+  p.$('#tiles [data-open="w7"]').click();
+  await waitFor(() => p.$('#detail #edit-ev'), 2000, 'the event to open');
+  newCode(p, 'garden-new-1357');
+  const from = p.api.sent.length;
+  p.api.tick();
+  await waitFor(() => p.api.toasts.includes('The organizer code was changed. Sign in again with the new code.'), 2000, 'the toast');
+  assert.ok(p.shown('#modal') && !p.shown('#p-signin'), 'the pop-up stays open');
+  await editTitle(p, 'w7', 'Rain Plan Work Party');
+  const chip = p.$('#m-savest'), btn = chip.querySelector('button');
+  await waitFor(() => chip.dataset.state === 'stale', 2000, 'the pop-up chip to say Not saved');
+  await sleep(1000); // the save delay, then retries
+  assert.equal(p.api.sent.length, from + 1, 'nothing sent after the read that was turned down');
+  assert.ok(!btn.hidden && btn.textContent === 'Sign in again' && btn.querySelector('use[href="#i-log-in"]'));
+  btn.click();
+  assert.ok(!p.shown('#modal') && p.shown('#p-signin'), 'Sign in again closes the pop-up and opens the sign-in card');
+  assert.equal(p.d.activeElement, p.$('#si-code'));
+  assert.match(p.$('#si-err').textContent, /^The organizer code was changed/);
+  // picking a name without typing the new code doesn't send the old one
+  p.$('#si-pick button[data-as="Jessie"]').click();
+  assert.equal(p.$('#si-err').textContent, 'Type the organizer code first.');
+  await sleep(50);
+  assert.equal(p.api.sent.length, from + 1);
+  p.noErrors();
+});
