@@ -2740,18 +2740,27 @@ const FILL_IMG = { w: 1020, h: 1320 };
 // "eventId:channel" -> what Open & fill says while it works, and what the helper said last (for this approval)
 const filling = new Map(), fillNote = new Map();
 // the install zip, from the Netlify site (build.py puts it next to the page); other pages link to the site's copy
-const HELPER_ZIP = 'https://ebpg-event-hub.netlify.app/ebpg-posting-helper.zip';
+const HUB_SITE = 'https://ebpg-event-hub.netlify.app';
+const HELPER_ZIP = HUB_SITE + '/ebpg-posting-helper.zip';
 const helperZip = () => /^https?:$/.test(location.protocol) && /^(ebpg-event-hub\.netlify\.app|localhost|127\.0\.0\.1)$/.test(location.hostname) ? location.origin + '/ebpg-posting-helper.zip' : HELPER_ZIP;
+// the pages the helper runs on (its manifest's "matches" for the hub); on any other page the steps send people to the site
+const helperHere = () => [HUB_SITE, 'http://localhost:8766'].includes(location.origin);
 // what the helper fills in: the event, with the channel's own approved text as the description and post
 const fillDraft = (ev, p, imageDataUrl) => ({ title: ev.title, date: ev.date, start: ev.start, end: ev.end, place: ev.place, address: ev.address || '',
   description: p.text, text: p.text, eventUrl: onSite(ev) ? pubLink(ev.id) : '', imageDataUrl: imageDataUrl || '' });
 // channel -> the Open & fill waiting for the helper's answer
 const posterWait = new Map();
+/* The helper takes one request at a time, 1.5 seconds apart: a second one sooner gets no answer (the same site, which it
+   takes for a double click) or "Still opening the last one". So the next request waits out the rest of that moment. */
+const POSTER_GAP = 1600;
+let posterSent = -Infinity;
+const posterGap = () => new Promise(ok => setTimeout(ok, Math.max(0, posterSent + POSTER_GAP - Date.now())));
 function askPoster(channel, d) {
   return new Promise(done => {
     const t = setTimeout(() => finish({ type: 'error', message: "The Posting Helper didn't answer. Reload this page and try again." }), 15000);
     const finish = r => { clearTimeout(t); posterWait.delete(channel); done(r); };
     posterWait.set(channel, finish);
+    posterSent = Date.now();
     try { window.postMessage({ source: 'ebpg-hub', type: 'fill', channel, draft: d }, location.origin); }
     catch (e) { console.warn('Open & fill: the message could not be sent', e); finish({ type: 'error', message: 'The Posting Helper could not be reached. Reload this page and try again.' }); }
   });
@@ -2784,7 +2793,8 @@ function helperHTML(inHelp) {
     <li>In Chrome, type <code>chrome://extensions</code> in the address bar.</li>
     <li>Turn on <b>Developer mode</b> (top right).</li>
     <li>Click <b>Load unpacked</b> and pick the unzipped folder, the one with <code>manifest.json</code> in it.</li>
-    <li>Reload this page. <b>Open &amp; fill</b> shows up next to each site once a post is approved.</li></ol>` + links;
+    <li>${helperHere() ? 'Reload this page. <b>Open &amp; fill</b> shows up next to each site once a post is approved.'
+      : `Open the Event Hub at <a href="${esc(HUB_SITE + '/')}" target="_blank" rel="noopener">ebpg-event-hub.netlify.app${ic('out', 'out')}</a>. <b>Open &amp; fill</b> shows up there once a post is approved.`}</li></ol>` + links;
 }
 /* One channel: review → Approve → (Post, or Copy text, Open the site, Mark as posted) → posted, with Undo for copy channels.
    The Google Group and the Calendar, once out, say "Changed since posted" when the time or place changes, with
@@ -2801,21 +2811,23 @@ function chRow(ev, ch) {
   // with the Posting Helper, Open & fill opens the site and fills it in, so there's no separate Open <name>.
   // Instagram gets its square image and the caption; the chats can go straight to WhatsApp.
   const fill = !!FILL[ch.id] && !!poster(), ig = ch.id === 'instagram';
+  // what the helper said about this approval's Open & fill. Open & fill is the main action until it has opened the site;
+  // then the next step, Mark as posted, is.
+  const fn = ok && p.status === 'approved' && !auto ? fillNote.get(key) : null, said = fn && fn.at === p.approvedAt ? fn : null;
+  const opened = fill && !!said && said.ok;
   let acts = '';
   if (p.status === 'review') acts = act('approve', 'check', 'Approve', 'primary'); // shown to everyone, turned off by applyPerms when not allowed
   else if (ok && p.status === 'approved') acts = auto ? act('post', 'send', 'Post', 'primary')
-    : (fill ? act('fill', 'wand', ch.id === 'chats' ? 'Open Hylo &amp; fill' : 'Open &amp; fill') : '')
+    : (fill ? act('fill', 'wand', ch.id === 'chats' ? 'Open Hylo &amp; fill' : 'Open &amp; fill', opened ? 'ghost' : 'primary') : '')
       + (ig ? `<button class="btn ghost sm" type="button" data-dl="ig" data-ev="${esc(ev.id)}" title="PNG, ${OUTS.ig.w} × ${OUTS.ig.h} pixels">${ic('download')}Download image</button>` : '')
       + act('copy', 'copy', ig ? 'Copy caption' : 'Copy text')
       + (site && !fill ? `<a class="btn ghost sm" href="${esc(site)}" target="_blank" rel="noopener">Open ${esc(ch.name)}${ic('out')}</a>` : '')
       + (ch.id === 'chats' ? `<a class="btn ghost sm" href="${esc('https://wa.me/?text=' + encodeURIComponent(p.text))}" target="_blank" rel="noopener">${ic('message-circle')}Share to WhatsApp${ic('out')}</a>` : '')
-      + (p.marking ? '' : act('mark', 'check', 'Mark as posted', 'primary')) + (site || fill ? '' : noSite);
+      + (p.marking ? '' : act('mark', 'check', 'Mark as posted', fill && !opened ? 'ghost' : 'primary')) + (site || fill ? '' : noSite);
   else if (ok && out && auto && p.stale) acts = ch.id === 'calendar' ? act('update', 'calendar', 'Update calendar', 'primary') : act('redraft', 'pencil', 'Draft an update', 'primary');
   else if (ok && auto && p.status === 'test' && remote && !testOn) acts = act('again', 'send', 'Post for real', 'primary'); // test mode is off now
   else if (ok && p.status === 'posted' && !auto) acts = act('undo', 'rotate-ccw', 'Undo');
-  // what the helper said about this approval's Open & fill
-  const fn = ok && p.status === 'approved' && !auto ? fillNote.get(key) : null;
-  const said = fn && fn.at === p.approvedAt ? `<p class="ofill${fn.ok ? '' : ' bad'}">${ic(fn.ok ? 'wand' : 'alert-triangle')}<span>${esc(fn.text)}</span></p>` : '';
+  const note = said ? `<p class="ofill${said.ok ? '' : ' bad'}">${ic(said.ok ? 'wand' : 'alert-triangle')}<span>${esc(said.text)}</span></p>` : '';
   const mk = `mk-${esc(ev.id)}-${id}`;
   const mark = ok && p.status === 'approved' && p.marking ? `<form class="omark" data-mark="${id}" novalidate>
       <label class="fld" for="${mk}">Link to the post (optional, https)<input id="${mk}" type="url" inputmode="url" autocomplete="off" spellcheck="false" placeholder="https://" aria-describedby="${mk}-err"></label>
@@ -2827,7 +2839,7 @@ function chRow(ev, ch) {
   return `<li class="orow ${esc(p.status)}" data-row="${id}"><span class="logo" style="background:${esc(ch.color)}">${esc(ch.abbr)}</span>
     <div class="ohead"><button class="oname" type="button" data-act="toggle" data-ch="${id}" aria-expanded="${!!p.open}">${esc(ch.name)}<span class="hint">${out ? '' : 'Read draft · '}${auto ? 'posts automatically' : fill ? 'the Posting Helper fills it in' : 'copy and paste'}</span></button>
       <span class="ostat"><span class="pill ${esc(p.status)}"${p.status === 'test' ? ` title="${esc(TEST_TIP)}"` : ''}>${esc(postPill(p))}${p.status === 'test' ? `<span class="vh"> (${esc(TEST_TIP)})</span>` : ''}</span>${out && auto && p.stale ? `<span class="warnchip">${ic('alert-triangle')}Changed since posted</span>` : ''}${link ? `<a href="${esc(link)}" target="_blank" rel="noopener">View post${ic('out')}</a>` : ''}${!ok && p.status === 'review' ? `<span class="hint">${esc(whoApproves())}</span>` : ''}</span></div>
-    ${acts ? `<div class="oacts${ok && p.status === 'approved' && !auto ? ' wide' : ''}">${acts}</div>` : ''}${said}
+    ${acts ? `<div class="oacts${ok && p.status === 'approved' && !auto ? ' wide' : ''}">${acts}</div>` : ''}${note}
     ${p.open ? `<div class="obody"><textarea id="ta-${esc(ev.id)}-${id}" data-ta="${id}" aria-label="${esc(ch.name)} text" ${out ? 'readonly' : ''}>${esc(p.text)}</textarea>${p.status !== 'review' ? '' : site ? `<a class="hint" href="${esc(site)}" target="_blank" rel="noopener">Open ${esc(ch.name)}${ic('out')}</a>` : auto ? '' : noSite}</div>` : ''}
     ${mark}${ask}</li>`;
 }
@@ -2937,19 +2949,45 @@ function bindDetail(ev) {
           const x = $(`#detail .orow[data-row="${id}"] [data-act=fill]`);
           if (x) { x.disabled = true; x.setAttribute('aria-busy', 'true'); x.innerHTML = ic('loader') + esc(t); }
         };
-        busy('Preparing…');
+        // what was approved: the text the helper gets has to be that, after the wait for the flyer too
+        const at = p.approvedAt, approved = p.text;
+        // a draft's flyer says "Publish to get a QR code" and has no link, so it stays here and the site gets no image
+        const art = onSite(ev);
         let image = '';
-        try { image = await inTime(artPng(artOf('flyer', ev), FILL_IMG), 8000); }
-        catch (er) { console.warn('Open & fill: the flyer was not ready, so the helper gets the event without it', er); }
+        busy(art ? 'Preparing…' : 'Opening…');
+        if (art) {
+          try { image = await inTime(artPng(artOf('flyer', ev), FILL_IMG), 8000); }
+          catch (er) { console.warn('Open & fill: the flyer was not ready, so the helper gets the event without it', er); }
+        }
+        await posterGap();
+        // the event may have been read again from the Sheet meanwhile: the post as it is now
+        const cur = EVENTS.find(e => e.id === ev.id), q = cur && cur.posts[id];
+        if (!q || q.status !== 'approved' || q.approvedAt !== at || q.text !== approved) {
+          filling.delete(key);
+          // the text was being typed when this started over: it keeps its caret
+          const a = document.activeElement, typing = a && a.id && /^(INPUT|TEXTAREA)$/.test(a.tagName) && $('#detail')?.contains(a) ? [a.id, a.selectionStart, a.selectionEnd] : null;
+          render();
+          if (S.sel === ev.id) {
+            const back = typing && document.getElementById(typing[0]);
+            if (back) { back.focus(); try { back.setSelectionRange(typing[1], typing[2]); } catch {} } else refocus(id, q && q.status === 'approved' ? '[data-act=fill]' : '.oacts button');
+          }
+          toast(q && q.status === 'review' ? 'The text changed, so approve it again before Open & fill.'
+            : q && q.status === 'approved' ? 'The text changed, so nothing was opened. Press Open & fill again.'
+            : q && q.status === 'posted' ? `${ch.name} is marked as posted now, so nothing was opened.`
+            : `${ch.name} changed while Open & fill got ready, so nothing was opened.`, 'alert-triangle');
+          return;
+        }
         busy('Opening…');
-        const r = await askPoster(f[0], fillDraft(ev, p, image));
+        const r = await askPoster(f[0], fillDraft(cur, q, image));
         filling.delete(key);
         const opened = r.type === 'opened';
+        const noArt = cur.status === 'cancelled' ? ` The event is cancelled, so its flyer was left out. Add an image on ${f[1]} yourself.`
+          : ` Publish the event here first to include the flyer and its QR code, or add an image on ${f[1]} yourself.`;
         const text = opened ? `Opened ${f[1]}. Review the form and publish there, then come back and mark it posted.`
-            + (r.imageDropped && r.note ? ' ' + r.note : image ? '' : " The flyer wasn't ready, so add it there yourself.")
+            + (r.imageDropped && r.note ? ' ' + r.note : image ? '' : !art ? noArt : " The flyer wasn't ready, so add it there yourself.")
           : r.message || `The Posting Helper could not open ${f[1]}. Reload this page and try again.`;
-        fillNote.set(key, { ok: opened, text, at: p.approvedAt });
-        if (opened) { const line = `${ME} opened ${f[1]} with the Posting Helper`; if ((ev.log.at(-1) || [])[1] !== line) ev.log.push([nowStamp(), line]); }
+        fillNote.set(key, { ok: opened, text, at });
+        if (opened) { const line = `${ME} opened ${f[1]} with the Posting Helper`; if ((cur.log.at(-1) || [])[1] !== line) cur.log.push([nowStamp(), line]); }
         if (S.sel !== ev.id) { render(); toast(text, opened ? 'check' : 'alert-triangle'); return; } // another event is open now
         if (opened) said = text; else warn = text;
         focus = '[data-act=fill]'; break;

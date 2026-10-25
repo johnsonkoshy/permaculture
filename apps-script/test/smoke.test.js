@@ -3197,8 +3197,8 @@ function browserPostMessage(w, api) {
     const copy = w.JSON.parse(w.JSON.stringify(data));
     w.setTimeout(() => w.dispatchEvent(new w.MessageEvent('message', { data: copy, origin, source: w })), 0);
   };
-  api.messages = [];
-  w.addEventListener('message', e => api.messages.push(e.data));
+  api.messages = []; api.times = [];
+  w.addEventListener('message', e => { api.messages.push(e.data); api.times.push(Date.now()); });
 }
 const withHelper = (w, g, api) => {
   withQRExport(w, g, api);
@@ -3211,6 +3211,9 @@ const withHelper = (w, g, api) => {
   }).start();
 };
 const hubAsks = p => p.api.messages.filter(m => m && m.source === 'ebpg-hub');
+// when the page's nth message to the helper (from 0) went out
+const sentAt = (p, n) => p.api.times.filter((_, i) => p.api.messages[i] && p.api.messages[i].source === 'ebpg-hub')[n];
+const kinds = (p, ch) => p.$$(`#dp-out [data-row="${ch}"] .oacts > .btn`).map(b => b.classList.contains('primary') ? 'primary' : 'ghost');
 const fillNoteOf = (p, ch) => p.$(`#dp-out [data-row="${ch}"] .ofill`);
 
 test('with the Posting Helper: Open & fill hands it the event, the flyer and the approved text, and the row says to review and mark it posted', async t => {
@@ -3222,6 +3225,7 @@ test('with the Posting Helper: Open & fill hands it the event, the flyer and the
   assert.ok(!p.$('#dp-out [data-act=fill]'), 'nothing to fill before approval');
   p.$('#dp-out [data-act=approve][data-ch=partiful]').click();
   assert.deepEqual(acts(p, 'partiful'), ['Open & fill', 'Copy text', 'Mark as posted'], 'Open & fill is the main action; the helper opens the site itself');
+  assert.deepEqual(kinds(p, 'partiful'), ['primary', 'ghost', 'ghost'], 'drawn as the main action, with Mark as posted beside it');
   const fill = p.$('#dp-out [data-act=fill][data-ch=partiful]');
   assert.ok(fill.querySelector('svg.ic[aria-hidden="true"] use[href="#i-wand"]'), 'with an icon');
   assert.equal(p.d.activeElement, fill, 'focus moves to Open & fill');
@@ -3266,6 +3270,7 @@ test('with the Posting Helper: Open & fill hands it the event, the flyer and the
   assert.ok(p.$('#dp-out [data-row=partiful]').classList.contains('approved'), 'opening is not posting');
   assert.equal(label(p.$('#dp-out [data-act=fill][data-ch=partiful]')), 'Open & fill', 'ready again');
   assert.equal(p.d.activeElement.dataset.act, 'fill');
+  assert.deepEqual(kinds(p, 'partiful'), ['ghost', 'ghost', 'primary'], 'once it opened the site, Mark as posted is the next step');
   // the approve / mark-as-posted trail is still the record
   p.$('#dp-out [data-act=mark][data-ch=partiful]').click();
   p.$('form[data-mark=partiful] button[type=submit]').click();
@@ -3282,7 +3287,6 @@ test('with the Posting Helper: Open & fill hands it the event, the flyer and the
   const wa = p.$('#dp-out [data-row=chats] .oacts a[href^="https://wa.me/"]');
   assert.deepEqual([wa.getAttribute('href'), wa.target, wa.rel], ['https://wa.me/?text=' + encodeURIComponent(chats), '_blank', 'noopener']);
   p.api.drawFails = 'all';
-  await sleep(1600); // the helper takes one site at a time, a moment apart ("Still opening the last one")
   p.$('#dp-out [data-act=fill][data-ch=chats]').click();
   await waitFor(() => hubAsks(p).length === 2, 3000, 'the second message');
   assert.equal(hubAsks(p)[1].channel, 'hylo');
@@ -3298,14 +3302,25 @@ test('with the Posting Helper: Open & fill hands it the event, the flyer and the
   p.set('#add-ch', 'facebook');
   p.$('#dp-out [data-act=approve][data-ch=facebook]').click();
   assert.deepEqual(acts(p, 'facebook'), ['Open & fill', 'Copy text', 'Mark as posted']);
-  await sleep(1600);
+  // right after the Hylo answer: the helper takes one site at a time, 1.5 s apart, so the page waits out the rest of that
+  // moment instead of getting "Still opening the last one"
   p.$('#dp-out [data-act=fill][data-ch=facebook]').click();
-  await waitFor(() => fillNoteOf(p, 'facebook'), 3000, 'the error note');
+  assert.equal(label(p.$('#dp-out [data-act=fill][data-ch=facebook]')), 'Preparing…');
+  await waitFor(() => fillNoteOf(p, 'facebook'), 4000, 'the error note');
+  assert.ok(sentAt(p, 2) - sentAt(p, 1) >= 1500, 'sent once the helper was ready for it');
+  assert.equal(p.api.opens.length, 3, 'the helper took it');
   assert.ok(fillNoteOf(p, 'facebook').classList.contains('bad'));
   assert.equal(fillNoteOf(p, 'facebook').textContent, 'Add the Facebook group link in the helper\u2019s Options first.');
   assert.ok(fillNoteOf(p, 'facebook').querySelector('use[href="#i-alert-triangle"]'));
   assert.equal(p.$('#toast').textContent, 'Add the Facebook group link in the helper\u2019s Options first.');
   assert.ok(!activity(p, 'w7').includes('Phil opened Facebook with the Posting Helper'), 'nothing opened, nothing logged');
+  // the same site again straight away (a double click is what the helper ignores): it waits, then the helper answers
+  p.api.answer = { ok: true };
+  p.$('#dp-out [data-act=fill][data-ch=facebook]').click();
+  await waitFor(() => fillNoteOf(p, 'facebook') && !fillNoteOf(p, 'facebook').classList.contains('bad'), 4000, 'Facebook to open');
+  assert.equal(fillNoteOf(p, 'facebook').textContent, OPENED('Facebook'));
+  assert.ok(sentAt(p, 3) - sentAt(p, 2) >= 1500);
+  assert.deepEqual(p.api.opens.at(-1), { type: 'open', channel: 'facebook' });
   // changed text goes back to review, and the old note goes with that approval
   p.set('#ta-w7-facebook', p.$('#ta-w7-facebook').value + ' Bring gloves!');
   p.$('#dp-out [data-act=approve][data-ch=facebook]').click();
@@ -3323,6 +3338,64 @@ test('with the Posting Helper: Open & fill hands it the event, the flyer and the
   p.$('#dp-out [data-act=copy][data-ch=instagram]').click();
   await waitFor(() => p.api.copied.includes(postText(p, 'w7', 'instagram')), 2000, 'the caption on the clipboard');
   checkIcons(p, 'the Posting Helper rows');
+  await waitFor(p.idle, 2000, 'saves to finish');
+  p.noErrors();
+});
+
+test("with the Posting Helper: a draft event's flyer stays here, since it says to publish it and has no link", async t => {
+  const p = await openPage(t, withHelper);
+  await signIn(p, 'Phil');
+  await outreach(p, 'm2');
+  assert.match(p.$('#detail .hstrip .art.flyer').textContent, /Publish to get a QR code/, 'the draft flyer on screen');
+  p.w.htmlToImage = p.api.drawer;
+  p.$('#dp-out [data-act=approve][data-ch=partiful]').click();
+  const n = p.api.drawn.length;
+  p.$('#dp-out [data-act=fill][data-ch=partiful]').click();
+  assert.equal(label(p.$('#dp-out [data-act=fill][data-ch=partiful]')), 'Opening…', 'no flyer to make');
+  await waitFor(() => hubAsks(p).length === 1, 3000, 'the message to the helper');
+  const { draft: d } = hubAsks(p)[0];
+  assert.equal(d.imageDataUrl, '', 'no image');
+  assert.equal(d.eventUrl, '', 'no public page yet');
+  assert.equal(d.text, postText(p, 'm2', 'partiful'));
+  assert.equal(p.api.drawn.length, n, 'the flyer was not drawn');
+  assert.ok(!JSON.stringify(p.api.saved).includes('Publish to get a QR code'));
+  await waitFor(() => fillNoteOf(p, 'partiful'), 2000, 'the note');
+  assert.equal(fillNoteOf(p, 'partiful').textContent, OPENED('Partiful') + ' Publish the event here first to include the flyer and its QR code, or add an image on Partiful yourself.');
+  await waitFor(p.idle, 2000, 'saves to finish');
+  p.noErrors();
+});
+
+test('with the Posting Helper: text changed while the flyer is drawn goes back to review, and the helper gets nothing', async t => {
+  const p = await openPage(t, withHelper);
+  await signIn(p, 'Phil');
+  await outreach(p, 'w7');
+  await sleep(50); // the pop-up puts focus on Close as it opens
+  p.$('#dp-out [data-row=partiful] [data-act=toggle]').click();
+  p.$('#dp-out [data-act=approve][data-ch=partiful]').click();
+  // a slow flyer: it comes when the test says
+  let release; const slow = new Promise(ok => { release = ok; });
+  p.w.htmlToImage = { toPng: async () => { await slow; return PNG_1PX; } };
+  p.$('#dp-out [data-act=fill][data-ch=partiful]').click();
+  assert.equal(label(p.$('#dp-out [data-act=fill][data-ch=partiful]')), 'Preparing…');
+  const ta = p.$('#ta-w7-partiful');
+  ta.focus();
+  p.set('#ta-w7-partiful', ta.value + ' Bring a friend!');
+  assert.ok(p.$('#dp-out [data-row=partiful]').classList.contains('review'), 'back to review');
+  release();
+  await waitFor(() => p.api.toasts.includes('The text changed, so approve it again before Open & fill.'), 3000, 'the toast');
+  await sleep(100);
+  assert.equal(hubAsks(p).length, 0, 'nothing went to the helper');
+  assert.equal(p.api.opens.length, 0, 'no site opened');
+  assert.ok(!fillNoteOf(p, 'partiful'), 'no note');
+  assert.ok(!activity(p, 'w7').includes('Phil opened Partiful with the Posting Helper'));
+  assert.equal(p.d.activeElement && p.d.activeElement.id, 'ta-w7-partiful', 'the text box keeps the focus');
+  // approved again, it goes with the new text
+  p.w.htmlToImage = p.api.drawer;
+  p.$('#dp-out [data-act=approve][data-ch=partiful]').click();
+  p.$('#dp-out [data-act=fill][data-ch=partiful]').click();
+  await waitFor(() => hubAsks(p).length === 1, 3000, 'the message to the helper');
+  assert.match(hubAsks(p)[0].draft.text, /Bring a friend!$/);
+  await waitFor(() => fillNoteOf(p, 'partiful'), 2000, 'the note');
   await waitFor(p.idle, 2000, 'saves to finish');
   p.noErrors();
 });
@@ -3410,6 +3483,12 @@ test('the prototype artifact never finds the helper: Copy stays, and the install
   assert.ok(!p.$('#dp-out .nolink') && !/Channels tab/.test(p.$('#dp-out').textContent), 'no Channels tab hint');
   p.$('#helper-tog').click();
   assert.equal(p.$('#helper-body a[download]').getAttribute('href'), 'https://ebpg-event-hub.netlify.app/ebpg-posting-helper.zip');
+  // the helper only runs on the Event Hub's own site, so the last step sends people there instead of saying to reload
+  const last = p.$('#helper-body ol > li:last-child');
+  assert.equal(last.textContent.replace(/\s+/g, ' ').trim(), 'Open the Event Hub at ebpg-event-hub.netlify.app. Open & fill shows up there once a post is approved.');
+  const hub = last.querySelector('a');
+  assert.deepEqual([hub.getAttribute('href'), hub.target, hub.rel], ['https://ebpg-event-hub.netlify.app/', '_blank', 'noopener']);
+  assert.ok(hub.querySelector('svg.ic[aria-hidden="true"] use[href="#i-out"]'));
   assert.deepEqual(p.api.calls, [], 'the artifact calls no server');
   p.noErrors();
 });
