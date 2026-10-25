@@ -13,8 +13,22 @@ const TABS = {
   Activity: ['event id', 'when', 'what'],
   Gardens: ['name', 'address', 'what happens there', 'lat', 'lng'],
   Reminders: ['sent', 'key', 'to', 'subject'],
+  Channels: ['channel', 'name', 'used', 'link', 'on for new events', 'how it posts'],
   Settings: ['setting', 'value', 'what it does'],
 };
+/* The Channels tab's rows when it's first made. Volunteers fill in the links (the Facebook group's page, the Instagram
+   account, ...) by hand; the app never writes this tab again, so hand edits stay. 'how it posts' is there to read:
+   the Google Group and the Calendar post from the app, the rest are copy and paste (see AUTO). */
+const CHANNEL_ROWS = [
+  ['partiful', 'Partiful', 'TRUE', 'https://partiful.com/', 'TRUE', 'copy and paste'],
+  ['ggroup', 'Google Group email', 'TRUE', '', 'TRUE', 'posts automatically'],
+  ['calendar', 'Guild Google Calendar', 'TRUE', '', 'TRUE', 'posts automatically'],
+  ['facebook', 'Facebook group', 'TRUE', '', 'TRUE', 'copy and paste'],
+  ['instagram', 'Instagram', 'TRUE', '', 'TRUE', 'copy and paste'],
+  ['chats', 'WhatsApp & Hylo chats', 'TRUE', '', 'TRUE', 'copy and paste'],
+  ['luma', 'Luma', 'FALSE', '', 'FALSE', 'copy and paste'],
+  ['meetup', 'Meetup', 'FALSE', '', 'FALSE', 'copy and paste'],
+];
 const DEFAULTS = [
   ['ORGANIZER_CODE', '', 'Organizers type this to sign in. At least 8 characters. Running setup fills it in when blank. Change it any time.'],
   ['TEST_MODE', 'TRUE', 'TRUE: every email goes only to the owner of this Sheet. Set FALSE to go live.'],
@@ -447,6 +461,8 @@ function ensure_() {
     sh.setFrozenRows(1);
     if (asText_(name)) sh.getRange(2, 1, sh.getMaxRows() - 1, head.length).setNumberFormat('@');
     if (name === 'Events') sh.hideColumns(head.indexOf(DATA_HEAD) + 1);
+    // only a tab made just now gets the Guild's channels: rows deleted or changed by hand later stay that way
+    if (name === 'Channels') sh.getRange(2, 1, CHANNEL_ROWS.length, head.length).setValues(CHANNEL_ROWS);
   });
   const blank = ss.getSheetByName('Sheet1');
   if (blank && ss.getSheets().length > 1 && blank.getLastRow() === 0) ss.deleteSheet(blank);
@@ -819,8 +835,22 @@ function readAll_() {
     team: readTeam_(),
     vols: rows_('Volunteers').map(r => ({ date: normDate_(r[0]), name: r[1], contact: r[2], help: String(r[3]).split(',').map(s => s.trim()).filter(String), note: r[4] })),
     gardens: readGardens_(),
+    channels: readChannels_(),
     problems: problems,
   };
+}
+/* The Channels tab, as the page uses it: whether the Guild uses each channel, its name, the link its Open button goes to
+   (https:// only) and whether new events start with it. A channel id the app doesn't know, and a second row for the same
+   channel, are left out. TRUE, yes, x or 1 count as yes; anything else (a blank cell too) as no. */
+function readChannels_() {
+  // a Sheet from before this tab, signed in to before anything else made it (getPublic's cached answer skips ensure_)
+  if (!sheet_('Channels')) {
+    try { ensure_(); } catch (e) { /* made at the same moment by another call */ }
+    if (!sheet_('Channels')) return [];
+  }
+  const yes = v => /^(true|yes|1|x|on)$/i.test(String(v).trim()), seen = {};
+  return rows_('Channels').map(r => ({ id: key_(r[0]), name: short_(r[1], 60), used: yes(r[2]), link: postUrl_(r[3]), onNew: yes(r[4]) }))
+    .filter(c => CHANNELS.indexOf(c.id) >= 0 && !seen[c.id] && (seen[c.id] = true));
 }
 /* Every garden with a name. lat and lng are null until the hourly run finds them, or when it couldn't ('not found'):
    the garden is still in the list, just not on the map. */

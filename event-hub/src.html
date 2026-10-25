@@ -676,7 +676,18 @@ legend { font-size: 13px; font-weight: 700; color: var(--ink-2); margin-bottom: 
 .oacts.wide { grid-column: 2 / -1; justify-content: flex-start; }
 .omark { grid-column: 2 / -1; display: grid; gap: 8px; padding: 12px; border: 1px solid var(--line-2); border-radius: 10px; background: var(--surface); }
 .omark-b { display: flex; gap: 8px; flex-wrap: wrap; }
-@media (max-width: 560px) { .oacts { grid-column: 2 / -1; justify-content: flex-start; } .omark { grid-column: 1 / -1; } }
+/* after Partiful is marked posted with its link: use it as the event's RSVP link? */
+.oask { grid-column: 2 / -1; display: grid; gap: 8px; padding: 12px; border: 1px solid var(--line-2); border-radius: 10px; background: var(--surface); }
+.oask p { margin: 0; display: flex; gap: 8px; align-items: flex-start; font-weight: 700; color: var(--ink); }
+.oask p .ic { flex: none; margin-top: 2px; color: var(--fern); }
+.oask p > span { display: grid; gap: 2px; min-width: 0; }
+.oask .hint { font-weight: 400; overflow-wrap: anywhere; }
+/* a copy-and-paste channel with no link on the Channels tab yet */
+.hint.nolink { display: inline-flex; align-items: center; gap: 4px; align-self: center; justify-self: start; }
+.hint.nolink .ic { width: 13px; height: 13px; flex: none; }
+a.hint.nolink { color: var(--ink-3); text-decoration: underline; text-underline-offset: 2px; }
+a.hint.nolink:hover { color: var(--fern); }
+@media (max-width: 560px) { .oacts { grid-column: 2 / -1; justify-content: flex-start; } .omark, .oask { grid-column: 1 / -1; } }
 .obody a.hint { display: inline-flex; align-items: center; gap: 4px; justify-self: start; }
 .obody a.hint .ic { width: 13px; height: 13px; }
 .obody { grid-column: 1 / -1; display: grid; gap: 6px; }
@@ -1092,7 +1103,7 @@ td code, .code code { font: 400 13px/1.5 var(--mono); }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 /* phones: small buttons and inline action links are at least 44px tall, so they're easy to tap */
 @media (max-width: 600px) {
-  .btn.sm, .tog, .x, .obody a.hint, .ostat a, .dh .meta a, .doc-kv a, .savest button, .chk, .pe-dir { min-height: 44px; }
+  .btn.sm, .tog, .x, .obody a.hint, a.hint.nolink, .ostat a, .dh .meta a, .doc-kv a, .savest button, .chk, .pe-dir { min-height: 44px; }
   .dh .meta a, .doc-kv a { display: inline-flex; align-items: center; }
   .x { min-width: 44px; }
 }
@@ -1785,17 +1796,38 @@ const nowStamp = () => (window.EBPG_GAS ? new Date().toLocaleDateString('en-US',
 const ic = (n, cls = '') => `<svg class="ic${cls ? ' ' + cls : ''}" aria-hidden="true" focusable="false"><use href="#i-${n}"/></svg>`;
 let tt; const toast = (m, icon) => { const t = $('#toast'); t.innerHTML = (icon ? ic(icon) : '') + `<span>${esc(m)}</span>`; t.classList.add('on'); clearTimeout(tt); tt = setTimeout(() => t.classList.remove('on'), 2600); };
 
+/* Where the Guild posts. used: shown at all (Also post to, new events); onNew: new events start with it; url: where
+   "Open <name>" goes (blank until someone adds the link). The live page takes the name, used, url and onNew from the
+   Channels tab of the Sheet (applyChannels); the colors, short names and how each one posts stay as they are here. */
 const CHANNELS = [
-  { id: 'partiful', name: 'Partiful', mode: 'copy', color: '#7B4FD6', abbr: 'Pf', url: 'https://partiful.com/' },
-  { id: 'luma', name: 'Luma', mode: 'auto', color: '#3B3B3B', abbr: 'Lu', url: 'https://lu.ma/', note: 'Auto needs Luma Plus' },
-  { id: 'ggroup', name: 'Google Group email', mode: 'auto', color: '#2F7D55', abbr: 'GG', url: 'https://groups.google.com/' },
-  { id: 'calendar', name: 'Guild Google Calendar', mode: 'auto', color: '#3B6C8C', abbr: 'Ca', url: 'https://calendar.google.com/' },
-  { id: 'meetup', name: 'Meetup', mode: 'copy', color: '#C63B4A', abbr: 'Me', url: 'https://www.meetup.com/' },
-  { id: 'facebook', name: 'Facebook group', mode: 'copy', color: '#2D5BB8', abbr: 'Fb', url: 'https://www.facebook.com/groups/' },
-  { id: 'instagram', name: 'Instagram', mode: 'copy', color: '#B5477A', abbr: 'Ig', url: 'https://www.instagram.com/' },
-  { id: 'chats', name: 'WhatsApp & Hylo chats', mode: 'copy', color: '#5E7F3A', abbr: 'Ch', url: 'https://www.hylo.com/' },
+  { id: 'partiful', name: 'Partiful', mode: 'copy', color: '#7B4FD6', abbr: 'Pf', url: 'https://partiful.com/', used: true, onNew: true },
+  { id: 'luma', name: 'Luma', mode: 'copy', color: '#3B3B3B', abbr: 'Lu', url: '', used: false, onNew: false },
+  { id: 'ggroup', name: 'Google Group email', mode: 'auto', color: '#2F7D55', abbr: 'GG', url: '', used: true, onNew: true },
+  { id: 'calendar', name: 'Guild Google Calendar', mode: 'auto', color: '#3B6C8C', abbr: 'Ca', url: '', used: true, onNew: true },
+  { id: 'meetup', name: 'Meetup', mode: 'copy', color: '#C63B4A', abbr: 'Me', url: '', used: false, onNew: false },
+  { id: 'facebook', name: 'Facebook group', mode: 'copy', color: '#2D5BB8', abbr: 'Fb', url: '', used: true, onNew: true },
+  { id: 'instagram', name: 'Instagram', mode: 'copy', color: '#B5477A', abbr: 'Ig', url: '', used: true, onNew: true },
+  { id: 'chats', name: 'WhatsApp & Hylo chats', mode: 'copy', color: '#5E7F3A', abbr: 'Ch', url: '', used: true, onNew: true },
 ];
 const CH = Object.fromEntries(CHANNELS.map(c => [c.id, c]));
+const chSnap = () => JSON.stringify(CHANNELS.map(({ id, name, used, url, onNew }) => ({ id, name, used, url, onNew })));
+const CH_BASE = chSnap();
+/* Merge the Sheet's Channels rows ({ id, name, used, link, onNew }) over the list above, starting from its own values
+   each time, so a row deleted from the tab goes back to how it starts. Unknown ids are ignored. Says whether anything changed. */
+function applyChannels(rows) {
+  const before = chSnap();
+  JSON.parse(CH_BASE).forEach(b => Object.assign(CH[b.id], b));
+  (Array.isArray(rows) ? rows : []).forEach(r => {
+    const c = r && CHANNELS.find(x => x.id === r.id);
+    if (!c) return;
+    Object.assign(c, { name: String(r.name ?? '').trim().slice(0, 60) || c.name, used: !!r.used, url: safeUrl(r.link), onNew: !!r.onNew });
+  });
+  return chSnap() !== before;
+}
+// the channels an event shows: the ones the Guild uses, plus any that already went out (so the record stays)
+const chList = ev => CHANNELS.filter(c => c.used || isSent(ev.posts[c.id] || {}));
+// what a new event starts with: the channels marked "on for new events"
+const newChannels = () => CHANNELS.filter(c => c.used && c.onNew).map(c => c.id);
 const TAGS = [['beginner', 'Beginner friendly'], ['tools', 'Tools provided'], ['kids', 'Kids welcome'], ['potluck', 'Potluck'], ['outdoor', 'Outdoors']];
 const PERMS = [['create', 'Create events'], ['edit', 'Edit events'], ['approve', 'Approve & post'], ['tasks', 'Assign tasks'], ['team', 'Manage team']];
 const PERM_ICON = { create: 'calendar-plus', edit: 'pencil', approve: 'send', tasks: 'list-checks', team: 'users' };
@@ -1878,28 +1910,52 @@ const evPill = ev => ev.status === 'draft' ? `<span class="pill evs ev-draft">${
 const WHEN_WHERE = ['title', 'date', 'start', 'end', 'place', 'address'];
 const whenWhere = ev => WHEN_WHERE.map(k => ev[k] || '').join('\n');
 
+let evLink = id => ''; // the live build links to its own page
+// the public event page's full link, for sharing and calendars: on the live site the same ?ev= link (organizers who are signed in get the plan)
+let pubLink = id => evLink(id);
+// the printed pieces' QR codes and the links in post drafts: an event's public page; the garden sign's QR code opens the
+// home page at a section (siteLink('#join'))
+let qrLink = id => evLink(id), siteLink = hash => ''; // the live build sets siteLink to its own page
+/*PROTO*/
+const ARTIFACT = 'https://claude.ai/artifact/EDjxHQH1WdzLnhMVGh6taL';
+const SEEDED = ['w2', 'w5', 'm1', 'w6', 'w7', 'm2'];
+evLink = id => SEEDED.includes(id) ? ARTIFACT + '#ev-' + id : '';
+pubLink = id => ARTIFACT + '#pub-' + encodeURIComponent(id);
+// the artifact's flyers and sign point at the Guild's public site, which has the same starter events
+const SITE = 'https://ebpg-event-hub.netlify.app/';
+qrLink = id => SEEDED.includes(id) ? SITE + '?ev=' + encodeURIComponent(id) : '';
+siteLink = hash => SITE + hash;
+/*/PROTO*/
+// the site an RSVP link is on, for "Also on Partiful" and "RSVP on Partiful: ..."; '' for one it doesn't know
+const RSVP_SITES = [[/(^|\.)partiful\.com$/, 'Partiful'], [/(^|\.)(lu\.ma|luma\.com)$/, 'Luma'], [/(^|\.)meetup\.com$/, 'Meetup'], [/(^|\.)(facebook\.com|fb\.me)$/, 'Facebook'], [/(^|\.)eventbrite\.[a-z.]+$/, 'Eventbrite']];
+const rsvpSite = u => { let h = ''; try { h = new URL(u).hostname.toLowerCase(); } catch {} return (RSVP_SITES.find(([re]) => re.test(h)) || [, ''])[1]; };
 function goodToKnow(ev) {
   const t = [ev.tags.includes('beginner') && 'no experience needed', ev.tags.includes('tools') && 'tools and gloves provided', ev.tags.includes('kids') && 'kids welcome with a grown-up', ev.tags.includes('potluck') && 'bring a dish to share if you can'].filter(Boolean);
   return t.length ? t.join(', ').replace(/^./, c => c.toUpperCase()) + '.' : '';
 }
+/* A channel's post, written from the event. The Group email, the Calendar, Facebook and the chats link to the event's
+   public page (details, directions and sign-up) and, once the event has one, to its RSVP link. Partiful is the RSVP
+   itself, so its post has no link; Instagram points to the link in bio. */
 function draft(ch, ev) {
   const when = `${longDate(ev.date)}, ${t12(ev.start)}–${t12(ev.end)}`;
   const where = ev.address ? `${ev.place}, ${ev.address}` : ev.place;
   const g = goodToKnow(ev);
   const host = ev.host.split(' ')[0];
+  const link = qrLink(ev.id), rsvp = safeUrl(ev.rsvp), site = rsvp ? rsvpSite(rsvp) : '';
+  const links = [link && `Details, directions and sign-up: ${link}`, rsvp && `${site ? 'RSVP on ' + site : 'RSVP'}: ${rsvp}`].filter(Boolean).join('\n');
   switch (ch) {
     case 'partiful': case 'luma': case 'meetup':
       return `${ev.title}\n${when}\n${where}\n\n${ev.about}${ev.bring ? `\n\nBring: ${ev.bring}` : ''}${g ? `\n\n${g}` : ''}\n\nHosted by ${ev.host} with the East Bay Permaculture Guild.`;
     case 'ggroup':
-      return `Subject: ${shortDate(ev.date)}: ${ev.title} at ${ev.place}\n\nHi all,\n\n${ev.about}\n\nWhen: ${when}\nWhere: ${where}${ev.bring ? `\nBring: ${ev.bring}` : ''}\n\n${g ? g + ' ' : ''}RSVP on Partiful (link on our Linktree) so we can plan.\n\nSee you there,\n${host} for the Guild`;
+      return `Subject: ${shortDate(ev.date)}: ${ev.title} at ${ev.place}\n\nHi all,\n\n${ev.about}\n\nWhen: ${when}\nWhere: ${where}${ev.bring ? `\nBring: ${ev.bring}` : ''}${g ? `\n\n${g}` : ''}${links ? `\n\n${links}` : ''}\n\nSee you there,\n${host} for the Guild`;
     case 'calendar':
-      return `${ev.title}\n${where}\n\n${ev.about}\nRSVP on Partiful (link on our Linktree).`;
+      return `${ev.title}\n${where}\n\n${ev.about}${links ? `\n\n${links}` : ''}`;
     case 'facebook':
-      return `🌱 ${ev.title}, ${shortDate(ev.date)} at ${t12s(ev.start)}, ${ev.place}\n\n${ev.about}\n\n${g}\nRSVP on Partiful. Link in the comments. New faces very welcome!`;
+      return `🌱 ${ev.title}, ${shortDate(ev.date)} at ${t12s(ev.start)}, ${ev.place}\n\n${ev.about}\n\n${g ? g + ' ' : ''}New faces very welcome!${links ? `\n\n${links}` : ''}`;
     case 'instagram':
-      return `${ev.title} 🌱 ${shortDate(ev.date)}, ${t12s(ev.start)} at ${ev.place}.\n\n${ev.about}\n\n${g}\nRSVP: link in bio.\n\n#EastBayPermaculture #Oakland #CommunityGarden #Permaculture`;
+      return `${ev.title} 🌱 ${shortDate(ev.date)}, ${t12s(ev.start)} at ${ev.place}.\n\n${ev.about}\n\n${g ? g + '\n' : ''}RSVP: link in bio.\n\n#EastBayPermaculture #Oakland #CommunityGarden #Permaculture`;
     case 'chats':
-      return `${ev.title} is ${shortDate(ev.date)} at ${t12s(ev.start)}, ${ev.place}. ${g} Who's in? RSVP on Partiful (link on our Linktree).`;
+      return `${ev.title} is ${shortDate(ev.date)} at ${t12s(ev.start)}, ${ev.place}. ${g ? g + ' ' : ''}Who's in?${links ? `\n${links}` : ''}`;
   }
 }
 // Draft an update: a Google Group email about what changed, with its own subject line
@@ -1916,6 +1972,22 @@ function makePosts(ev, chosen, status = 'review') {
   CHANNELS.forEach(c => { const on = chosen.includes(c.id); posts[c.id] = { status: on ? status : 'off', text: draft(c.id, ev), edited: false, ...NO_TRAIL, open: false }; });
   return posts;
 }
+/* Write every draft nobody has edited again from the event as it is now (a new RSVP link, publishing). An approved one
+   whose text changes goes back to review. Returns how many changed, and how many of those were approved. */
+function refreshDrafts(ev) {
+  const out = { changed: 0, back: 0 };
+  CHANNELS.forEach(c => {
+    const q = ev.posts[c.id];
+    if (!q || q.status === 'off' || isSent(q) || q.edited) return;
+    const text = freshText(c.id, ev, q);
+    if (text === q.text) return;
+    q.text = text; out.changed++;
+    if (q.status === 'approved') { toReview(q); q.marking = false; out.back++; }
+  });
+  return out;
+}
+// the channels that are an RSVP page themselves: marking one posted with its link offers it as the event's RSVP link
+const RSVP_CH = ['partiful', 'luma', 'meetup'];
 
 /* materials */
 // the photo's class comes from the Sheet, so only the four known photos get through
@@ -2046,8 +2118,11 @@ function addEvent(ev) {
   ev.tasks = (TASKS[ev.id] || []).map(([ty, tx, w, st]) => mkTask(ty, tx, w, st));
   EVENTS.push(ev); return ev;
 }
-// the channels the Guild announces OPC events on; new drafts start with these when the source has no outreach on record
+// the channels the Guild announces OPC events on: the starter drafts use these, since the events they're copied from
+// have no outreach on record
 const USUAL_CHANNELS = ['partiful', 'ggroup', 'calendar', 'instagram', 'chats'];
+// a copy of an event posts where the event it's copied from did (leaving out channels the Guild no longer uses)
+const srcChannels = src => CHANNELS.filter(c => c.used && src.posts && src.posts[c.id] && src.posts[c.id].status !== 'off').map(c => c.id);
 
 addEvent({ id: 'w2', series: 'workday', num: 2, label: 'Workday #2 · Part Deux', photo: 'pantry',
   title: 'OPC Garden Work Party', date: '2026-05-24', start: '10:00', end: '14:00', ...OPC, host: 'Jessie', tags: ['beginner', 'tools', 'potluck', 'outdoor'],
@@ -2141,26 +2216,26 @@ const copyTasks = src => (src.tasks || []).filter(t => t.who || t.last).map(t =>
 function seriesIdeas(ev) {
   return EVENTS.filter(e => e.series === ev.series && e.date < ev.date).flatMap(e => e.plan.debrief.filter(d => !d.used).map(d => ({ d, from: e })));
 }
-function planNext(src, date) {
+function planNext(src, date, fallback) {
   const same = EVENTS.filter(e => e.series === src.series);
   const num = Math.max(...same.map(e => e.num)) + 1;
   if (!date) { const d = D(src.date); d.setDate(d.getDate() + 28); date = d.toISOString().slice(0, 10); }
   const ev = { ...JSON.parse(JSON.stringify({ ...src, posts: null, log: null, tasks: null })), id: src.series[0] + num + '-' + Date.now() % 10000, num, label: (src.series === 'workday' ? 'Workday #' : 'Community Meeting #') + num, date, status: 'draft', rsvp: '' };
   ev.plan = copyPlan(src.plan);
-  const used = CHANNELS.filter(c => src.posts[c.id].status !== 'off').map(c => c.id);
-  ev.posts = makePosts(ev, used.length ? used : USUAL_CHANNELS, 'review');
+  const used = srcChannels(src);
+  ev.posts = makePosts(ev, used.length ? used : fallback || newChannels(), 'review');
   ev.tasks = copyTasks(src);
   ev.log = [[nowStamp(), `${ME} drafted ${ev.label} from ${src.label}`]];
   EVENTS.push(ev);
   return ev;
 }
 // upcoming: drafted from the last ones, waiting for an organizer to review the posts and fill the tasks
-const w7 = planNext(EVENTS.find(e => e.id === 'w6'), '2026-10-25');
+const w7 = planNext(EVENTS.find(e => e.id === 'w6'), '2026-10-25', USUAL_CHANNELS);
 w7.id = 'w7'; w7.status = 'published'; w7.about = 'Our monthly garden work day at the Oakland Peace Center. We pick up where Workday #6 left off, then share lunch and a short debrief. No experience needed.';
 CHANNELS.forEach(c => { w7.posts[c.id].text = draft(c.id, w7); });
 w7.tasks.push(mkTask('other', 'Make a parking sign', '', 'open'));
 
-const m2 = planNext(EVENTS.find(e => e.id === 'm1'), '2026-11-12');
+const m2 = planNext(EVENTS.find(e => e.id === 'm1'), '2026-11-12', USUAL_CHANNELS);
 m2.id = 'm2'; m2.about = 'Potluck and planning for winter at the OPC garden: the seed library, signage, and storm prep for the slope.';
 CHANNELS.forEach(c => { m2.posts[c.id].text = draft(c.id, m2); });
 m2.plan.notes = ['Greenhouse is up (9/26–27)', 'Seed library by November', 'Storm crew for El Niño?'];
@@ -2170,7 +2245,8 @@ const nextEvent = () => EVENTS.filter(e => !e.isNew && e.date >= TODAY).sort((a,
 const S = { dtab: (() => { try { return sessionStorage.getItem('ebpg-dtab') || 'plan'; } catch { return 'plan'; } })(), when: 'up', sel: nextEvent()?.id, fold: { mats: false, chs: false, tasks: false, log: true, run: false, areas: false, sups: false, talk: false, ideas: false } };
 try { Object.assign(S.fold, JSON.parse(localStorage.getItem('ebpg-fold') || '{}')); } catch {}
 const visible = () => EVENTS.filter(e => !e.isNew).filter(e => S.when === 'up' ? e.date >= TODAY : e.date < TODAY).sort((a, b) => S.when === 'up' ? a.date.localeCompare(b.date) : b.date.localeCompare(a.date));
-const counts = ev => { const c = { off: 0, review: 0, approved: 0, posted: 0, test: 0 }; Object.values(ev.posts).forEach(p => c[p.status]++); return c; };
+// how many of the channels an event shows are drafts, approved, posted, ... (a channel the Guild doesn't use isn't counted)
+const counts = ev => { const c = { off: 0, review: 0, approved: 0, posted: 0, test: 0 }; chList(ev).forEach(ch => { const st = ev.posts[ch.id].status; if (st in c) c[st]++; }); return c; };
 
 /* tabs */
 function showTab(t) {
@@ -2189,7 +2265,7 @@ function applyPerms() {
   const d = $('#detail');
   $('#new-ev').disabled = !can('create'); $('#new-ev').title = can('create') ? '' : NOPE.create;
   if (!d) return;
-  gate('#edit-ev, #publish-ev, #ph-pick, #add-ch', 'edit', d);
+  gate('#edit-ev, #publish-ev, #ph-pick, #add-ch, [data-act=rsvp-yes], [data-act=rsvp-no]', 'edit', d);
   gate('#appr-all, [data-act=approve], [data-act=post], [data-act=update], [data-act=again], [data-act=redraft], [data-act=copy], [data-act=mark], [data-act=undo], [data-mark] input, [data-mark] button', 'approve', d);
   gate('#nt-text, #nt-who, #nt-add, [data-tdel]', 'tasks', d);
   gate('#plan-next', 'create', d);
@@ -2307,21 +2383,6 @@ function renderTiles() {
     t.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } });
   });
 }
-let evLink = id => ''; // the live build links to its own page
-// the public event page's full link, for sharing and calendars: on the live site the same ?ev= link (organizers who are signed in get the plan)
-let pubLink = id => evLink(id);
-// the printed pieces' QR codes: a flyer's opens its event's public page, the garden sign's the home page at a section (siteLink('#join'))
-let qrLink = id => evLink(id), siteLink = hash => ''; // the live build sets siteLink to its own page
-/*PROTO*/
-const ARTIFACT = 'https://claude.ai/artifact/EDjxHQH1WdzLnhMVGh6taL';
-const SEEDED = ['w2', 'w5', 'm1', 'w6', 'w7', 'm2'];
-evLink = id => SEEDED.includes(id) ? ARTIFACT + '#ev-' + id : '';
-pubLink = id => ARTIFACT + '#pub-' + encodeURIComponent(id);
-// the artifact's flyers and sign point at the Guild's public site, which has the same starter events
-const SITE = 'https://ebpg-event-hub.netlify.app/';
-qrLink = id => SEEDED.includes(id) ? SITE + '?ev=' + encodeURIComponent(id) : '';
-siteLink = hash => SITE + hash;
-/*/PROTO*/
 const DETAIL = Object.assign(document.createElement('div'), { id: 'detail', className: 'detail' });
 // while the event pop-up is open, the page behind it can't be reached by Tab, a click or a screen reader
 const pageBehind = on => ['main', 'header.top'].forEach(sel => $(sel)?.toggleAttribute('inert', on));
@@ -2381,8 +2442,7 @@ function renderDetail() {
   if (!ev) { $('#detail').innerHTML = '<p class="muted">Pick an event, or create a new one.</p>'; return; }
   if (S.editing) S.dtab = 'plan';
   if (S.mode === 'modal') $('#m-title').textContent = ev.isNew ? 'New event' : ev.label || 'Event';
-  const c = counts(ev), past = ev.date < TODAY;
-  const rows = CHANNELS.map(ch => chRow(ev, ch)).join('');
+  const c = counts(ev), past = ev.date < TODAY, chs = chList(ev);
   const open = (ev.tasks || []).filter(t => !t.who || t.status === 'cant').length;
   $('#detail').innerHTML = `
     <div class="hstrip" aria-label="Flyers and posts for this event">${MATS.map(([k, name, use, fn, icon]) => `<div class="hfig"><figure>${fn(ev)}<figcaption>${ic(icon)}<b>${name}</b> · ${use}</figcaption></figure>${outBtns(k, name, ev)}</div>`).join('')}</div>
@@ -2394,9 +2454,9 @@ function renderDetail() {
     </div>
     <div class="dpanel" id="dp-plan" role="tabpanel" aria-labelledby="dt-plan" ${S.dtab === 'plan' ? '' : 'hidden'}>${docHTML(ev)}</div>
     <div class="dpanel" id="dp-out" role="tabpanel" aria-labelledby="dt-out" ${S.dtab === 'outreach' ? '' : 'hidden'}>
-      <div class="osum"><span>${c.off === CHANNELS.length ? 'No outreach recorded for this event.' : c.review + c.approved ? `${ic('send')}<b>${drafts(c.review)}</b> · ${c.approved} approved, ready to post · ${outCount(c)}` : c.test ? `${ic('check')}Everything has gone out · ${outCount(c)} (${c.test === 1 ? 'the test went' : 'the tests went'} only to the Sheet owner)` : `${ic('check')}Everything is posted · ${outCount(c)}`}</span>${c.review >= 2 ? `<button class="btn ghost sm" type="button" id="appr-all">${ic('check')}Approve all drafts</button>` : ''}</div>
-      ${c.off < CHANNELS.length ? `<ul class="olist">${CHANNELS.filter(ch => ev.posts[ch.id].status !== 'off').map(ch => chRow(ev, ch)).join('')}</ul>` : ''}
-      ${c.off && !past ? `<label class="addch"><span class="hint">${ic('plus')}Also post to</span><select id="add-ch" aria-label="Add a channel"><option value="">Choose a channel</option>${CHANNELS.filter(ch => ev.posts[ch.id].status === 'off').map(ch => `<option value="${esc(ch.id)}">${esc(ch.name)}</option>`).join('')}</select></label>` : ''}
+      <div class="osum"><span>${c.off === chs.length ? 'No outreach recorded for this event.' : c.review + c.approved ? `${ic('send')}<b>${drafts(c.review)}</b> · ${c.approved} approved, ready to post · ${outCount(c)}` : c.test ? `${ic('check')}Everything has gone out · ${outCount(c)} (${c.test === 1 ? 'the test went' : 'the tests went'} only to the Sheet owner)` : `${ic('check')}Everything is posted · ${outCount(c)}`}</span>${c.review >= 2 ? `<button class="btn ghost sm" type="button" id="appr-all">${ic('check')}Approve all drafts</button>` : ''}</div>
+      ${c.off < chs.length ? `<ul class="olist">${chs.filter(ch => ev.posts[ch.id].status !== 'off').map(ch => chRow(ev, ch)).join('')}</ul>` : ''}
+      ${c.off && !past ? `<label class="addch"><span class="hint">${ic('plus')}Also post to</span><select id="add-ch" aria-label="Add a channel"><option value="">Choose a channel</option>${chs.filter(ch => ev.posts[ch.id].status === 'off').map(ch => `<option value="${esc(ch.id)}">${esc(ch.name)}</option>`).join('')}</select></label>` : ''}
       <div class="chs"><div class="chs-h">${fold('log', 'Activity', ev.log.length, 'history')}</div><ul class="log" id="log-body" ${hid('log')}>${ev.log.slice().reverse().map(([t, w]) => `<li><span>${esc(t)}</span><span>${esc(w)}</span></li>`).join('')}</ul></div>
     </div>`;
   $$('[data-dtab]').forEach(b => b.addEventListener('click', () => { S.dtab = b.dataset.dtab; try { sessionStorage.setItem('ebpg-dtab', S.dtab); } catch {} renderDetail(); }));
@@ -2495,6 +2555,8 @@ function bindEdit(ev) {
     ev.label = (src.series === 'workday' ? 'Workday #' : 'Community Meeting #') + ev.num;
     ev.plan = copyPlan(src.plan);
     ev.tasks = copyTasks(src);
+    const chs = srcChannels(src); // a copy posts where the event it's copied from did
+    if (chs.length) ev.posts = makePosts(ev, chs, 'review');
     renderDetail();
   });
   form.addEventListener('submit', x => {
@@ -2574,6 +2636,7 @@ function postPill(p) {
   return STATUS[p.status] || STATUS.review;
 }
 const TEST_TIP = 'Test mode is on: this went only to the Sheet owner';
+const NO_LINK = 'Add the link on the Channels tab'; // where "Open <name>" would be, for a channel with no link yet
 // "eventId:channel" -> what its button says while the Sheet sends it ("Posting…"), so a redraw can't offer it twice
 const posting = new Map();
 const GOING = ['post', 'update', 'again'];
@@ -2583,13 +2646,15 @@ const GOING = ['post', 'update', 'again'];
 function chRow(ev, ch) {
   const p = ev.posts[ch.id], id = esc(ch.id), auto = ch.mode === 'auto', ok = can('approve'), out = isSent(p);
   const site = safeUrl(ch.url), link = p.status === 'posted' ? safeUrl(p.url) : '', going = posting.get(ev.id + ':' + ch.id);
+  // no link for this channel on the Channels tab yet: say where it goes (a link to the Sheet, for organizers who have it)
+  const noSite = safeUrl(sheetUrl) ? `<a class="hint nolink" href="${esc(safeUrl(sheetUrl))}" target="_blank" rel="noopener">${ic('link')}${NO_LINK}${ic('out')}</a>` : `<span class="hint nolink">${ic('link')}${NO_LINK}</span>`;
   const act = (a, icon, label, kind = 'ghost') => going && GOING.includes(a)
     ? `<button class="btn ${kind} sm" type="button" data-act="${a}" data-ch="${id}" disabled aria-busy="true">${ic('loader')}${esc(going)}</button>`
     : `<button class="btn ${kind} sm" type="button" data-act="${a}" data-ch="${id}">${ic(icon)}${label}</button>`;
   let acts = '';
   if (p.status === 'review') acts = act('approve', 'check', 'Approve', 'primary'); // shown to everyone, turned off by applyPerms when not allowed
   else if (ok && p.status === 'approved') acts = auto ? act('post', 'send', 'Post', 'primary')
-    : act('copy', 'copy', 'Copy text') + (site ? `<a class="btn ghost sm" href="${esc(site)}" target="_blank" rel="noopener">Open ${esc(ch.name)}${ic('out')}</a>` : '') + (p.marking ? '' : act('mark', 'check', 'Mark as posted', 'primary'));
+    : act('copy', 'copy', 'Copy text') + (site ? `<a class="btn ghost sm" href="${esc(site)}" target="_blank" rel="noopener">Open ${esc(ch.name)}${ic('out')}</a>` : '') + (p.marking ? '' : act('mark', 'check', 'Mark as posted', 'primary')) + (site ? '' : noSite);
   else if (ok && out && auto && p.stale) acts = ch.id === 'calendar' ? act('update', 'calendar', 'Update calendar', 'primary') : act('redraft', 'pencil', 'Draft an update', 'primary');
   else if (ok && auto && p.status === 'test' && remote && !testOn) acts = act('again', 'send', 'Post for real', 'primary'); // test mode is off now
   else if (ok && p.status === 'posted' && !auto) acts = act('undo', 'rotate-ccw', 'Undo');
@@ -2598,12 +2663,15 @@ function chRow(ev, ch) {
       <label class="fld" for="${mk}">Link to the post (optional, https)<input id="${mk}" type="url" inputmode="url" autocomplete="off" spellcheck="false" placeholder="https://" aria-describedby="${mk}-err"></label>
       <p class="err" id="${mk}-err" role="alert" hidden></p>
       <div class="omark-b"><button class="btn primary sm" type="submit">${ic('check')}Save</button>${act('unmark', 'x', 'Cancel')}</div></form>` : '';
+  const ask = p.askRsvp && p.status === 'posted' && safeUrl(p.url) && !ev.rsvp && can('edit') ? `<div class="oask" role="group" aria-labelledby="${mk}-ask">
+      <p id="${mk}-ask">${ic('link')}<span>Use this as the event's RSVP link?<span class="hint">${esc(safeUrl(p.url))}</span></span></p>
+      <div class="omark-b">${act('rsvp-yes', 'check', 'Yes', 'primary')}${act('rsvp-no', 'x', 'No')}</div></div>` : '';
   return `<li class="orow ${esc(p.status)}" data-row="${id}"><span class="logo" style="background:${esc(ch.color)}">${esc(ch.abbr)}</span>
     <div class="ohead"><button class="oname" type="button" data-act="toggle" data-ch="${id}" aria-expanded="${!!p.open}">${esc(ch.name)}<span class="hint">${out ? '' : 'Read draft · '}${auto ? 'posts automatically' : 'copy and paste'}</span></button>
       <span class="ostat"><span class="pill ${esc(p.status)}"${p.status === 'test' ? ` title="${esc(TEST_TIP)}"` : ''}>${esc(postPill(p))}${p.status === 'test' ? `<span class="vh"> (${esc(TEST_TIP)})</span>` : ''}</span>${out && auto && p.stale ? `<span class="warnchip">${ic('alert-triangle')}Changed since posted</span>` : ''}${link ? `<a href="${esc(link)}" target="_blank" rel="noopener">View post${ic('out')}</a>` : ''}${!ok && p.status === 'review' ? `<span class="hint">${esc(whoApproves())}</span>` : ''}</span></div>
     ${acts ? `<div class="oacts${ok && p.status === 'approved' && !auto ? ' wide' : ''}">${acts}</div>` : ''}
-    ${p.open ? `<div class="obody"><textarea id="ta-${esc(ev.id)}-${id}" data-ta="${id}" aria-label="${esc(ch.name)} text" ${out ? 'readonly' : ''}>${esc(p.text)}</textarea>${site && p.status === 'review' ? `<a class="hint" href="${esc(site)}" target="_blank" rel="noopener">Open ${esc(ch.name)}${ic('out')}</a>` : ''}</div>` : ''}
-    ${mark}</li>`;
+    ${p.open ? `<div class="obody"><textarea id="ta-${esc(ev.id)}-${id}" data-ta="${id}" aria-label="${esc(ch.name)} text" ${out ? 'readonly' : ''}>${esc(p.text)}</textarea>${p.status !== 'review' ? '' : site ? `<a class="hint" href="${esc(site)}" target="_blank" rel="noopener">Open ${esc(ch.name)}${ic('out')}</a>` : auto ? '' : noSite}</div>` : ''}
+    ${mark}${ask}</li>`;
 }
 function bindTasks(ev) {
   $$('[data-tdel]', $('#detail')).forEach(b => b.addEventListener('click', () => {
@@ -2627,9 +2695,11 @@ function bindDetail(ev) {
     if (!can('edit') || ev.status !== 'draft') return;
     ev.status = 'published';
     ev.log.push([nowStamp(), `${ME} published the event`]);
+    const { back } = refreshDrafts(ev);
     render(); renderMaterials();
     $('#edit-ev')?.focus();
-    whenSaved(() => toast(ev.date >= TODAY ? "Published. It's on the public site now." : 'Published.', 'check'));
+    const again = back ? ` ${back === 1 ? '1 approved post changed, so it needs' : back + ' approved posts changed, so they need'} review again.` : '';
+    whenSaved(() => toast((ev.date >= TODAY ? "Published. It's on the public site now." : 'Published.') + again, 'check'));
   });
   bindEdit(ev);
   bindTasks(ev);
@@ -2644,7 +2714,7 @@ function bindDetail(ev) {
   const refocus = (id, sel) => { const row = $(`#detail .orow[data-row="${id}"]`); (row && ((sel && row.querySelector(sel)) || row.querySelector('.oname')))?.focus(); };
   $('#appr-all')?.addEventListener('click', () => {
     if (!can('approve')) return;
-    const ids = CHANNELS.filter(c => ev.posts[c.id].status === 'review').map(c => c.id);
+    const ids = chList(ev).filter(c => ev.posts[c.id].status === 'review').map(c => c.id);
     ids.forEach(id => { approvePost(ev.posts[id]); ev.log.push([nowStamp(), `${ME} approved ${CH[id].name}`]); });
     render(); toast(`Approved ${ids.length} drafts`, 'check');
     refocus(ids[0], '.oacts button');
@@ -2701,8 +2771,20 @@ function bindDetail(ev) {
       case 'unmark': p.marking = false; focus = '[data-act=mark]'; break;
       case 'undo':
         if (!can('approve') || p.status !== 'posted' || ch.mode === 'auto') return;
-        Object.assign(p, { status: 'approved', by: '', at: '', url: '', stale: false }); ev.log.push([nowStamp(), `${ME} un-marked ${ch.name}`]);
+        Object.assign(p, { status: 'approved', by: '', at: '', url: '', stale: false, askRsvp: false }); ev.log.push([nowStamp(), `${ME} un-marked ${ch.name}`]);
         toast(`${ch.name} is back to approved, not posted`, 'check'); focus = '[data-act=mark]'; break;
+      // Use this as the event's RSVP link? Yes: it's saved with the event, and the drafts nobody edited link to it
+      case 'rsvp-yes': {
+        const url = safeUrl(p.url);
+        if (!can('edit') || p.status !== 'posted' || !url || ev.rsvp) return;
+        ev.rsvp = url; p.askRsvp = false;
+        ev.log.push([nowStamp(), `${ME} set the RSVP link to the ${ch.name} post`]);
+        const { changed, back } = refreshDrafts(ev);
+        whenSaved(() => toast(back ? `RSVP link saved. ${back === 1 ? '1 approved post links to it now, so it needs' : back + ' approved posts link to it now, so they need'} review again.`
+          : changed ? 'RSVP link saved and added to the drafts.' : 'RSVP link saved.', 'check'));
+        focus = '[data-act=undo]'; break;
+      }
+      case 'rsvp-no': p.askRsvp = false; focus = '[data-act=undo]'; break;
     }
     render(); refocus(id, focus);
     if (said) toast(said, 'check'); // after the redraw, so a waiting "Saved" can't cover it
@@ -2716,10 +2798,11 @@ function bindDetail(ev) {
       err.textContent = 'Use the full link, starting with https://, or leave it blank.'; err.hidden = false;
       inp.setAttribute('aria-invalid', 'true'); inp.focus(); return;
     }
-    Object.assign(p, { status: 'posted', by: ME, at: new Date().toISOString(), url, stale: false, marking: false, open: false });
+    const ask = !!url && RSVP_CH.includes(id) && !ev.rsvp && can('edit'); // the event has no RSVP link yet: offer this one
+    Object.assign(p, { status: 'posted', by: ME, at: new Date().toISOString(), url, stale: false, marking: false, open: false, askRsvp: ask });
     ev.log.push([nowStamp(), `${ME} marked ${ch.name} as posted`]);
     toast(`${ch.name} marked as posted`, 'check');
-    render(); refocus(id, '[data-act=undo]');
+    render(); refocus(id, ask ? '[data-act=rsvp-yes]' : '[data-act=undo]');
   }));
   $('#add-ch')?.addEventListener('change', x => {
     const id = x.target.value; if (!id) return; const p = ev.posts[id];
@@ -2787,7 +2870,7 @@ function readPlanFields(pl) {
 function openDrawer(ev) {
   const edit = !!ev;
   const e = ev || { title: '', date: '2026-11-22', start: '10:00', end: '14:00', place: 'Oakland Peace Center', address: '111 Fairmount Ave, Oakland', about: '', bring: 'water bottle, gloves if you have them', tags: ['beginner', 'tools'], host: ME, plan: { leadStart: '09:00', leadEnd: '14:30' } };
-  const chosen = edit ? CHANNELS.filter(c => ev.posts[c.id].status !== 'off').map(c => c.id) : ['partiful', 'luma', 'ggroup', 'calendar', 'facebook', 'instagram', 'chats'];
+  const chosen = edit ? CHANNELS.filter(c => ev.posts[c.id].status !== 'off').map(c => c.id) : newChannels();
   $('#drawer').innerHTML = `<div class="scrim" id="scrim"><div class="panel" role="dialog" aria-modal="true" aria-labelledby="dr-t">
     <header><h2 id="dr-t">${edit ? 'Edit event' : 'New event'}</h2><button class="btn ghost sm" type="button" id="dr-x">${ic('x')}Close</button></header>
     <form id="evf" novalidate>
@@ -2801,7 +2884,7 @@ function openDrawer(ev) {
       <fieldset><legend>Photo</legend><div class="picks">${PHOTOS.map(([k, l]) => `<label><input type="radio" name="photo" value="${k}" ${k === (e.photo || 'trellis') ? 'checked' : ''}><span><i class="pt">${photo(k)}</i>${l}</span></label>`).join('')}</div></fieldset>
       <label class="fld">Host<select id="f-host">${HOSTS.map(h => `<option ${h === e.host ? 'selected' : ''}>${esc(h)}</option>`).join('')}</select></label>
       <fieldset><legend>Good to know</legend><div class="picks">${TAGS.map(([k, l]) => `<label><input type="checkbox" name="tag" value="${k}" ${e.tags.includes(k) ? 'checked' : ''}><span>${l}</span></label>`).join('')}</div></fieldset>
-      <fieldset><legend>Post to</legend><div class="picks">${CHANNELS.map(c => `<label><input type="checkbox" name="ch" value="${c.id}" ${chosen.includes(c.id) ? 'checked' : ''}><span>${esc(c.name)}</span></label>`).join('')}</div></fieldset>
+      <fieldset><legend>Post to</legend><div class="picks">${CHANNELS.filter(c => c.used || chosen.includes(c.id)).map(c => `<label><input type="checkbox" name="ch" value="${c.id}" ${chosen.includes(c.id) ? 'checked' : ''}><span>${esc(c.name)}</span></label>`).join('')}</div></fieldset>
       ${planFields(e.plan && e.plan.timeline ? e.plan : null)}
       ${edit ? '<p class="hint">Changed drafts go back for approval.</p>' : ''}
       <p class="err" id="f-err" role="alert" hidden></p>
@@ -2868,7 +2951,7 @@ function openDrawer(ev) {
 $('#new-ev').addEventListener('click', () => {
   const ne = { id: 'n' + Date.now(), isNew: true, status: 'draft', rsvp: '', title: '', date: '2026-11-22', start: '10:00', end: '14:00', ...OPC, about: '', bring: 'water bottle, gloves if you have them', tags: ['beginner', 'tools'], host: ME, photo: 'trellis',
     plan: { leadStart: '09:00', leadEnd: '14:30', leadNote: '', roles: [['Event leads', [ME]]], pending: [], setup: [], supplies: [], food: null, timeline: [], icebreaker: '', questions: [], notes: [], areas: [], debrief: [] }, tasks: [], log: [] };
-  ne.posts = makePosts(ne, ['partiful', 'luma', 'ggroup', 'calendar', 'facebook', 'instagram', 'chats'], 'review');
+  ne.posts = makePosts(ne, newChannels(), 'review'); // the Channels tab's "on for new events"
   EVENTS.push(ne); S.editing = true; S.dtab = 'plan'; openEvent(ne.id, 'modal');
   setTimeout(() => $('#ed-title')?.focus(), 40);
 });
@@ -3225,8 +3308,6 @@ function downloadIcs(e) {
 }
 // the map link the organizers set (https only), else a Google Maps search for the address
 const directionsUrl = e => e.map || (e.address || e.place ? 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(e.address || e.place) : '');
-const RSVP_SITES = [[/(^|\.)partiful\.com$/, 'Partiful'], [/(^|\.)(lu\.ma|luma\.com)$/, 'Luma'], [/(^|\.)meetup\.com$/, 'Meetup'], [/(^|\.)(facebook\.com|fb\.me)$/, 'Facebook'], [/(^|\.)eventbrite\.[a-z.]+$/, 'Eventbrite']];
-const rsvpSite = u => { let h = ''; try { h = new URL(u).hostname.toLowerCase(); } catch {} return (RSVP_SITES.find(([re]) => re.test(h)) || [, ''])[1]; };
 const shareText = e => `${e.title}: ${longDate(e.date)}${HM.test(e.start) ? ', ' + t12s(e.start) : ''}${e.place ? ', ' + e.place : ''}. With the East Bay Permaculture Guild.`;
 async function copyLink(url) {
   try { await navigator.clipboard.writeText(url); toast('Link copied', 'check'); } catch { toast(url); }

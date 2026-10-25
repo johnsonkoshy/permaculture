@@ -38,7 +38,7 @@ const BEFORE = '2026-10-24T10:00:00-07:00';
 test('first load makes every tab and the settings', () => {
   const g = gas();
   const out = g.ctx.doGet({ parameter: { ev: 'w7</script>' } });
-  for (const t of ['Events', 'Bringing', 'Posts', 'Team', 'Volunteers', 'Activity', 'Gardens', 'Reminders', 'Settings']) assert.ok(g.sheets.get(t), t);
+  for (const t of ['Events', 'Bringing', 'Posts', 'Team', 'Volunteers', 'Activity', 'Gardens', 'Reminders', 'Channels', 'Settings']) assert.ok(g.sheets.get(t), t);
   assert.ok(!g.sheets.has('Sheet1'), 'blank default tab removed');
   assert.equal(g.tab('Settings').find(r => r[0] === 'TEST_MODE')[1], 'TRUE');
   assert.match(out.content, /window\.EBPG_GAS=/);
@@ -1175,4 +1175,83 @@ test("gardens the geocoder can't find say 'not found', aren't looked up again, a
   h.ctx.doGet({});
   h.ctx.seed(CODE, { events: [ev()], team, vols: [], gardens: [{ name: 'OPC garden', addr: '111 Fairmount Ave', what: '', lat: '', lng: '' }] });
   assert.deepEqual(h.tab('Gardens')[1].slice(3, 5), ['37.81', '-122.25']);
+});
+
+/* ---------- the Channels tab: which channels the Guild uses, their links, and what new events start with ---------- */
+const CH_HEAD = ['channel', 'name', 'used', 'link', 'on for new events', 'how it posts'];
+const CH_ROWS = [
+  ['partiful', 'Partiful', 'TRUE', 'https://partiful.com/', 'TRUE', 'copy and paste'],
+  ['ggroup', 'Google Group email', 'TRUE', '', 'TRUE', 'posts automatically'],
+  ['calendar', 'Guild Google Calendar', 'TRUE', '', 'TRUE', 'posts automatically'],
+  ['facebook', 'Facebook group', 'TRUE', '', 'TRUE', 'copy and paste'],
+  ['instagram', 'Instagram', 'TRUE', '', 'TRUE', 'copy and paste'],
+  ['chats', 'WhatsApp & Hylo chats', 'TRUE', '', 'TRUE', 'copy and paste'],
+  ['luma', 'Luma', 'FALSE', '', 'FALSE', 'copy and paste'],
+  ['meetup', 'Meetup', 'FALSE', '', 'FALSE', 'copy and paste'],
+];
+const chRowAt = (g, id) => g.tab('Channels').findIndex(r => r[0] === id) + 1;
+const setCh = (g, id, head, v) => g.sheets.get('Channels').set(chRowAt(g, id), CH_HEAD.indexOf(head) + 1, v);
+
+test("the Channels tab is made once, with the Guild's channels; hand edits and deleted rows are never put back", () => {
+  const g = gas();
+  g.ctx.doGet({ parameter: {} });
+  assert.deepEqual(g.tab('Channels'), [CH_HEAD, ...CH_ROWS]);
+  const sh = g.sheets.get('Channels');
+  assert.equal(sh.formatAt(2, 4), '@', 'plain text, so a link or TRUE stays as typed');
+  // a volunteer adds the Facebook group's link, turns Luma on, and deletes Meetup's row
+  setCh(g, 'facebook', 'link', 'https://www.facebook.com/groups/eastbaypermaculture');
+  setCh(g, 'luma', 'used', 'TRUE');
+  sh.cells[chRowAt(g, 'meetup') - 1] = ['', '', '', '', '', ''];
+  const edited = g.tab('Channels');
+  g.ctx.doGet({ parameter: {} });
+  g.ctx.getPublic();
+  g.ctx.seed(CODE, { events: [ev()], team, vols: [], gardens: [] });
+  g.ctx.signIn(CODE);
+  g.ctx.saveEvent(CODE, ev({ cols: { ...ev().cols, title: 'Fall planting' } }));
+  g.ctx.setup();
+  assert.deepEqual(g.tab('Channels'), edited, 'kept as the volunteer left it');
+  // every row deleted: the tab stays empty, and the page falls back on its own list
+  for (let r = 2; r <= sh.cells.length; r++) sh.cells[r - 1] = [];
+  g.ctx.doGet({ parameter: {} });
+  assert.deepEqual(g.tab('Channels'), [CH_HEAD]);
+  assert.deepEqual(plain(g.ctx.signIn(CODE).channels), []);
+});
+
+test('an existing Sheet from before the Channels tab gets it on the next load, or the next sign-in, and nothing else changes', () => {
+  for (const first of ['doGet', 'signIn']) {
+    const g = seeded({ now: BEFORE });
+    g.ctx.getPublic(); // cached: the next getPublic doesn't look at the tabs at all
+    g.sheets.delete('Channels'); // as a Sheet made before this update
+    const others = [...g.sheets.keys()].sort(), before = others.map(k => JSON.stringify(g.tab(k)));
+    const st = first === 'doGet' ? (g.ctx.doGet({ parameter: {} }), g.ctx.signIn(CODE)) : g.ctx.signIn(CODE);
+    assert.deepEqual(g.tab('Channels'), [CH_HEAD, ...CH_ROWS], first);
+    assert.equal(st.channels.length, 8, first);
+    assert.deepEqual(others.map(k => JSON.stringify(g.tab(k))), before, first + ': the other tabs are as they were');
+  }
+});
+
+test('signIn and seed return the channels as the page uses them: yes or no, https links only, unknown and repeated ids left out', () => {
+  const g = seeded();
+  const st = g.ctx.signIn(CODE);
+  assert.deepEqual(plain(st.channels), CH_ROWS.map(r => ({ id: r[0], name: r[1], used: r[2] === 'TRUE', link: r[3], onNew: r[4] === 'TRUE' })));
+  const h = gas();
+  h.ctx.doGet({});
+  assert.equal(h.ctx.seed(CODE, { events: [ev()], team, vols: [], gardens: [] }).channels.length, 8, 'seed answers with them too');
+  // typed by hand
+  setCh(g, 'luma', 'used', 'yes'); setCh(g, 'luma', 'on for new events', 'x'); setCh(g, 'luma', 'link', ' https://lu.ma/ebpg ');
+  setCh(g, 'facebook', 'link', 'http://facebook.com/groups/ebpg'); // not https
+  setCh(g, 'instagram', 'used', ''); setCh(g, 'instagram', 'link', 'javascript:alert(1)');
+  setCh(g, 'chats', 'name', '  WhatsApp group  ');
+  setCh(g, 'partiful', 'channel', ' Partiful ');
+  const sh = g.sheets.get('Channels');
+  [['myspace', 'MySpace', 'TRUE', 'https://myspace.com/', 'TRUE', ''], ['partiful', 'Partiful again', 'FALSE', '', 'FALSE', '']]
+    .forEach((row, i) => row.forEach((v, j) => sh.set(10 + i, j + 1, v)));
+  const by = Object.fromEntries(plain(g.ctx.signIn(CODE).channels).map(c => [c.id, c]));
+  assert.deepEqual(Object.keys(by), ['partiful', 'ggroup', 'calendar', 'facebook', 'instagram', 'chats', 'luma', 'meetup'], 'no myspace, and one partiful');
+  assert.deepEqual(by.luma, { id: 'luma', name: 'Luma', used: true, link: 'https://lu.ma/ebpg', onNew: true });
+  assert.equal(by.facebook.link, '');
+  assert.deepEqual([by.instagram.used, by.instagram.link], [false, '']);
+  assert.equal(by.chats.name, 'WhatsApp group');
+  assert.deepEqual(by.partiful, { id: 'partiful', name: 'Partiful', used: true, link: 'https://partiful.com/', onNew: true }, 'the first row for a channel wins');
+  assert.ok(!('channels' in plain(g.ctx.getPublic())), 'not in the public view');
 });

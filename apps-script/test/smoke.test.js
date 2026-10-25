@@ -1327,6 +1327,13 @@ test('outreach review: Phil approves Partiful, copies it, marks it posted with a
   assert.equal(view.href, 'https://partiful.com/e/abc');
   assert.equal(view.target, '_blank');
   assert.deepEqual(acts(p, 'partiful'), ['Undo']);
+  // Workday #7 has no RSVP link yet, so it asks whether this is it; No leaves the event as it is
+  const ask = p.$('#dp-out [data-row=partiful] .oask');
+  assert.ok(ask && ask.getAttribute('role') === 'group', 'the RSVP question');
+  assert.equal(p.d.getElementById(ask.getAttribute('aria-labelledby')).textContent, "Use this as the event's RSVP link?https://partiful.com/e/abc");
+  assert.equal(p.d.activeElement.dataset.act, 'rsvp-yes', 'focus moves to Yes');
+  p.$('#dp-out [data-act=rsvp-no][data-ch=partiful]').click();
+  assert.ok(!p.$('#dp-out .oask'), 'No: the question goes');
   assert.equal(p.d.activeElement.dataset.act, 'undo', 'focus moves to Undo');
   p.$('#dp-out [data-row=partiful] [data-act=toggle]').click();
   assert.equal(p.$('#ta-w7-partiful').readOnly, true, 'a posted text is read-only');
@@ -2887,4 +2894,163 @@ test('the prototype artifact downloads and prints its pieces too, with codes to 
   assert.match(p.api.downloads[0].name, /^ebpg-opc-garden-work-party-\d{4}-\d{2}-\d{2}-instagram-post\.png$/);
   assert.deepEqual(p.api.calls, [], 'the artifact calls no server');
   p.noErrors();
+});
+
+/* ---------- the Channels tab, and drafts that link to the event's own page ---------- */
+const NO_LINK = 'Add the link on the Channels tab';
+const W7_LINK = 'Details, directions and sign-up: ' + URL_SITE + '?ev=w7';
+const chCell = (g, id, head, v) => { const tab = g.tab('Channels'); g.sheets.get('Channels').set(tab.findIndex(r => r[0] === id) + 1, tab[0].indexOf(head) + 1, v); };
+const shownChannels = p => p.$$('#dp-out .orow').map(r => r.dataset.row);
+const alsoPostTo = p => p.$$('#add-ch option').map(o => o.value).filter(Boolean);
+const postText = (p, id, ch) => (p.g.tab('Posts').find(r => r[0] === id && r[1] === ch) || [])[4];
+// a new event, saved: its id and the channels it has Posts rows for
+async function newEventChannels(p, title) {
+  p.$('#new-ev').click();
+  await waitFor(() => p.$('#editf #ed-title'), 2000, 'the new event form');
+  p.set('#ed-title', title);
+  p.$('#editf button[type=submit]').click();
+  const id = await waitFor(() => (p.g.tab('Events').find(r => r[2] === title) || [])[0], 3000, 'the new event in the Sheet');
+  await waitFor(() => p.g.tab('Posts').some(r => r[0] === id) && p.idle(), 3000, 'its Posts rows');
+  p.$('#m-x').click();
+  return p.g.tab('Posts').filter(r => r[0] === id).map(r => r[1]).sort();
+}
+
+test("the Channels tab: Luma and Meetup stay out of sight, new events start with the ones marked for them, and Open goes to the tab's link", async t => {
+  const p = await openPage(t);
+  await signIn(p, 'Jessie');
+  assert.deepEqual(p.g.tab('Channels').map(r => r[0]), ['channel', 'partiful', 'ggroup', 'calendar', 'facebook', 'instagram', 'chats', 'luma', 'meetup'], 'the tab and its 8 rows');
+  const out = await outreach(p, 'w7');
+  assert.deepEqual(shownChannels(p), ['partiful', 'ggroup', 'calendar', 'instagram', 'chats']);
+  assert.deepEqual(alsoPostTo(p), ['facebook'], 'Also post to has only channels the Guild uses');
+  assert.ok(!/Luma|Meetup/.test(out.textContent), 'no Luma or Meetup anywhere');
+
+  // the drafts link to the event's own page, not the Linktree; Partiful is the RSVP, so its post has no link
+  p.$('#dp-out [data-row=ggroup] [data-act=toggle]').click();
+  const group = p.$('#ta-w7-ggroup').value;
+  assert.ok(group.includes('?ev=w7') && group.includes(W7_LINK + '\n\nSee you there,'), group);
+  assert.ok(!/Linktree|RSVP on/.test(group), 'no Linktree, and no RSVP line before there is an RSVP link');
+  assert.ok(postText(p, 'w7', 'ggroup').includes(W7_LINK), 'the starter drafts in the Sheet have it too');
+  assert.ok(postText(p, 'w7', 'calendar').endsWith(W7_LINK), 'the Calendar description ends with it');
+  assert.ok(postText(p, 'w7', 'chats').endsWith("Who's in?\n" + W7_LINK));
+  assert.ok(!/https?:/.test(postText(p, 'w7', 'partiful')), 'the Partiful post has no link');
+  assert.match(postText(p, 'w7', 'instagram'), /\nRSVP: link in bio\.\n/);
+  assert.ok(!JSON.stringify(p.g.tab('Posts')).includes('Linktree'), 'no draft sends people to the Linktree');
+
+  // Open <name> uses the tab's link; with none yet, a hint says where to add it (a link to the Sheet)
+  p.$('#dp-out [data-act=approve][data-ch=partiful]').click();
+  assert.equal(p.$('#dp-out [data-row=partiful] .oacts a').href, 'https://partiful.com/');
+  p.$('#dp-out [data-act=approve][data-ch=instagram]').click();
+  assert.deepEqual(acts(p, 'instagram'), ['Copy text', 'Mark as posted', NO_LINK]);
+  const hint = p.$('#dp-out [data-row=instagram] .oacts a.nolink');
+  assert.deepEqual([hint.href, hint.target, hint.rel], ['https://docs.google.com/spreadsheets/d/sheet-1/edit', '_blank', 'noopener']);
+  assert.ok(!p.$('#dp-out [data-row=instagram] a[href*="instagram.com"]'), 'not a generic home page');
+  p.$('#dp-out [data-row=chats] [data-act=toggle]').click();
+  assert.equal(p.$('#dp-out [data-row=chats] .obody .nolink').textContent, NO_LINK, 'a draft being read says it too');
+  checkIcons(p, 'channels without a link');
+  p.$('#m-x').click();
+  await waitFor(p.idle, 2000, 'saves to finish');
+
+  // a new event starts with the channels marked "on for new events"
+  assert.deepEqual(await newEventChannels(p, 'Seed Swap'), ['calendar', 'chats', 'facebook', 'ggroup', 'instagram', 'partiful']);
+
+  // a volunteer changes the tab by hand: Luma on (and for new events), Instagram off, the Facebook group's link, a row the app doesn't know
+  const g = p.g;
+  chCell(g, 'luma', 'used', 'TRUE'); chCell(g, 'luma', 'on for new events', 'TRUE'); chCell(g, 'luma', 'link', 'https://lu.ma/ebpg');
+  chCell(g, 'instagram', 'used', 'FALSE');
+  chCell(g, 'facebook', 'link', 'https://www.facebook.com/groups/eastbaypermaculture');
+  ['myspace', 'MySpace', 'TRUE', 'https://myspace.com/', 'TRUE', 'copy and paste'].forEach((v, j) => g.sheets.get('Channels').set(10, j + 1, v));
+  p.$('#signout').click();
+  await signIn(p, 'Jessie');
+  await outreach(p, 'w7');
+  assert.deepEqual(shownChannels(p), ['partiful', 'ggroup', 'calendar', 'chats'], "Instagram's approved draft is out of sight");
+  assert.ok(g.tab('Posts').some(r => r[0] === 'w7' && r[1] === 'instagram' && r[2] === 'approved'), 'and kept in the Sheet');
+  assert.deepEqual(alsoPostTo(p), ['luma', 'facebook']);
+  assert.ok(!/MySpace/i.test(p.$('#dp-out').innerHTML), 'unknown ids are ignored');
+  assert.match(p.$('#dp-out .osum').textContent, /^\d drafts to review · 1 approved, ready to post/, 'the hidden one is not counted');
+  p.set('#add-ch', 'facebook');
+  assert.match(p.$('#ta-w7-facebook').value, /New faces very welcome!\n\nDetails, directions and sign-up: http:\/\/localhost:8766\/site\?ev=w7$/);
+  p.$('#dp-out [data-act=approve][data-ch=facebook]').click();
+  assert.deepEqual(acts(p, 'facebook'), ['Copy text', 'Open Facebook group', 'Mark as posted']);
+  assert.equal(p.$('#dp-out [data-row=facebook] .oacts a').href, 'https://www.facebook.com/groups/eastbaypermaculture');
+  p.$('#m-x').click();
+  await waitFor(p.idle, 2000, 'saves to finish');
+  assert.deepEqual(await newEventChannels(p, 'Cob Oven Day'), ['calendar', 'chats', 'facebook', 'ggroup', 'luma', 'partiful']);
+  // Luma turned off again: gone from sight everywhere
+  chCell(g, 'luma', 'used', 'FALSE');
+  p.$('#signout').click();
+  await signIn(p, 'Jessie');
+  const id = g.tab('Events').find(r => r[2] === 'Cob Oven Day')[0];
+  await outreach(p, id);
+  assert.ok(!shownChannels(p).includes('luma') && !alsoPostTo(p).includes('luma'));
+  assert.ok(!/Luma/.test(drawn(p)), 'Luma no longer appears anywhere on the page');
+  await waitFor(p.idle, 2000, 'calls to finish');
+  p.noErrors();
+});
+
+test("Partiful marked posted with its link: Yes makes it the event's RSVP link, the drafts link to it, and the public page says Also on Partiful", async t => {
+  const p = await openPage(t);
+  await signIn(p, 'Phil');
+  await outreach(p, 'w7');
+  p.$('#appr-all').click();
+  await waitFor(p.idle, 2000, 'saves to finish');
+  p.$('#dp-out [data-act=mark][data-ch=partiful]').click();
+  p.set('#mk-w7-partiful', 'https://partiful.com/e/w7dig');
+  p.$('form[data-mark=partiful] button[type=submit]').click();
+  assert.equal(p.$('#dp-out [data-row=partiful] .oask p').textContent, "Use this as the event's RSVP link?https://partiful.com/e/w7dig");
+  assert.deepEqual(p.$$('#dp-out .oask button').map(b => b.textContent), ['Yes', 'No']);
+  checkIcons(p, 'the RSVP question');
+  p.$('#dp-out [data-act=rsvp-yes][data-ch=partiful]').click();
+  assert.ok(!p.$('#dp-out .oask'), 'the question goes');
+  assert.equal(p.d.activeElement.dataset.act, 'undo', 'focus moves to Undo');
+  // the approved posts that mention it go back to review with the RSVP line; Instagram (link in bio) stays approved
+  assert.deepEqual(['ggroup', 'calendar', 'chats', 'instagram'].map(ch => pill(p, ch)), ['Draft · needs review', 'Draft · needs review', 'Draft · needs review', 'Approved by Phil']);
+  await waitFor(() => p.api.toasts.includes('RSVP link saved. 3 approved posts link to it now, so they need review again.'), 3000, 'the toast');
+  assert.equal(evCell(p, 'w7', 'rsvp link'), 'https://partiful.com/e/w7dig');
+  assert.ok(postText(p, 'w7', 'ggroup').includes(W7_LINK + '\nRSVP on Partiful: https://partiful.com/e/w7dig\n\nSee you there,'), postText(p, 'w7', 'ggroup'));
+  assert.ok(postText(p, 'w7', 'calendar').endsWith('RSVP on Partiful: https://partiful.com/e/w7dig'));
+  assert.ok(!postText(p, 'w7', 'partiful').includes('https'), 'the Partiful post itself has no link');
+  assert.equal(activity(p, 'w7').at(-1), 'Phil set the RSVP link to the Partiful post');
+  // a visitor's event page
+  p.$('#m-x').click();
+  await waitFor(p.idle, 2000, 'saves to finish');
+  const q = await eventPage(t, 'w7', null, p.g);
+  assert.equal(q.$('#pe-rsvp').textContent, 'Also on Partiful');
+  assert.equal(q.$('#pe-rsvp').getAttribute('href'), 'https://partiful.com/e/w7dig');
+  p.noErrors(); q.noErrors();
+});
+
+test("the RSVP question: only when the event has no RSVP link yet, only with a link, and only for someone who can edit events", async t => {
+  // Sky can approve and post, but not edit events
+  const p = await openPage(t);
+  await signIn(p, 'Sky');
+  await outreach(p, 'w7');
+  p.$('#dp-out [data-act=approve][data-ch=partiful]').click();
+  p.$('#dp-out [data-act=mark][data-ch=partiful]').click();
+  p.set('#mk-w7-partiful', 'https://partiful.com/e/w7dig');
+  p.$('form[data-mark=partiful] button[type=submit]').click();
+  assert.ok(!p.$('#dp-out .oask'), 'no question for Sky');
+  assert.equal(p.d.activeElement.dataset.act, 'undo');
+  await waitFor(p.idle, 2000, 'saves to finish');
+  // no link given, or an RSVP link already set: no question
+  const q = await openPage(t);
+  await signIn(q, 'Jessie');
+  await outreach(q, 'w7');
+  q.$('#dp-out [data-act=approve][data-ch=partiful]').click();
+  q.$('#dp-out [data-act=mark][data-ch=partiful]').click();
+  q.$('form[data-mark=partiful] button[type=submit]').click();
+  assert.ok(!q.$('#dp-out .oask'), 'no link, no question');
+  q.$('#dp-out [data-act=undo][data-ch=partiful]').click();
+  await waitFor(() => postRow(q, 'w7', 'partiful')?.status === 'approved' && q.idle(), 3000, 'the undo to be saved');
+  setEvCell(q.g, 'w7', 'rsvp link', 'https://partiful.com/e/already');
+  q.$('#signout').click();
+  await signIn(q, 'Jessie');
+  await outreach(q, 'w7');
+  q.$('#dp-out [data-act=mark][data-ch=partiful]').click();
+  q.set('#mk-w7-partiful', 'https://partiful.com/e/w7dig');
+  q.$('form[data-mark=partiful] button[type=submit]').click();
+  assert.ok(!q.$('#dp-out .oask'), 'the event has an RSVP link already');
+  q.$('#dp-out [data-row=ggroup] [data-act=toggle]').click();
+  assert.match(q.$('#ta-w7-ggroup').value, /\nRSVP on Partiful: https:\/\/partiful\.com\/e\/already\n/, 'a draft nobody edited has the RSVP link typed into the Sheet');
+  await waitFor(q.idle, 2000, 'saves to finish');
+  p.noErrors(); q.noErrors();
 });

@@ -106,9 +106,12 @@ if (window.EBPG_GAS) {
     ev.tasks = r.tasks.map(t => Object.assign(mkTask('other', t.what, t.who, t.status || (t.who ? 'asked' : 'open')), ID_OK.test(t.id || '') ? { id: t.id } : {}, t.last ? { last: t.last } : {}));
     ev.posts = {};
     CHANNELS.forEach(ch => {
-      const p = r.posts[ch.id];
+      const p = r.posts[ch.id], st = p && STATUS[p.status] ? p.status : 'review';
+      // a draft nobody edited, still waiting for review, is written again from the event as the Sheet has it now
+      // (an RSVP link or a new time typed into the Events tab by hand). Approved and posted texts stay as they are.
+      const text = p && st === 'review' && !p.edited ? freshText(ch.id, ev, p) : (p && p.text) || draft(ch.id, ev);
       // who approved it and when, and who posted it, when and where: the Posts tab's own columns
-      ev.posts[ch.id] = p ? { status: STATUS[p.status] ? p.status : 'review', text: p.text || draft(ch.id, ev), edited: !!p.edited,
+      ev.posts[ch.id] = p ? { status: st, text, edited: !!p.edited,
         by: p.by || '', approvedBy: p.approvedBy || '', approvedAt: p.approvedAt || '', at: p.at || '', url: safeUrl(p.url), stale: !!p.stale, open: false }
         : { status: 'off', text: draft(ch.id, ev), edited: false, ...NO_TRAIL, open: false };
     });
@@ -302,12 +305,18 @@ if (window.EBPG_GAS) {
   });
 
   /* ---------- reading the Sheet ---------- */
+  // this page's own address: event links (?ev=) in posts, on flyers and for sharing, and the garden sign's QR code
+  evLink = id => G.url ? G.url + '?ev=' + encodeURIComponent(id) : '';
+  siteLink = hash => G.url ? G.url + hash : '';
+  // the starter drafts were written before the page knew its address, so they're written again with each event's link
+  EVENTS.forEach(ev => CHANNELS.forEach(c => { const q = ev.posts[c.id]; if (q && !q.edited) q.text = draft(c.id, ev); }));
   // the first sign-in fills an empty Sheet with this: the Guild's real plans, the team with contacts still blank, and no volunteers
   const SEED = { events: EVENTS.map(payload), team: JSON.parse(JSON.stringify(TEAM)), vols: [], gardens: GARDENS.slice() };
   // ...and nothing else uses them: every page shows only what the Sheet sends
   EVENTS.length = 0; TEAM.length = 0; S.sel = undefined;
   pubState = 'loading'; pubAnswered = false; // an event's page waits for the Sheet before it says an event isn't there
   function load(st) {
+    applyChannels(st.channels); // the Channels tab: which ones the Guild uses, their names and links
     EVENTS.length = 0; st.events.forEach(r => EVENTS.push(fromRows(r))); // the public copies go: these are the Sheet's own rows
     if (st.team?.length) TEAM.splice(0, TEAM.length, ...st.team);
     if (st.vols) VOLS.splice(0, VOLS.length, ...vols(st.vols));
@@ -385,6 +394,8 @@ if (window.EBPG_GAS) {
     if (st.vols && rawVols !== base.vols) { base.vols = rawVols; VOLS.splice(0, VOLS.length, ...vols(st.vols)); vl = news = true; }
     problems = st.problems || [];
     renderProblems();
+    // the Channels tab changed: the attention bar, and the open event unless something in it is being typed
+    if (applyChannels(st.channels)) { news = evs = true; if (open && !S.editing && !typing()) openRedo = true; }
     if (evs) {
       taskSeq = Math.max(taskSeq, ...EVENTS.flatMap(e => e.tasks.map(t => +String(t.id).replace(/\D/g, '') || 0)));
       const ft = document.activeElement?.closest?.('#tiles [data-open]')?.dataset.open;
@@ -547,7 +558,7 @@ if (window.EBPG_GAS) {
     if (!live) return true;
     flush();
     if (failedKeys().length && !confirm("Some changes haven't reached the Guild Sheet yet. Sign out anyway and lose them?")) return false;
-    live = false; code = ''; sheetUrl = ''; problems = []; store.clear(); reset(); testBar(null);
+    live = false; code = ''; sheetUrl = ''; problems = []; store.clear(); reset(); testBar(null); applyChannels([]);
     $('#si-rem').checked = false; // this device is forgotten, so the box starts unticked for whoever signs in next
     return true;
   };
@@ -555,9 +566,6 @@ if (window.EBPG_GAS) {
   // live-only page tweaks
   const rs = history.replaceState.bind(history);
   history.replaceState = (...a) => { try { rs(...a); } catch {} }; // the Apps Script frame may refuse URL changes
-  evLink = id => G.url ? G.url + '?ev=' + encodeURIComponent(id) : '';
-  siteLink = hash => G.url ? G.url + hash : ''; // the garden sign's QR code: this page, at #join
-  CH.luma.mode = 'copy'; CH.luma.note = '';
   $('#si-code').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); $('#si-pick button')?.focus(); } });
 
   const boot = () => {
