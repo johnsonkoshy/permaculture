@@ -26,6 +26,12 @@ const seeded = opts => {
   g.ctx.seed(CODE, { events: [ev()], team, vols: [{ name: 'Alex R.', contact: 'alex@example.org', help: ['Garden work days'], note: '', date: '2026-10-18' }], gardens: [{ name: 'OPC garden', addr: '111 Fairmount Ave', what: 'Work days', lat: 37.8136, lng: -122.2589 }] });
   return g;
 };
+/* posting: the event as the page sends it, with the Google Group and Calendar posts approved */
+const GROUP_TEXT = 'Subject: Sun 10/25: Work party\n\nHi all,\n\nCome dig.';
+const approved = (channel, text) => ({ channel, status: 'approved', by: '', text, edited: false, approvedBy: 'Phil', approvedAt: '2026-10-24T18:00:00.000Z', at: '', url: '' });
+const toPost = (over = {}) => ev({ posts: [approved('ggroup', GROUP_TEXT), approved('calendar', 'OPC Garden Work Party\nSee you there')], ...over });
+const postRowOf = (g, id, ch) => { const [head, ...rows] = g.tab('Posts'), r = rows.find(x => x[0] === id && x[1] === ch); return r && Object.fromEntries(head.map((h, i) => [h, r[i] == null ? '' : r[i]])); };
+const ISO = /^20\d\d-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z$/;
 
 test('first load makes every tab and the settings', () => {
   const g = gas();
@@ -114,21 +120,163 @@ test('volunteer sign-up: row, welcome email and lead alert, all to the owner in 
   assert.match(g.mail[1].subject, /^\[TEST to jessie@example\.org\] New volunteer: Sam Lee/);
 });
 
-test('posting: Google Group email and calendar event', () => {
+test('posting in test mode: the Group email and a [TEST] calendar entry go to the owner, and the Posts rows say Test sent', () => {
   const g = seeded();
-  assert.match(g.ctx.postTo(CODE, 'w7', 'ggroup', ev().posts[0].text), /Test mode/);
+  const out = g.ctx.postTo(CODE, toPost(), 'ggroup', { by: 'Phil' });
+  assert.equal(out.message, 'Test sent. Test mode is on, so the Google Group email went only to owner@example.com.');
+  assert.equal(g.mail.length, 1);
+  assert.equal(g.mail[0].to, 'owner@example.com');
   assert.equal(g.mail[0].subject, '[TEST to the Google Group] Sun 10/25: Work party');
   assert.match(g.mail[0].body, /^Hi all/);
-  g.ctx.postTo(CODE, 'w7', 'calendar', 'See you there');
-  assert.equal(g.calendar[0].title, 'OPC Garden Work Party');
-  assert.equal(g.calendar[0].start.toISOString(), '2026-10-25T17:00:00.000Z', '10 AM Pacific');
-  assert.match(g.calendar[0].location, /Oakland Peace Center, 111 Fairmount/);
-  assert.throws(() => g.ctx.postTo(CODE, 'w7', 'partiful', 'x'), /copy and paste/);
-  assert.throws(() => g.ctx.postTo(CODE, 'nope', 'ggroup', 'x'), /Save the event/);
-  // live mode needs the group address
-  const s = g.sheets.get('Settings'), row = g.tab('Settings').findIndex(r => r[0] === 'TEST_MODE') + 1;
-  s.set(row, 2, 'FALSE');
-  assert.throws(() => g.ctx.postTo(CODE, 'w7', 'ggroup', 'x'), /Google Group address/);
+  const row = postRowOf(g, 'w7', 'ggroup');
+  assert.deepEqual([row.status, row['posted by'], row['approved by'], row['calendar id'], row.stale], ['test', 'Phil', 'Phil', '', '']);
+  assert.match(row['posted at'], ISO);
+  // the answer is the event as signIn reads it, with the new row and Activity line
+  const e = plain(out.event);
+  assert.equal(e.cols.id, 'w7');
+  assert.deepEqual([e.posts.ggroup.status, e.posts.ggroup.by, e.posts.ggroup.at, e.posts.ggroup.stale], ['test', 'Phil', row['posted at'], false]);
+  assert.equal(e.posts.calendar.status, 'approved');
+  assert.equal(e.log.at(-1)[1], 'Phil posted to the Google Group (test mode: only the Sheet owner got it)');
+  assert.match(e.log.at(-1)[0], /^Oct \d{1,2} \u00b7 \d{1,2}:\d\d [AP]M$/, 'the same time format as the page');
+  assert.deepEqual(g.tab('Activity').at(-1), ['w7', e.log.at(-1)[0], e.log.at(-1)[1]]);
+
+  const cal = g.ctx.postTo(CODE, toPost(), 'calendar', { by: 'Phil' });
+  assert.equal(cal.message, "Test sent. Test mode is on, so it went on the Sheet owner's calendar, marked [TEST].");
+  assert.equal(g.calendar.length, 1);
+  const c = g.calendar[0];
+  assert.deepEqual([c.cal, c.title, c.location, c.description], ['default', '[TEST] OPC Garden Work Party', 'Oakland Peace Center, 111 Fairmount Ave, Oakland', 'OPC Garden Work Party\nSee you there']);
+  assert.equal(c.start.toISOString(), '2026-10-25T17:00:00.000Z', '10 AM Pacific');
+  assert.equal(c.end.toISOString(), '2026-10-25T21:00:00.000Z', '2 PM Pacific');
+  assert.deepEqual([postRowOf(g, 'w7', 'calendar').status, postRowOf(g, 'w7', 'calendar')['calendar id']], ['test', c.id]);
+  assert.equal(plain(cal.event).posts.ggroup.status, 'test', 'the Group row is still sent');
+  assert.equal(plain(cal.event).log.at(-1)[1], "Phil posted to the Calendar (test mode: on the Sheet owner's calendar)");
+  assert.equal(g.mail.length, 1, 'no email for the calendar');
+});
+
+test('posting live: the Google Group gets the email, the Guild calendar the entry, and the rows say posted', () => {
+  const g = seeded();
+  setSetting(g, 'TEST_MODE', 'FALSE');
+  assert.throws(() => g.ctx.postTo(CODE, toPost(), 'ggroup', { by: 'Phil' }), /Add the Google Group address on the Settings tab first/);
+  assert.equal(postRowOf(g, 'w7', 'ggroup').status, 'approved', 'not marked as sent');
+  assert.equal(g.mail.length, 0);
+  setSetting(g, 'GROUP_EMAIL', 'ebpg@googlegroups.com');
+  setSetting(g, 'CALENDAR_ID', 'guild@group.calendar.google.com');
+  assert.equal(g.ctx.postTo(CODE, toPost(), 'ggroup', { by: 'Phil' }).message, 'Emailed the Google Group.');
+  assert.deepEqual([g.mail[0].to, g.mail[0].subject], ['ebpg@googlegroups.com', 'Sun 10/25: Work party']);
+  assert.equal(postRowOf(g, 'w7', 'ggroup').status, 'posted');
+  const out = g.ctx.postTo(CODE, toPost(), 'calendar', { by: 'Phil' });
+  assert.equal(out.message, 'Added to Guild calendar.');
+  assert.deepEqual([g.calendar.length, g.calendar[0].cal, g.calendar[0].title], [1, 'guild@group.calendar.google.com', 'OPC Garden Work Party']);
+  assert.deepEqual([postRowOf(g, 'w7', 'calendar').status, postRowOf(g, 'w7', 'calendar')['calendar id']], ['posted', g.calendar[0].id]);
+  assert.equal(plain(out.event).log.at(-1)[1], 'Phil posted to the Calendar');
+});
+
+test('postTo saves the event first: a brand-new event posts with no saveEvent before it, using its current title', () => {
+  const g = seeded();
+  const fresh = ev({ id: 'n1729', data: { id: 'n1729', photo: 'none', tags: [], plan: { roles: [['Host', ['Phil']]], notes: [], timeline: [] } },
+    cols: { ...ev().cols, label: '', title: 'Seed swap', date: '2026-10-31', start: '11:00', end: '13:00' }, tasks: [], log: [['Oct 24 · 9:00 AM', 'Phil created the event']],
+    posts: [approved('ggroup', 'Hi all,\n\nBring seeds to share.')] });
+  const out = g.ctx.postTo(CODE, fresh, 'ggroup', { by: 'Phil' });
+  assert.equal(g.tab('Events').filter(r => r[0] === 'n1729').length, 1, 'the event is on the Events tab');
+  assert.equal(g.tab('Events').find(r => r[0] === 'n1729')[2], 'Seed swap');
+  assert.equal(g.mail.length, 1);
+  assert.equal(g.mail[0].subject, '[TEST to the Google Group] Seed swap, Saturday, October 31', 'a subject from the title and date as sent');
+  assert.equal(g.mail[0].body, 'Hi all,\n\nBring seeds to share.');
+  assert.deepEqual(plain(out.event.log).map(l => l[1]), ['Phil created the event', 'Phil posted to the Google Group (test mode: only the Sheet owner got it)']);
+  // and the time posted is the one sent, not an older saved one
+  g.ctx.postTo(CODE, { ...fresh, cols: { ...fresh.cols, start: '12:30' }, posts: [approved('calendar', 'Seed swap')] }, 'calendar', { by: 'Phil' });
+  assert.equal(g.calendar[0].start.toISOString(), '2026-10-31T19:30:00.000Z', '12:30 PM Pacific');
+});
+
+test('postTo needs an approved post, refuses a second send unless forced, and copy channels are copy and paste', () => {
+  const g = seeded();
+  assert.throws(() => g.ctx.postTo(CODE, toPost({ posts: [{ ...approved('ggroup', GROUP_TEXT), status: 'review', approvedBy: '', approvedAt: '' }] }), 'ggroup', { by: 'Phil' }), /^Error: Approve it first\.$/);
+  assert.equal(postRowOf(g, 'w7', 'ggroup').status, 'review', 'the draft saved as it was');
+  assert.throws(() => g.ctx.postTo(CODE, ev({ posts: [] }), 'calendar', { by: 'Phil' }), /Approve it first/, 'a channel the event does not use');
+  assert.equal(g.mail.length + g.calendar.length, 0, 'nothing sent');
+  assert.throws(() => g.ctx.postTo(CODE, toPost(), 'partiful', { by: 'Phil' }), /copy and paste/);
+  assert.throws(() => g.ctx.postTo('wrong-code-1', toPost(), 'ggroup', { by: 'Phil' }), /organizer code/);
+
+  g.ctx.postTo(CODE, toPost(), 'ggroup', { by: 'Phil' });
+  // a second press, or a tab that still says approved: no second email
+  assert.throws(() => g.ctx.postTo(CODE, toPost(), 'ggroup', { by: 'Jessie' }), /^Error: Already posted\./);
+  assert.equal(g.mail.length, 1);
+  assert.equal(postRowOf(g, 'w7', 'ggroup')['posted by'], 'Phil', 'still the first post');
+  // force sends it again (Post for real, once test mode is off)
+  g.ctx.postTo(CODE, toPost(), 'ggroup', { by: 'Jessie', force: true });
+  assert.equal(g.mail.length, 2);
+  assert.equal(postRowOf(g, 'w7', 'ggroup')['posted by'], 'Jessie');
+  // a name that's too long is cut to 60 characters
+  g.ctx.postTo(CODE, toPost(), 'ggroup', { by: '  ' + 'P'.repeat(90), force: true });
+  assert.equal(postRowOf(g, 'w7', 'ggroup')['posted by'], 'P'.repeat(60));
+});
+
+test('a Group email that fails leaves the post approved, with nothing in Activity', () => {
+  const g = seeded();
+  g.mailbox.fail = () => 'Service invoked too many times for one day: email.';
+  const before = g.tab('Activity').length;
+  assert.throws(() => g.ctx.postTo(CODE, toPost(), 'ggroup', { by: 'Phil' }), /too many times/);
+  assert.equal(postRowOf(g, 'w7', 'ggroup').status, 'approved');
+  assert.equal(g.tab('Activity').length, before);
+  g.mailbox.fail = null;
+  g.ctx.postTo(CODE, toPost(), 'ggroup', { by: 'Phil' });
+  assert.equal(postRowOf(g, 'w7', 'ggroup').status, 'test', 'it can be tried again');
+});
+
+test('Update calendar: the stored calendar id gets the new time, title and place, with no second entry, and stale is cleared', () => {
+  const g = seeded();
+  const first = g.ctx.postTo(CODE, toPost(), 'calendar', { by: 'Phil' });
+  const id = postRowOf(g, 'w7', 'calendar')['calendar id'];
+  assert.ok(id && id === g.calendar[0].id);
+  // the start time changes: the page marks the post stale and saves it
+  const moved = toPost({ cols: { ...ev().cols, start: '11:00', place: 'OPC back garden' }, posts: [approved('ggroup', GROUP_TEXT), { ...plain(first.event.posts.calendar), stale: true }] });
+  g.ctx.saveEvent(CODE, moved);
+  assert.equal(postRowOf(g, 'w7', 'calendar').stale, 'yes');
+  assert.equal(plain(g.ctx.signIn(CODE).events[0].posts.calendar.stale), true);
+  assert.throws(() => g.ctx.postTo(CODE, moved, 'calendar', { by: 'Phil' }), /^Error: Already posted\. If the event changed, use Update calendar\.$/);
+  const out = g.ctx.postTo(CODE, { ...moved, posts: [moved.posts[0], { ...moved.posts[1], text: 'OPC Garden Work Party\nOPC back garden' }] }, 'calendar', { by: 'Jessie', force: true });
+  assert.equal(out.message, "Test sent. Test mode is on, so it was updated on the Sheet owner's calendar, marked [TEST].");
+  assert.equal(g.calendar.length, 1, 'no duplicate');
+  const c = g.calendar[0];
+  assert.equal(c.id, id);
+  assert.equal(c.start.toISOString(), '2026-10-25T18:00:00.000Z', '11 AM Pacific');
+  assert.deepEqual([c.title, c.location, c.description], ['[TEST] OPC Garden Work Party', 'OPC back garden, 111 Fairmount Ave, Oakland', 'OPC Garden Work Party\nOPC back garden']);
+  const row = postRowOf(g, 'w7', 'calendar');
+  assert.deepEqual([row.status, row['posted by'], row['calendar id'], row.stale], ['test', 'Jessie', id, '']);
+  assert.equal(plain(out.event.posts.calendar.stale), false);
+  assert.equal(plain(out.event.log).at(-1)[1], "Jessie updated the Calendar (test mode: on the Sheet owner's calendar)");
+});
+
+test('Update calendar with no stored id, or an entry deleted by hand, adds a new one', () => {
+  const g = seeded();
+  g.ctx.postTo(CODE, toPost(), 'calendar', { by: 'Phil' });
+  const sh = g.sheets.get('Posts'), r = g.tab('Posts').findIndex(x => x[1] === 'calendar') + 1;
+  sh.set(r, g.tab('Posts')[0].indexOf('calendar id') + 1, ''); // a row from before calendar ids
+  g.ctx.postTo(CODE, toPost(), 'calendar', { by: 'Phil', force: true });
+  assert.equal(g.calendar.length, 2);
+  assert.equal(postRowOf(g, 'w7', 'calendar')['calendar id'], g.calendar[1].id);
+  g.calendar.splice(1, 1); // deleted in Google Calendar
+  g.ctx.postTo(CODE, toPost(), 'calendar', { by: 'Phil', force: true });
+  assert.equal(g.calendar.length, 2);
+  assert.equal(postRowOf(g, 'w7', 'calendar')['calendar id'], g.calendar[1].id);
+});
+
+test('going live after a test: Post for real takes the [TEST] entry off the owner calendar and adds the real one', () => {
+  const g = seeded();
+  g.ctx.postTo(CODE, toPost(), 'calendar', { by: 'Phil' });
+  g.ctx.postTo(CODE, toPost(), 'ggroup', { by: 'Phil' });
+  setSetting(g, 'TEST_MODE', 'FALSE');
+  setSetting(g, 'GROUP_EMAIL', 'ebpg@googlegroups.com');
+  setSetting(g, 'CALENDAR_ID', 'guild@group.calendar.google.com');
+  assert.equal(g.ctx.postTo(CODE, toPost(), 'calendar', { by: 'Phil', force: true }).message, 'Added to Guild calendar.');
+  assert.deepEqual(g.calendar.map(c => [c.cal, c.title]), [['guild@group.calendar.google.com', 'OPC Garden Work Party']]);
+  assert.deepEqual([postRowOf(g, 'w7', 'calendar').status, postRowOf(g, 'w7', 'calendar')['calendar id']], ['posted', g.calendar[0].id]);
+  g.ctx.postTo(CODE, toPost(), 'ggroup', { by: 'Phil', force: true });
+  assert.deepEqual([g.mail.at(-1).to, postRowOf(g, 'w7', 'ggroup').status], ['ebpg@googlegroups.com', 'posted']);
+  // a later update changes the real entry where it is
+  g.ctx.postTo(CODE, toPost({ cols: { ...ev().cols, end: '15:00' } }), 'calendar', { by: 'Phil', force: true });
+  assert.equal(g.calendar.length, 1);
+  assert.equal(g.calendar[0].end.toISOString(), '2026-10-25T22:00:00.000Z');
 });
 
 test('reminders: evening before, once only, phone-only people go to the host as a list', () => {
@@ -570,12 +718,12 @@ test('replies go to REPLY_TO, or to the lead organizer when it is blank', () => 
   assert.ok(g.mail.every(m => m.opts.replyTo === 'jessie@example.org'), JSON.stringify(g.mail.map(m => m.opts)));
   assert.ok(g.mail.every(m => m.opts.name === 'East Bay Permaculture Guild'));
   setSetting(g, 'REPLY_TO', 'hello@eastbaypermaculture.org');
-  g.ctx.postTo(CODE, 'w7', 'ggroup', 'Subject: Hi\n\nCome dig.');
+  g.ctx.postTo(CODE, toPost(), 'ggroup', { by: 'Phil' });
   assert.equal(g.mail.at(-1).opts.replyTo, 'hello@eastbaypermaculture.org');
   // no REPLY_TO and a lead with only a phone: no replyTo, so replies go to the owner who sends it
   setSetting(g, 'REPLY_TO', '');
   g.ctx.saveTeam(CODE, team.map(t => t.role === 'lead' ? { ...t, contact: '(510) 555-0100' } : t));
-  g.ctx.postTo(CODE, 'w7', 'ggroup', 'Subject: Hi\n\nCome dig.');
+  g.ctx.postTo(CODE, toPost(), 'ggroup', { by: 'Phil', force: true });
   assert.equal(g.mail.at(-1).opts.replyTo, undefined);
 });
 
@@ -648,22 +796,22 @@ test('signIn says whether test mode is on, who gets the emails, whether the Grou
 });
 
 /* ---------- outreach review: who approved, who posted, when, and the link ---------- */
-const TRAIL = ['approved by', 'approved at', 'posted at', 'post url'];
+const TRAIL = ['approved by', 'approved at', 'posted at', 'post url', 'calendar id', 'stale'];
 const reviewed = () => [
   { channel: 'partiful', status: 'posted', by: 'Phil', text: 'Come dig', edited: false, approvedBy: 'Sky', approvedAt: '2026-10-24T17:05:00.000Z', at: '2026-10-25T16:30:00.000Z', url: 'https://partiful.com/e/abc' },
   { channel: 'ggroup', status: 'approved', by: '', text: 'Subject: Sun 10/25: Work party\n\nHi all,\n\nCome dig.', edited: true, approvedBy: 'Phil', approvedAt: '2026-10-24T18:00:00.000Z', at: '', url: '' },
   { channel: 'instagram', status: 'review', by: '', text: 'Dig day', edited: false, approvedBy: '', approvedAt: '', at: '', url: '' },
 ];
 
-test('the four Posts trail columns round-trip through saveEvent and signIn', () => {
+test('the Posts trail columns round-trip through saveEvent and signIn', () => {
   const g = seeded();
   g.ctx.saveEvent(CODE, ev({ posts: reviewed() }));
   const [head, ...rows] = g.tab('Posts');
   assert.deepEqual(head, ['event id', 'channel', 'status', 'posted by', 'text', 'edited', ...TRAIL]);
-  assert.deepEqual(rows.find(r => r[1] === 'partiful'), ['w7', 'partiful', 'posted', 'Phil', 'Come dig', '', 'Sky', '2026-10-24T17:05:00.000Z', '2026-10-25T16:30:00.000Z', 'https://partiful.com/e/abc']);
-  assert.deepEqual(rows.find(r => r[1] === 'ggroup').slice(2), ['approved', '', 'Subject: Sun 10/25: Work party\n\nHi all,\n\nCome dig.', 'yes', 'Phil', '2026-10-24T18:00:00.000Z', '', '']);
+  assert.deepEqual(rows.find(r => r[1] === 'partiful'), ['w7', 'partiful', 'posted', 'Phil', 'Come dig', '', 'Sky', '2026-10-24T17:05:00.000Z', '2026-10-25T16:30:00.000Z', 'https://partiful.com/e/abc', '', '']);
+  assert.deepEqual(rows.find(r => r[1] === 'ggroup').slice(2), ['approved', '', 'Subject: Sun 10/25: Work party\n\nHi all,\n\nCome dig.', 'yes', 'Phil', '2026-10-24T18:00:00.000Z', '', '', '', '']);
   const posts = plain(g.ctx.signIn(CODE).events.find(e => e.cols.id === 'w7').posts);
-  assert.deepEqual(posts.partiful, { channel: 'partiful', status: 'posted', by: 'Phil', text: 'Come dig', edited: false, approvedBy: 'Sky', approvedAt: '2026-10-24T17:05:00.000Z', at: '2026-10-25T16:30:00.000Z', url: 'https://partiful.com/e/abc' });
+  assert.deepEqual(posts.partiful, { channel: 'partiful', status: 'posted', by: 'Phil', text: 'Come dig', edited: false, approvedBy: 'Sky', approvedAt: '2026-10-24T17:05:00.000Z', at: '2026-10-25T16:30:00.000Z', url: 'https://partiful.com/e/abc', stale: false });
   assert.deepEqual([posts.ggroup.status, posts.ggroup.approvedBy, posts.ggroup.approvedAt, posts.ggroup.at, posts.ggroup.url], ['approved', 'Phil', '2026-10-24T18:00:00.000Z', '', '']);
   assert.deepEqual([posts.instagram.status, posts.instagram.approvedBy, posts.instagram.url], ['review', '', '']);
   // saving the same again changes nothing, and the public view never sees any of it
@@ -700,5 +848,63 @@ test('a Posts tab from before the trail columns gets them at the right end, and 
   assert.equal(g.tab('Posts')[1][6], 'ask Jessie first', 'nothing moved');
   g.ctx.saveEvent(CODE, ev({ posts: [reviewed()[1]] }));
   const row = g.tab('Posts')[1];
-  assert.deepEqual(row.slice(7), ['Phil', '2026-10-24T18:00:00.000Z', '', '']);
+  assert.deepEqual(row.slice(7), ['Phil', '2026-10-24T18:00:00.000Z', '', '', '', '']);
+});
+
+/* ---------- a tab left open from before a post can't bring the Post button back ---------- */
+test('a stale save after posting (the Group still approved there) leaves the Posts rows posted, and keeps rows that tab never had', () => {
+  const g = seeded();
+  setSetting(g, 'TEST_MODE', 'FALSE');
+  setSetting(g, 'GROUP_EMAIL', 'ebpg@googlegroups.com');
+  g.ctx.postTo(CODE, toPost(), 'ggroup', { by: 'Phil' });
+  g.ctx.postTo(CODE, toPost(), 'calendar', { by: 'Phil' });
+  const KEPT = ['status', 'posted by', 'posted at', 'post url', 'calendar id'];
+  const kept = ch => KEPT.map(h => postRowOf(g, 'w7', ch)[h]);
+  const before = { ggroup: kept('ggroup'), calendar: kept('calendar') };
+  assert.equal(before.ggroup[0], 'posted');
+  assert.ok(before.calendar[4], 'a calendar id');
+  // the old tab still says approved, and saves an edit to the title
+  g.ctx.saveEvent(CODE, toPost({ cols: { ...ev().cols, title: 'OPC Work Party' } }));
+  assert.equal(g.tab('Events')[1][2], 'OPC Work Party', 'the rest of the edit is saved');
+  assert.deepEqual(kept('ggroup'), before.ggroup);
+  assert.deepEqual(kept('calendar'), before.calendar);
+  assert.equal(plain(g.ctx.signIn(CODE).events[0].posts.ggroup.status), 'posted', 'the next read says posted');
+  // a tab where the Group and the Calendar were never turned on
+  g.ctx.saveEvent(CODE, ev({ posts: [] }));
+  assert.deepEqual(kept('ggroup'), before.ggroup);
+  assert.deepEqual(kept('calendar'), before.calendar);
+  // back to a draft with no redo, or one naming another post, doesn't undo it
+  g.ctx.saveEvent(CODE, ev({ posts: [{ ...approved('ggroup', 'x'), status: 'review' }] }));
+  g.ctx.saveEvent(CODE, ev({ posts: [{ ...approved('ggroup', 'x'), status: 'review', redo: '2020-01-01T00:00:00.000Z' }] }));
+  assert.deepEqual(kept('ggroup'), before.ggroup);
+  assert.equal(g.mail.length, 1);
+  // copy-and-paste channels are the page's own: Undo of Mark as posted still works
+  g.ctx.saveEvent(CODE, ev({ posts: [{ ...approved('partiful', 'Come dig'), status: 'posted', by: 'Phil', at: '2026-10-25T16:30:00.000Z' }] }));
+  assert.equal(postRowOf(g, 'w7', 'partiful').status, 'posted');
+  g.ctx.saveEvent(CODE, ev({ posts: [approved('partiful', 'Come dig')] }));
+  assert.equal(postRowOf(g, 'w7', 'partiful').status, 'approved');
+});
+
+test('Draft an update: naming the post it replaces makes the Group row a draft again, which needs approval before it goes', () => {
+  const g = seeded({ now: '2026-10-24T10:00:00-07:00' });
+  g.ctx.postTo(CODE, toPost(), 'ggroup', { by: 'Phil' });
+  const at = postRowOf(g, 'w7', 'ggroup')['posted at'];
+  assert.equal(at, '2026-10-24T17:00:00.000Z');
+  const update = { channel: 'ggroup', status: 'review', by: '', text: 'Subject: Update: OPC Garden Work Party, Sun 10/25\n\nHi all,\n\nNow at 11.', edited: false, approvedBy: '', approvedAt: '', at: '', url: '', stale: false, redo: at };
+  g.ctx.saveEvent(CODE, toPost({ posts: [update] }));
+  const row = postRowOf(g, 'w7', 'ggroup');
+  assert.deepEqual([row.status, row['posted by'], row['posted at'], row.text.split('\n')[0]], ['review', '', '', 'Subject: Update: OPC Garden Work Party, Sun 10/25']);
+  assert.throws(() => g.ctx.postTo(CODE, toPost({ posts: [update] }), 'ggroup', { by: 'Phil' }), /Approve it first/);
+  g.clock.now += 3600e3;
+  g.ctx.postTo(CODE, toPost({ posts: [{ ...update, status: 'approved', approvedBy: 'Jessie', approvedAt: '2026-10-24T17:30:00.000Z' }] }), 'ggroup', { by: 'Jessie' });
+  assert.deepEqual(g.mail.map(m => m.subject), ['[TEST to the Google Group] Sun 10/25: Work party', '[TEST to the Google Group] Update: OPC Garden Work Party, Sun 10/25']);
+  assert.deepEqual([postRowOf(g, 'w7', 'ggroup').status, postRowOf(g, 'w7', 'ggroup')['posted at']], ['test', '2026-10-24T18:00:00.000Z']);
+  // the old marker can't undo the new post
+  g.ctx.saveEvent(CODE, toPost({ posts: [update] }));
+  assert.equal(postRowOf(g, 'w7', 'ggroup').status, 'test');
+  // a row marked posted by hand, with no time: the page sends '-'
+  const sh = g.sheets.get('Posts'), r = g.tab('Posts').findIndex(x => x[1] === 'ggroup') + 1;
+  sh.set(r, g.tab('Posts')[0].indexOf('posted at') + 1, '');
+  g.ctx.saveEvent(CODE, toPost({ posts: [{ ...update, redo: '-' }] }));
+  assert.equal(postRowOf(g, 'w7', 'ggroup').status, 'review');
 });

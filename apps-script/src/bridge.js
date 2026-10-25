@@ -80,7 +80,9 @@ if (window.EBPG_GAS) {
       tasks: (tasks || []).map(t => ({ id: t.id, what: t.text, who: t.who || '', status: t.status || '', last: t.last || '' })),
       posts: CHANNELS.filter(c => posts[c.id] && posts[c.id].status !== 'off').map(c => {
         const q = posts[c.id];
-        return { channel: c.id, status: q.status, by: q.by || '', text: q.text, edited: !!q.edited, approvedBy: q.approvedBy || '', approvedAt: q.approvedAt || '', at: q.at || '', url: q.url || '' };
+        // stale: the title, date, time or place changed since it went out. redo: Draft an update names the post it replaces
+        return { channel: c.id, status: q.status, by: q.by || '', text: q.text, edited: !!q.edited, approvedBy: q.approvedBy || '', approvedAt: q.approvedAt || '', at: q.at || '', url: q.url || '',
+          stale: !!q.stale, ...(q.redo ? { redo: q.redo } : {}) };
       }),
       log: log || [],
     };
@@ -105,7 +107,7 @@ if (window.EBPG_GAS) {
       const p = r.posts[ch.id];
       // who approved it and when, and who posted it, when and where: the Posts tab's own columns
       ev.posts[ch.id] = p ? { status: STATUS[p.status] ? p.status : 'review', text: p.text || draft(ch.id, ev), edited: !!p.edited,
-        by: p.by || '', approvedBy: p.approvedBy || '', approvedAt: p.approvedAt || '', at: p.at || '', url: safeUrl(p.url), open: false }
+        by: p.by || '', approvedBy: p.approvedBy || '', approvedAt: p.approvedAt || '', at: p.at || '', url: safeUrl(p.url), stale: !!p.stale, open: false }
         : { status: 'off', text: draft(ch.id, ev), edited: false, ...NO_TRAIL, open: false };
     });
     ev.log = r.log;
@@ -360,6 +362,7 @@ if (window.EBPG_GAS) {
   let testHTML = ''; // what the banner was last given (the browser writes <use/> back as <use></use>, so not bar.innerHTML)
   function testBar(st) {
     const bar = $('#testbar'), on = !!(st && st.testMode);
+    testOn = on; // a test send offers Post for real only once test mode is off
     bar.hidden = !on;
     if (!on) { bar.innerHTML = testHTML = ''; return; }
     const link = safeUrl(st.sheetUrl);
@@ -440,35 +443,39 @@ if (window.EBPG_GAS) {
         showSigning();
       }
     },
-    // post after the event's own save is in, so the Sheet has what's being posted
-    post: async (ev, ch) => {
+    /* Post (the Google Group or the Calendar): the Sheet saves the event as this page has it, sends it, and
+       answers with the event's Posts rows and Activity as they now are, which replace this page's.
+       opts.force: post again (Update calendar, Post for real). opts.text: the text to send, when it's new. */
+    post: async (ev, ch, opts = {}) => {
       if (stale) throw new Error(STALE);
-      await settle(keyOf(ev));
-      try { return await run('postTo', code, ev.id, ch, ev.posts[ch].text); }
+      const k = keyOf(ev), pl = payload(ev), sent = JSON.stringify(pl), n0 = (ev.log || []).length;
+      const mineP = pl.posts.find(x => x.channel === ch);
+      if (mineP && opts.text != null) mineP.text = opts.text;
+      touched[k] = Date.now(); // a read of the Sheet that started before this is older than what's coming
+      const g = gen;
+      let out;
+      try { out = await run('postTo', code, pl, ch, { by: ME, force: !!opts.force }); }
       catch (er) {
         if (codeGone(er)) { staleCode(); throw new Error(STALE); }
-        throw er.net ? new Error("The Guild Sheet didn't answer, so we can't tell if it went out. Check before posting again.") : er;
+        throw er.net ? new Error("The Guild Sheet didn't answer, so we can't tell if it went out. Check the Sheet before posting again.") : er;
+      } finally { touched[k] = Date.now(); }
+      const cur = EVENTS.find(e => e.id === ev.id) || ev, fresh = out && out.event && fromRows(out.event);
+      if (fresh && g === gen) { // not when signed out meanwhile
+        // nothing else changed while it went out: the Sheet now has exactly this event, so there's nothing left to save
+        const same = !busy(k) && snapEv(cur) === sent;
+        CHANNELS.forEach(c => {
+          const s = fresh.posts[c.id], was = cur.posts[c.id];
+          // this channel, and any Group email or Calendar entry the Sheet says went out that this page didn't know of
+          if (c.id === ch || (c.mode === 'auto' && isSent(s) && !isSent(was))) cur.posts[c.id] = s;
+        });
+        cur.log = fresh.log.concat((cur.log || []).slice(n0)); // lines added here while it went out stay
+        if (same) { saved[k] = snapEv(cur); mine.add(k); }
       }
+      return (out && out.message) || 'Posted.';
     },
     join: v => run('addVolunteer', { ...v, help: v.help.map(k => Object.fromEntries(HELP)[k] || k) })
       .catch(er => toast(er.net ? "Couldn't send your sign-up. The Guild Sheet didn't answer, so please try again in a minute." : "Couldn't send your sign-up: " + er.message)),
   };
-  // wait until this key's save is in (or say why it isn't)
-  function settle(k) {
-    flush();
-    const g = gen, until = Date.now() + 35000;
-    return new Promise((ok, no) => {
-      const check = () => {
-        const q = Q[k];
-        if (g !== gen) return no(new Error('You signed out.'));
-        if (q && q.failed && !q.busy) return no(new Error("This event isn't saved yet, so it can't be posted. Try again in a moment."));
-        if (!busy(k) && !dirty(k)) return ok();
-        if (Date.now() > until) return no(new Error("This event isn't saved yet, so it can't be posted. Try again in a moment."));
-        setTimeout(check, 150);
-      };
-      check();
-    });
-  }
   // signing out with changes the Sheet doesn't have yet asks first
   leaveOk = () => {
     if (!live) return true;

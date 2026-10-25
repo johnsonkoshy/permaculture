@@ -7,7 +7,7 @@
 const TABS = {
   Events: ['id', 'label', 'title', 'date', 'start', 'end', 'place', 'address', 'host', 'co-hosts', 'description', 'bring', 'tags', 'notes', 'timeline', "data (don't edit)"],
   Bringing: ['event id', 'what', 'who', 'status', 'task id', 'last time'],
-  Posts: ['event id', 'channel', 'status', 'posted by', 'text', 'edited', 'approved by', 'approved at', 'posted at', 'post url'],
+  Posts: ['event id', 'channel', 'status', 'posted by', 'text', 'edited', 'approved by', 'approved at', 'posted at', 'post url', 'calendar id', 'stale'],
   Team: ['name', 'role', 'email or phone', 'reminders by', 'create events', 'edit events', 'post', 'assign tasks', 'manage team'],
   Volunteers: ['signed up', 'name', 'contact', 'wants to help with', 'note'],
   Activity: ['event id', 'when', 'what'],
@@ -35,6 +35,12 @@ const PHOTOS = ['trellis', 'moat', 'pantry', 'none'];
 const TAG_KEYS = ['beginner', 'tools', 'kids', 'potluck', 'outdoor'];
 const TAG_WORDS = /^[\p{L}\p{N}][\p{L}\p{N} '\u2019&.()\/+!?-]{0,29}$/u; // a tag typed by hand: plain words, 30 characters at most
 const CHANNELS = ['partiful', 'luma', 'ggroup', 'calendar', 'meetup', 'facebook', 'instagram', 'chats'];
+/* The channels the server posts itself, and the statuses that mean it went out ('test': in test mode, to the owner only). */
+const AUTO = ['ggroup', 'calendar'];
+const SENT = ['posted', 'test'];
+const AUTO_NAME = { ggroup: 'the Google Group', calendar: 'the Calendar' };
+const PCOL = {}; // each Posts column's place in a row from rows_('Posts'), e.g. PCOL['calendar id']
+TABS.Posts.forEach((h, i) => { PCOL[h] = i; });
 const MAX_LEN = { title: 200, about: 4000, bring: 500 };
 /* Emails that can wait. They go out only while more than MAIL_RESERVE of the day's quota is left, so reminders still can. */
 const CAN_WAIT = ['welcome', 'lead-alert', 'thanks', 'steward', 'invite'];
@@ -209,31 +215,77 @@ function addVolunteer(v) {
   return true;
 }
 
-/* The Post button for channels that post themselves. */
-function postTo(code, eventId, channel, text) {
+/* The Post button for the Google Group and the Calendar. ev is the event as the page has it: it's saved first,
+   under the lock, so the post always uses the current title, date and place, even for an event never saved before.
+   The Posts row says it went out only once it did, so a second press says so instead of sending it twice.
+   opts.by: who pressed it. opts.force: post again (Update calendar, or a test sent before going live).
+   Returns { message, event }: the event as signIn reads it, with the Posts row and Activity line just written. */
+function postTo(code, ev, channel, opts) {
   check_(code);
-  const ev = readEvents_().find(r => r.cols.id === eventId);
-  if (!ev) throw new Error('Save the event first, then post.');
-  const c = ev.cols;
-  if (channel === 'ggroup') {
-    const to = setting_('GROUP_EMAIL');
-    if (!to && !on_('TEST_MODE')) throw new Error('Add the Google Group address on the Settings tab first.');
-    const lines = String(text || '').split('\n'), first = lines[0] || '';
-    const subject = /^subject:/i.test(first) ? first.replace(/^subject:\s*/i, '') : c.title + ', ' + niceDate_(c.date);
-    const body = (/^subject:/i.test(first) ? lines.slice(1) : lines).join('\n').replace(/^\s+/, '');
-    mail_(to || 'the Google Group', subject, body, 'post');
-    return on_('TEST_MODE') ? 'Test mode: the Google Group email went to you only.' : 'Emailed the Google Group.';
-  }
-  if (channel === 'calendar') {
-    const tz = Session.getScriptTimeZone();
-    const start = Utilities.parseDate(c.date + ' ' + (c.start || '10:00'), tz, 'yyyy-MM-dd HH:mm');
-    const end = Utilities.parseDate(c.date + ' ' + (c.end || c.start || '12:00'), tz, 'yyyy-MM-dd HH:mm');
-    const id = setting_('CALENDAR_ID');
-    const cal = (!on_('TEST_MODE') && id && CalendarApp.getCalendarById(id)) || CalendarApp.getDefaultCalendar();
-    cal.createEvent(c.title, start, end, { location: [c.place, c.address].filter(String).join(', '), description: String(text || '') });
-    return 'Added to ' + (cal.getName() || 'the calendar') + '.';
-  }
-  throw new Error('That channel is copy and paste.');
+  opts = opts && typeof opts === 'object' ? opts : {};
+  if (AUTO.indexOf(channel) < 0) throw new Error('That channel is copy and paste.');
+  return locked_(() => {
+    saveEvent_(ev);
+    const id = String(ev.id || (ev.cols || {}).id);
+    const e = readEvents_().find(r => r.cols.id === id);
+    if (!e) throw new Error('Give the event a date first, then post.');
+    const all = rows_('Posts', true), i = all.findIndex(r => r[0] === id && r[1] === channel);
+    const row = i >= 0 ? all[i] : [], status = String(row[PCOL.status] || ''), sent = SENT.indexOf(status) >= 0;
+    if (sent && !opts.force) throw new Error(channel === 'calendar' ? "Already posted. If the event changed, use Update calendar." : 'Already posted. To tell the Group about a change, use Draft an update.');
+    if (!sent && status !== 'approved') throw new Error('Approve it first.');
+    const c = e.cols, text = String(row[PCOL.text] || ''), test = on_('TEST_MODE'), by = short_(opts.by, 60);
+    let message, calId = '', real = !test, updated = false;
+    if (channel === 'ggroup') {
+      const to = setting_('GROUP_EMAIL');
+      if (!to && !test) throw new Error('Add the Google Group address on the Settings tab first.');
+      const lines = text.split('\n'), first = lines[0] || '';
+      const subject = /^subject:/i.test(first) ? first.replace(/^subject:\s*/i, '') : c.title + ', ' + niceDate_(c.date);
+      const body = (/^subject:/i.test(first) ? lines.slice(1) : lines).join('\n').replace(/^\s+/, '');
+      mail_(to || 'the Google Group', subject, body, 'post');
+      message = test ? 'Test sent. Test mode is on, so the Google Group email went only to ' + owner_() + '.' : 'Emailed the Google Group.';
+    } else {
+      const tz = Session.getScriptTimeZone(), hm = t => /^\d{2}:\d{2}$/.test(t || '') ? t : '';
+      const start = Utilities.parseDate(c.date + ' ' + (hm(c.start) || '10:00'), tz, 'yyyy-MM-dd HH:mm');
+      const end = Utilities.parseDate(c.date + ' ' + (hm(c.end) || hm(c.start) || '12:00'), tz, 'yyyy-MM-dd HH:mm');
+      const where = [c.place, c.address].filter(String).join(', ');
+      // an earlier post of this event: updated where it is, so the calendar never gets a second copy
+      const wasTest = status === 'test';
+      let ce = sent ? calEvent_(calendar_(wasTest), row[PCOL['calendar id']]) : null;
+      if (ce && wasTest && !test) { try { ce.deleteEvent(); } catch (er) { /* gone already */ } ce = null; } // going live: the test copy makes way
+      if (ce) {
+        real = !wasTest; updated = true;
+        ce.setTime(start, end); ce.setTitle((real ? '' : '[TEST] ') + c.title); ce.setLocation(where); ce.setDescription(text);
+      } else {
+        ce = calendar_(test).createEvent((test ? '[TEST] ' : '') + c.title, start, end, { location: where, description: text });
+      }
+      calId = String(ce.getId());
+      const name = (real ? calendar_(false).getName() : '') || 'the calendar';
+      message = !real ? 'Test sent. Test mode is on, so it ' + (updated ? 'was updated' : 'went') + " on the Sheet owner's calendar, marked [TEST]."
+        : (updated ? 'Updated on ' : 'Added to ') + name + '.';
+    }
+    // the Posts row: who, when, and the calendar event, so Update calendar changes this one
+    const out = all[i].slice();
+    out[PCOL.status] = real ? 'posted' : 'test'; out[PCOL['posted by']] = by; out[PCOL['posted at']] = new Date().toISOString();
+    out[PCOL['calendar id']] = calId; out[PCOL.stale] = '';
+    put_('Posts', i + 2, [out], ['status', 'posted by', 'posted at', 'calendar id', 'stale'].map(h => PCOL[h]));
+    const note = real ? '' : channel === 'ggroup' ? ' (test mode: only the Sheet owner got it)' : " (test mode: on the Sheet owner's calendar)";
+    append_('Activity', [[id, stamp_(), (by || 'An organizer') + (updated ? ' updated ' : ' posted to ') + AUTO_NAME[channel] + note]]);
+    return { message: message, event: readAll_().events.find(r => r.cols.id === id) };
+  });
+}
+/* Where calendar posts go: in test mode the owner's own calendar, else CALENDAR_ID (or the owner's when that's blank). */
+function calendar_(test) {
+  const id = setting_('CALENDAR_ID');
+  return (!test && id && CalendarApp.getCalendarById(id)) || CalendarApp.getDefaultCalendar();
+}
+function calEvent_(cal, id) {
+  if (!id) return null;
+  try { return cal.getEventById(String(id)) || null; } catch (e) { return null; }
+}
+/* like the page's Activity times: "Oct 25 · 10:30 AM" */
+function stamp_() {
+  const tz = Session.getScriptTimeZone(), now = new Date();
+  return Utilities.formatDate(now, tz, 'MMM d') + ' \u00b7 ' + Utilities.formatDate(now, tz, 'h:mm a');
 }
 
 /* Hourly trigger: reminders the evening before (6 PM on) and the morning of (8 AM to noon).
@@ -590,9 +642,25 @@ function saveEvent_(p) {
   if (i >= 0) put_('Events', i + 2, [row]);
   else append_('Events', [row]);
   replaceFor_('Bringing', id, (p.tasks || []).map(t => [id, t.what, t.who || '', t.status || '', t.id || '', t.last || '']));
-  replaceFor_('Posts', id, (p.posts || []).map(x => [id, x.channel, x.status, short_(x.by, 60), x.text || '', x.edited ? 'yes' : '',
-    short_(x.approvedBy, 60), short_(x.approvedAt, 40), short_(x.at, 40), postUrl_(x.url)]));
+  const postRows = rows_('Posts'), was = {}; // this event's Posts rows in the Sheet now, by channel
+  postRows.forEach(r => { if (r[0] === id) was[r[1]] = r; });
+  const posts = (p.posts || []).map(x => postRow_(id, x, was[x.channel]));
+  // a Google Group email or Calendar entry that went out stays on the Posts tab, even from a page that never saw it
+  AUTO.forEach(ch => { const w = was[ch]; if (w && SENT.indexOf(w[PCOL.status]) >= 0 && !posts.some(r => r[1] === ch)) posts.push(w); });
+  replaceFor_('Posts', id, posts, postRows);
   replaceFor_('Activity', id, (p.log || []).slice(-100).map(l => [id, l[0], l[1]])); // the newest 100
+}
+/* One Posts row from the page. A Google Group or Calendar row the server sent ('posted', or 'test' in test mode)
+   keeps its status, who posted it, when, the link and the calendar event, whatever the page says: a tab left open
+   from before the post would otherwise bring the Post button back. The one way back to a draft is Draft an update,
+   which names the post it replaces by its 'posted at' (redo; '-' when the Sheet has no time for it). */
+function postRow_(id, x, was) {
+  const row = [id, x.channel, x.status, short_(x.by, 60), x.text || '', x.edited ? 'yes' : '',
+    short_(x.approvedBy, 60), short_(x.approvedAt, 40), short_(x.at, 40), postUrl_(x.url), '', x.stale ? 'yes' : ''];
+  if (!was || AUTO.indexOf(x.channel) < 0 || SENT.indexOf(was[PCOL.status]) < 0) return row;
+  if (x.redo && String(x.redo) === (was[PCOL['posted at']] || '-') && SENT.indexOf(x.status) < 0) return row;
+  ['status', 'posted by', 'posted at', 'post url', 'calendar id'].forEach(h => { row[PCOL[h]] = was[PCOL[h]]; });
+  return row;
 }
 function short_(v, n) { return String(v == null ? '' : v).trim().slice(0, n); }
 /* A link to a post on Partiful, Instagram and so on: kept only when it's a plain https:// link. */
@@ -600,9 +668,9 @@ function postUrl_(v) {
   const s = String(v == null ? '' : v).trim();
   return s.length <= 2000 && /^https:\/\/[^\s"'<>]+$/i.test(s) ? s : '';
 }
-/* Bringing, Posts and Activity: swap one event's rows, keeping every other event's. */
-function replaceFor_(name, id, fresh) {
-  const keep = rows_(name).filter(r => r[0] !== id);
+/* Bringing, Posts and Activity: swap one event's rows, keeping every other event's. all: the tab's rows, if just read. */
+function replaceFor_(name, id, fresh, all) {
+  const keep = (all || rows_(name)).filter(r => r[0] !== id);
   write_(name, keep.concat(fresh));
 }
 
@@ -629,7 +697,7 @@ function readAll_() {
     return m;
   };
   const tasks = byEv('Bringing', r => ({ what: r[1], who: r[2], status: r[3], id: r[4], last: r[5] }));
-  const posts = byEv('Posts', r => ({ channel: r[1], status: r[2], by: r[3], text: r[4], edited: !!r[5], approvedBy: r[6], approvedAt: r[7], at: r[8], url: r[9] }));
+  const posts = byEv('Posts', r => ({ channel: r[1], status: r[2], by: r[3], text: r[4], edited: !!r[5], approvedBy: r[6], approvedAt: r[7], at: r[8], url: r[9], stale: !!r[11] }));
   const log = byEv('Activity', r => [r[1], r[2]]);
   const problems = []; // rows an organizer needs to fix in the Sheet
   return {

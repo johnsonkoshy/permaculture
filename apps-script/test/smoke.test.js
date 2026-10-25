@@ -1351,3 +1351,216 @@ test('without "Approve & post": Approve is turned off, the text is read-only, an
   await waitFor(p.idle, 2000, 'calls to finish');
   p.noErrors();
 });
+
+/* ---------- Post: the Sheet saves the event, sends it once, and records it ---------- */
+const TEST_SENT = 'Test sent (Test mode is on: this went only to the Sheet owner)';
+const pacific = (d, t) => new Date(`${d}T${t}:00-07:00`).toISOString(); // late October is still daylight time in Oakland
+const chips = p => p.$$('#dp-out .orow .warnchip').map(c => [c.closest('.orow').dataset.row, c.textContent]);
+
+test("Post on a brand-new event: the Group email goes out at once with its title, the row says Test sent, and nothing is saved twice", async t => {
+  const p = await openPage(t);
+  await signIn(p, 'Phil');
+  p.$('#new-ev').click();
+  await waitFor(() => p.$('#editf'), 2000, 'the new-event form');
+  p.set('#ed-title', 'Seed swap at the OPC');
+  p.set('#ed-date', '2026-11-07');
+  p.$('#editf button[type=submit]').click();
+  // straight to Outreach, approve and post, before the event's own save has gone out
+  (await waitFor(() => p.$('#detail [data-dtab="outreach"]'), 2000, 'the new event')).click();
+  p.$('#dp-out [data-act=approve][data-ch=ggroup]').click();
+  assert.equal(pill(p, 'ggroup'), 'Approved by Phil');
+  p.api.latency = 150;
+  const post = p.$('#dp-out [data-act=post][data-ch=ggroup]');
+  post.click();
+  assert.ok(post.disabled, 'Post is turned off while it goes');
+  assert.equal(post.textContent, 'Posting…');
+  assert.equal(post.getAttribute('aria-busy'), 'true');
+  // a redraw while it's going still can't offer Post again
+  p.$('#dp-out [data-row=partiful] [data-act=toggle]').click();
+  const again = p.$('#dp-out [data-act=post][data-ch=ggroup]');
+  assert.ok(again.disabled && again.textContent === 'Posting…', 'still Posting… after a redraw');
+  await waitFor(() => p.$('#dp-out [data-row=ggroup] .pill').textContent === TEST_SENT, 3000, 'the Group row to say Test sent');
+  p.api.latency = 0;
+  const call = p.api.sent.find(c => c.fn === 'postTo');
+  const id = call.args[1].id;
+  assert.match(id, /^n\d+$/);
+  assert.deepEqual([call.args[2], call.args[3]], ['ggroup', { by: 'Phil', force: false }]);
+  assert.equal(call.args[1].cols.title, 'Seed swap at the OPC', 'the event as it is on the page');
+  assert.equal(p.$('#dp-out [data-row=ggroup] .pill').title, 'Test mode is on: this went only to the Sheet owner');
+  assert.deepEqual(acts(p, 'ggroup'), [], 'nothing more to do in test mode');
+  await waitFor(() => p.api.toasts.includes('Test sent. Test mode is on, so the Google Group email went only to owner@example.com.'), 2000, 'the Test sent toast');
+  // one email, with the title as it was when Post was pressed
+  assert.equal(p.g.mail.length, 1);
+  assert.equal(p.g.mail[0].subject, '[TEST to the Google Group] Sat 11/7: Seed swap at the OPC at Oakland Peace Center');
+  assert.equal(p.g.tab('Events').filter(r => r[0] === id).length, 1, 'the event is on the Events tab');
+  const row = postRow(p, id, 'ggroup');
+  assert.deepEqual([row.status, row['posted by'], row['approved by']], ['test', 'Phil', 'Phil']);
+  assert.equal(activity(p, id).at(-1), 'Phil posted to the Google Group (test mode: only the Sheet owner got it)');
+  assert.equal(p.$('#log-body li:first-child span:last-child').textContent, 'Phil posted to the Google Group (test mode: only the Sheet owner got it)');
+  assert.match(p.$('#dp-out .osum > span').textContent, / · 0 posted · 1 test sent$/);
+  // the Sheet has it all already, so no save follows
+  await sleep(1100);
+  await waitFor(p.idle, 2000, 'calls to finish');
+  assert.deepEqual(p.api.sent.filter(c => c.fn === 'saveEvent' && c.args[1].id === id), [], 'no saveEvent for the new event');
+  assert.ok(['idle', 'saved'].includes(p.$('#m-savest').dataset.state), 'nothing waiting to be saved');
+  checkIcons(p, 'a test-sent post');
+  p.noErrors();
+});
+
+test('after posting, a new start time says Changed since posted; Update calendar moves the one entry, and Draft an update goes back for approval', async t => {
+  const p = await openPage(t);
+  await signIn(p, 'Phil');
+  await outreach(p, 'w7');
+  for (const ch of ['calendar', 'ggroup']) {
+    p.$(`#dp-out [data-act=approve][data-ch=${ch}]`).click();
+    p.$(`#dp-out [data-act=post][data-ch=${ch}]`).click();
+    await waitFor(() => pill(p, ch) === TEST_SENT, 3000, ch + ' to be sent');
+  }
+  const [date, start] = (r => [r[3], r[4]])(p.g.tab('Events').find(r => r[0] === 'w7'));
+  assert.equal(p.g.calendar.length, 1);
+  const entry = { ...p.g.calendar[0] };
+  assert.deepEqual([entry.cal, entry.title, entry.start.toISOString()], ['default', '[TEST] ' + p.$('#detail .dh h2').textContent, pacific(date, start)]);
+  assert.equal(postRow(p, 'w7', 'calendar')['calendar id'], entry.id);
+  assert.deepEqual(chips(p), [], 'nothing changed yet');
+
+  // the start time changes in Edit event
+  p.$('#edit-ev').click();
+  p.set('#ed-start', '11:00');
+  p.$('#editf button[type=submit]').click();
+  (await waitFor(() => p.$('#detail [data-dtab="outreach"]'), 2000, 'the event')).click();
+  assert.deepEqual(chips(p), [['ggroup', 'Changed since posted'], ['calendar', 'Changed since posted']]);
+  assert.deepEqual(acts(p, 'calendar'), ['Update calendar']);
+  assert.deepEqual(acts(p, 'ggroup'), ['Draft an update']);
+  await waitFor(() => postRow(p, 'w7', 'calendar').stale === 'yes' && postRow(p, 'w7', 'ggroup').stale === 'yes', 3000, 'the Posts rows to say stale');
+  assert.equal(postRow(p, 'w7', 'calendar').status, 'test', 'still sent');
+  // the change is kept over a reload
+  const q = await openPage(t, null, p.g);
+  await signIn(q, 'Phil');
+  await outreach(q, 'w7');
+  assert.deepEqual(chips(q), [['ggroup', 'Changed since posted'], ['calendar', 'Changed since posted']]);
+
+  // Update calendar
+  const up = p.$('#dp-out [data-act=update][data-ch=calendar]');
+  up.click();
+  assert.ok(up.disabled && up.textContent === 'Updating…');
+  await waitFor(() => !p.$('#dp-out [data-row=calendar] .warnchip'), 3000, 'the calendar chip to go');
+  assert.equal(p.g.calendar.length, 1, 'still one entry');
+  assert.equal(p.g.calendar[0].id, entry.id);
+  assert.equal(p.g.calendar[0].start.toISOString(), pacific(date, '11:00'));
+  assert.equal(pill(p, 'calendar'), TEST_SENT);
+  assert.equal(postRow(p, 'w7', 'calendar').stale, '');
+  assert.ok(p.api.toasts.includes("Test sent. Test mode is on, so it was updated on the Sheet owner's calendar, marked [TEST]."));
+  assert.equal(activity(p, 'w7').at(-1), "Phil updated the Calendar (test mode: on the Sheet owner's calendar)");
+  const upCall = p.api.sent.filter(c => c.fn === 'postTo').at(-1);
+  assert.deepEqual(upCall.args[3], { by: 'Phil', force: true });
+
+  // Draft an update: a new Group email, back in review
+  p.$('#dp-out [data-act=redraft][data-ch=ggroup]').click();
+  assert.equal(pill(p, 'ggroup'), 'Draft · needs review');
+  assert.deepEqual(acts(p, 'ggroup'), ['Approve']);
+  assert.ok(!p.$('#dp-out [data-row=ggroup] .warnchip'));
+  const text = p.$('#ta-w7-ggroup').value;
+  assert.match(text, /^Subject: Update: .+, Sun 10\/25\n\nHi all,\n\n/);
+  assert.equal((text.match(/^Subject:/gm) || []).length, 1, 'one subject line');
+  assert.match(text, /When: .*11:00 AM/);
+  await waitFor(() => postRow(p, 'w7', 'ggroup').status === 'review', 3000, 'the Group row back to review in the Sheet');
+  assert.equal(postRow(p, 'w7', 'ggroup')['posted by'], '');
+  p.$('#dp-out [data-act=approve][data-ch=ggroup]').click();
+  p.$('#dp-out [data-act=post][data-ch=ggroup]').click();
+  await waitFor(() => pill(p, 'ggroup') === TEST_SENT, 3000, 'the update to be sent');
+  assert.equal(p.g.mail.length, 2);
+  assert.match(p.g.mail[1].subject, /^\[TEST to the Google Group\] Update: .+, Sun 10\/25$/);
+  assert.match(p.g.mail[1].body, /11:00 AM/);
+  await waitFor(p.idle, 2000, 'calls to finish');
+  assert.deepEqual(activity(p, 'w7').slice(-3), ['Phil drafted an update for Google Group email', 'Phil approved Google Group email', 'Phil posted to the Google Group (test mode: only the Sheet owner got it)']);
+  checkIcons(p, 'changed since posted');
+  p.noErrors();
+});
+
+test("a Post the Sheet doesn't answer leaves it approved; a tab that missed the post can't send it again or undo it", async t => {
+  const p = await openPage(t);
+  await signIn(p, 'Phil');
+  const q = await openPage(t, null, p.g); // a second tab, open before the post
+  await signIn(q, 'Jessie');
+  await outreach(p, 'w7');
+  await outreach(q, 'w7');
+  p.$('#dp-out [data-act=approve][data-ch=ggroup]').click();
+  q.$('#dp-out [data-act=approve][data-ch=ggroup]').click();
+  await waitFor(() => p.idle() && q.idle() && postRow(p, 'w7', 'ggroup').status === 'approved', 3000, 'both saves');
+
+  p.api.fail = 'postTo';
+  p.$('#dp-out [data-act=post][data-ch=ggroup]').click();
+  await waitFor(() => p.api.toasts.includes("The Guild Sheet didn't answer, so we can't tell if it went out. Check the Sheet before posting again."), 3000, 'the no-answer toast');
+  const btn = p.$('#dp-out [data-act=post][data-ch=ggroup]');
+  assert.ok(btn && !btn.disabled && btn.textContent === 'Post', 'Post is back as it was');
+  assert.match(pill(p, 'ggroup'), /^Approved by /);
+  assert.equal(p.g.mail.length, 0);
+  p.api.fail = '';
+  p.$('#dp-out [data-act=post][data-ch=ggroup]').click();
+  await waitFor(() => pill(p, 'ggroup') === TEST_SENT, 3000, 'the post');
+  assert.equal(p.g.mail.length, 1);
+
+  // the other tab still shows Post: the Sheet says it went already
+  q.$('#dp-out [data-act=post][data-ch=ggroup]').click();
+  await waitFor(() => q.api.toasts.includes('Already posted. To tell the Group about a change, use Draft an update.'), 3000, 'the Already posted toast');
+  assert.equal(p.g.mail.length, 1, 'no second email');
+  assert.deepEqual(acts(q, 'ggroup'), ['Post'], 'left as it was');
+  // and that tab's next save doesn't make it a draft again in the Sheet
+  q.$('#detail [data-dtab="plan"]').click();
+  q.set('#nt-text', 'Bring a sun hat');
+  q.$('#nt-add').click();
+  await waitFor(() => p.g.tab('Bringing').some(r => r[0] === 'w7' && r[1] === 'Bring a sun hat') && q.idle(), 3000, "the other tab's save");
+  assert.deepEqual([postRow(p, 'w7', 'ggroup').status, postRow(p, 'w7', 'ggroup')['posted by']], ['test', 'Phil']);
+  assert.deepEqual(p.api.errors, []);
+  q.noErrors();
+});
+
+test('the prototype artifact: Changed since posted and Update calendar work without a server', async t => {
+  const p = loadPage(t, ARTIFACT, 'http://localhost/artifact');
+  await waitFor(() => p.shown('#p-landing'), 2000, 'the artifact landing page');
+  p.$('#signin-top').click();
+  p.$('#si-google').click();
+  p.$('#tiles [data-open="w7"]').click();
+  p.$('#detail [data-dtab="outreach"]').click();
+  p.$('#dp-out [data-act=approve][data-ch=calendar]').click();
+  p.$('#dp-out [data-act=post][data-ch=calendar]').click();
+  await waitFor(() => /^Posted by Jessie/.test(pill(p, 'calendar')), 2000, 'the simulated post');
+  p.$('#edit-ev').click();
+  p.set('#ed-start', '11:00');
+  p.$('#editf button[type=submit]').click();
+  p.$('#detail [data-dtab="outreach"]').click();
+  assert.deepEqual(chips(p), [['calendar', 'Changed since posted']]);
+  p.$('#dp-out [data-act=update][data-ch=calendar]').click();
+  await waitFor(() => p.api.toasts.includes('Updated Guild Google Calendar (simulated)'), 2000, 'the simulated update');
+  assert.deepEqual(chips(p), []);
+  assert.deepEqual(p.api.calls, [], 'the artifact calls no server');
+  p.noErrors();
+});
+
+test('a test send, once test mode is off: Post for real sends it to the Group and says Posted', async t => {
+  const p = await openPage(t);
+  await signIn(p, 'Phil');
+  await outreach(p, 'w7');
+  p.$('#dp-out [data-act=approve][data-ch=ggroup]').click();
+  p.$('#dp-out [data-act=post][data-ch=ggroup]').click();
+  await waitFor(() => pill(p, 'ggroup') === TEST_SENT, 3000, 'the test send');
+  assert.deepEqual(acts(p, 'ggroup'), [], 'no Post for real while test mode is on');
+  await waitFor(p.idle, 2000, 'calls to finish');
+  // the owner turns test mode off and adds the Group's address; Phil signs in again
+  const set = (k, v) => p.g.sheets.get('Settings').set(p.g.tab('Settings').findIndex(r => r[0] === k) + 1, 2, v);
+  set('TEST_MODE', 'FALSE'); set('GROUP_EMAIL', 'ebpg@googlegroups.com');
+  p.$('#signout').click();
+  await signIn(p, 'Phil');
+  assert.ok(!p.shown('#testbar'), 'no test-mode banner');
+  await outreach(p, 'w7');
+  assert.equal(pill(p, 'ggroup'), TEST_SENT);
+  assert.deepEqual(acts(p, 'ggroup'), ['Post for real']);
+  p.$('#dp-out [data-act=again][data-ch=ggroup]').click();
+  await waitFor(() => /^Posted by Phil · Oct 2[45]$/.test(pill(p, 'ggroup')), 3000, 'the real post');
+  assert.deepEqual(p.g.mail.map(m => m.to), ['owner@example.com', 'ebpg@googlegroups.com']);
+  assert.equal(postRow(p, 'w7', 'ggroup').status, 'posted');
+  assert.deepEqual(acts(p, 'ggroup'), []);
+  await waitFor(() => p.api.toasts.includes('Emailed the Google Group.'), 2000, 'the toast');
+  await waitFor(p.idle, 2000, 'calls to finish');
+  p.noErrors();
+});

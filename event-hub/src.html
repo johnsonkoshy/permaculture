@@ -131,6 +131,7 @@ body.out .savest { display: none; }
 .pill.review { background: var(--lemon-soft); color: var(--lemon-ink); }
 .pill.approved { background: var(--water-soft); color: var(--water); }
 .pill.posted { background: var(--fern-soft); color: var(--fern); }
+.pill.test { background: var(--lemon-soft); color: var(--lemon-ink); border: 1px dashed var(--lemon-ink); cursor: help; }
 .pill.off { background: transparent; color: var(--ink-3); border: 1px dashed var(--line-2); }
 .mode { font: 600 11px/1 var(--mono); letter-spacing: .04em; padding: 4px 6px; border-radius: 4px; border: 1px solid var(--line-2); color: var(--ink-3); white-space: nowrap; }
 .mode.auto { border-color: transparent; background: var(--fern-soft); color: var(--fern); }
@@ -599,7 +600,11 @@ legend { font-size: 13px; font-weight: 700; color: var(--ink-2); margin-bottom: 
 .ostat .pill { white-space: normal; line-height: 1.25; }
 .ostat a { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 700; color: var(--fern); }
 .ostat a .ic { width: 13px; height: 13px; }
+.ostat .warnchip { margin-top: 0; display: inline-flex; align-items: center; gap: 4px; white-space: normal; }
+.ostat .warnchip .ic { width: 13px; height: 13px; flex: none; }
 .oacts { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+.oacts .btn[aria-busy="true"] { cursor: progress; }
+.oacts .btn[aria-busy="true"] .ic { animation: spin 1s linear infinite; }
 .oacts.wide { grid-column: 2 / -1; justify-content: flex-start; }
 .omark { grid-column: 2 / -1; display: grid; gap: 8px; padding: 12px; border: 1px solid var(--line-2); border-radius: 10px; background: var(--surface); }
 .omark-b { display: flex; gap: 8px; flex-wrap: wrap; }
@@ -726,7 +731,7 @@ body.out .topbtns { margin-left: auto; }
 .chk input { width: 18px; height: 18px; margin: 0; flex: none; accent-color: var(--fern); }
 .scard.resume { justify-items: center; text-align: center; }
 .scard.resume .ic { width: 22px; height: 22px; color: var(--fern); animation: spin 1s linear infinite; }
-@media (prefers-reduced-motion: reduce) { .savest .ic, .scard.resume .ic { animation: none !important; } }
+@media (prefers-reduced-motion: reduce) { .savest .ic, .scard.resume .ic, .oacts .ic { animation: none !important; } }
 .scard .demo { font-size: 12px; color: var(--ink-3); text-align: center; }
 @media (prefers-reduced-motion: reduce) { .land *, .scard { animation: none !important; } .scene .hill, .scene .water { stroke-dashoffset: 0; } }
 
@@ -1547,7 +1552,7 @@ await supabase.from('volunteers').insert({
       </section>
       <section aria-labelledby="hp-out">
         <h2 id="hp-out">Approving and posting</h2>
-        <p>Every post starts as a draft. Someone with <b>Approve &amp; post</b> on the Team page reads it, fixes anything, and clicks <b>Approve</b>. Changing the text afterwards sends it back for another look. Once it's approved, the Google Group email and the Calendar have a <b>Post</b> button. For Partiful, Instagram and the other sites, click <b>Copy text</b>, paste it there, then <b>Mark as posted</b> and add the link to the post if you have it. <b>Undo</b> puts it back if it was marked by mistake. The Posts tab of the Sheet keeps who approved and posted each one, when, and the link.</p>
+        <p>Every post starts as a draft. Someone with <b>Approve &amp; post</b> on the Team page reads it, fixes anything, and clicks <b>Approve</b>. Changing the text afterwards sends it back for another look. Once it's approved, the Google Group email and the Calendar have a <b>Post</b> button. It saves the event first, so they always get the latest time and place, and pressing it twice never sends it twice. In test mode it says <b>Test sent</b>: only the Sheet owner got it. If the title, date, time or place changes after that, the row says <b>Changed since posted</b>. <b>Update calendar</b> fixes the Calendar entry, and <b>Draft an update</b> writes a new Google Group email that goes through approval again. For Partiful, Instagram and the other sites, click <b>Copy text</b>, paste it there, then <b>Mark as posted</b> and add the link to the post if you have it. <b>Undo</b> puts it back if it was marked by mistake. The Posts tab of the Sheet keeps who approved and posted each one, when, and the link.</p>
       </section>
       <section aria-labelledby="hp-edit">
         <h2 id="hp-edit">Fixing things in the Sheet</h2>
@@ -1574,7 +1579,7 @@ await supabase.from('volunteers').insert({
 const iso = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
 const TODAY = window.EBPG_GAS ? iso(new Date()) : '2026-10-24';
 let ME = 'Jessie';
-let remote = null, sync = () => {}, sheetUrl = '', problems = []; // set by the live (Apps Script) build; problems: Sheet rows it couldn't read
+let remote = null, sync = () => {}, sheetUrl = '', problems = [], testOn = false; // set by the live (Apps Script) build; problems: Sheet rows it couldn't read; testOn: TEST_MODE
 // also set by the live build: say "Saved" only once the Sheet has it, mark events whose save failed, and ask before signing out with unsaved changes
 let whenSaved = f => f(), unsaved = id => false, leaveOk = () => true;
 const $ = (s, el = document) => el.querySelector(s);
@@ -1671,7 +1676,12 @@ let taskSeq = 0;
 const mkTask = (type, text, who, status, rems) => ({ id: 't' + (++taskSeq), type, text, who, status, rems: rems || defaultRems(type), assignedOn: who ? TODAY : '', open: false });
 const HOSTS = { map: f => organizers().map(t => t.name).map(f) };
 const PHOTOS = [['trellis', 'Garden work'], ['moat', 'Before the dig'], ['pantry', 'Building'], ['none', 'Illustration']];
-const STATUS = { off: 'Not used', review: 'Draft · needs review', approved: 'Approved', posted: 'Posted' };
+const STATUS = { off: 'Not used', review: 'Draft · needs review', approved: 'Approved', posted: 'Posted', test: 'Test sent' };
+// it went out: posted, or (the Google Group and the Calendar, in test mode) sent only to the Sheet owner
+const isSent = p => p.status === 'posted' || p.status === 'test';
+// what makes the Calendar entry and the Group email out of date once they've gone out
+const WHEN_WHERE = ['title', 'date', 'start', 'end', 'place', 'address'];
+const whenWhere = ev => WHEN_WHERE.map(k => ev[k] || '').join('\n');
 
 function goodToKnow(ev) {
   const t = [ev.tags.includes('beginner') && 'no experience needed', ev.tags.includes('tools') && 'tools and gloves provided', ev.tags.includes('kids') && 'kids welcome with a grown-up', ev.tags.includes('potluck') && 'bring a dish to share if you can'].filter(Boolean);
@@ -1697,8 +1707,13 @@ function draft(ch, ev) {
       return `${ev.title} is ${shortDate(ev.date)} at ${t12s(ev.start)}, ${ev.place}. ${g} Who's in? RSVP on Partiful (link on our Linktree).`;
   }
 }
+// Draft an update: a Google Group email about what changed, with its own subject line
+const updDraft = ev => `Subject: Update: ${ev.title}, ${shortDate(ev.date)}\n\n` + draft('ggroup', ev).replace(/^Subject:[^\n]*\n+/, '');
+// an untouched draft written again after the event changed (an update stays an update)
+const freshText = (id, ev, q) => id === 'ggroup' && /^Subject: Update: /.test(q.text || '') ? updDraft(ev) : draft(id, ev);
 // each post's trail, kept on the Posts tab: who approved it and when, then who posted it, when, and the link to it
-const NO_TRAIL = { approvedBy: '', approvedAt: '', by: '', at: '', url: '' };
+// (and stale: changed since it was posted)
+const NO_TRAIL = { approvedBy: '', approvedAt: '', by: '', at: '', url: '', stale: false };
 const toReview = p => Object.assign(p, NO_TRAIL, { status: 'review' });
 const approvePost = p => Object.assign(p, NO_TRAIL, { status: 'approved', approvedBy: ME, approvedAt: new Date().toISOString() });
 function makePosts(ev, chosen, status = 'review') {
@@ -1883,7 +1898,7 @@ const nextEvent = () => EVENTS.filter(e => !e.isNew && e.date >= TODAY).sort((a,
 const S = { dtab: (() => { try { return sessionStorage.getItem('ebpg-dtab') || 'plan'; } catch { return 'plan'; } })(), when: 'up', sel: nextEvent()?.id, fold: { mats: false, chs: false, tasks: false, log: true, run: false, areas: false, sups: false, talk: false, ideas: false } };
 try { Object.assign(S.fold, JSON.parse(localStorage.getItem('ebpg-fold') || '{}')); } catch {}
 const visible = () => EVENTS.filter(e => !e.isNew).filter(e => S.when === 'up' ? e.date >= TODAY : e.date < TODAY).sort((a, b) => S.when === 'up' ? a.date.localeCompare(b.date) : b.date.localeCompare(a.date));
-const counts = ev => { const c = { off: 0, review: 0, approved: 0, posted: 0 }; Object.values(ev.posts).forEach(p => c[p.status]++); return c; };
+const counts = ev => { const c = { off: 0, review: 0, approved: 0, posted: 0, test: 0 }; Object.values(ev.posts).forEach(p => c[p.status]++); return c; };
 
 /* tabs */
 function showTab(t) {
@@ -1901,7 +1916,7 @@ function applyPerms() {
   $('#new-ev').disabled = !can('create'); $('#new-ev').title = can('create') ? '' : NOPE.create;
   if (!d) return;
   gate('#edit-ev, #ph-pick, #add-ch', 'edit', d);
-  gate('#appr-all, [data-act=approve], [data-act=post], [data-act=copy], [data-act=mark], [data-act=undo], [data-mark] input, [data-mark] button', 'approve', d);
+  gate('#appr-all, [data-act=approve], [data-act=post], [data-act=update], [data-act=again], [data-act=redraft], [data-act=copy], [data-act=mark], [data-act=undo], [data-mark] input, [data-mark] button', 'approve', d);
   gate('#nt-text, #nt-who, #nt-add, [data-tdel]', 'tasks', d);
   gate('#plan-next', 'create', d);
   gate('#addrow input, #addrow button, [data-rmrow], [data-chk], [data-additem] input, [data-additem] button, #addarea input, #addarea button, #addsup input, #addsup button, [data-sup], [data-idea], #adddeb input, #adddeb button', 'edit', d);
@@ -1979,6 +1994,7 @@ $('#probs').addEventListener('click', e => {
   if (next) next.focus(); else if (!$('#new-ev').disabled) $('#new-ev').focus(); else { h1.tabIndex = -1; h1.focus(); }
 });
 const drafts = n => `${n} ${n === 1 ? 'draft' : 'drafts'} to review`;
+const outCount = c => `${c.posted} posted` + (c.test ? ` · ${c.test} test sent` : '');
 function renderAttn() {
   const up = EVENTS.filter(e => e.date >= TODAY && !e.isNew).sort((a, b) => a.date.localeCompare(b.date));
   const review = up.reduce((a, e) => a + counts(e).review, 0), ready = up.reduce((a, e) => a + counts(e).approved, 0);
@@ -2093,7 +2109,7 @@ function renderDetail() {
     </div>
     <div class="dpanel" id="dp-plan" role="tabpanel" aria-labelledby="dt-plan" ${S.dtab === 'plan' ? '' : 'hidden'}>${docHTML(ev)}</div>
     <div class="dpanel" id="dp-out" role="tabpanel" aria-labelledby="dt-out" ${S.dtab === 'outreach' ? '' : 'hidden'}>
-      <div class="osum"><span>${c.off === CHANNELS.length ? 'No outreach recorded for this event.' : c.review + c.approved ? `${ic('send')}<b>${drafts(c.review)}</b> · ${c.approved} approved, ready to post · ${c.posted} posted` : `${ic('check')}Everything is posted · ${c.posted} posted`}</span>${c.review >= 2 ? `<button class="btn ghost sm" type="button" id="appr-all">${ic('check')}Approve all drafts</button>` : ''}</div>
+      <div class="osum"><span>${c.off === CHANNELS.length ? 'No outreach recorded for this event.' : c.review + c.approved ? `${ic('send')}<b>${drafts(c.review)}</b> · ${c.approved} approved, ready to post · ${outCount(c)}` : `${ic('check')}Everything is posted · ${outCount(c)}`}</span>${c.review >= 2 ? `<button class="btn ghost sm" type="button" id="appr-all">${ic('check')}Approve all drafts</button>` : ''}</div>
       ${c.off < CHANNELS.length ? `<ul class="olist">${CHANNELS.filter(ch => ev.posts[ch.id].status !== 'off').map(ch => chRow(ev, ch)).join('')}</ul>` : ''}
       ${c.off && !past ? `<label class="addch"><span class="hint">${ic('plus')}Also post to</span><select id="add-ch" aria-label="Add a channel"><option value="">Choose a channel</option>${CHANNELS.filter(ch => ev.posts[ch.id].status === 'off').map(ch => `<option value="${esc(ch.id)}">${esc(ch.name)}</option>`).join('')}</select></label>` : ''}
       <div class="chs"><div class="chs-h">${fold('log', 'Activity', ev.log.length, 'history')}</div><ul class="log" id="log-body" ${hid('log')}>${ev.log.slice().reverse().map(([t, w]) => `<li><span>${esc(t)}</span><span>${esc(w)}</span></li>`).join('')}</ul></div>
@@ -2191,15 +2207,17 @@ function bindEdit(ev) {
     if (!v('ed-title')) return fail('Give the event a name.');
     if (!v('ed-date')) return fail('Pick a date.');
     if (v('ed-end') <= v('ed-start')) return fail('The end time needs to be after the start time.');
+    const was = whenWhere(ev);
     Object.assign(ev, { title: v('ed-title'), date: v('ed-date'), start: v('ed-start'), end: v('ed-end'), place: v('ed-place'), address: v('ed-address'), about: v('ed-about'), bring: v('ed-bring'), tags: $$('input[name=ed-tag]:checked').map(i => i.value).concat(ev.tags.filter(t => !TAGS.some(x => x[0] === t))) });
     const pl = ev.plan;
     pl.leadStart = v('ed-ls'); pl.leadEnd = v('ed-le');
     const host = $('#ed-host').value; pl.roles = [['Host', [host]], ['Co-hosts', $('#ed-cos').value.split(',').map(x => x.trim()).filter(x => x && x !== host)]]; 
     pl.timeline = parseTimeline($('#p-tl').value); pl.notes = lns($('#p-notes').value);
+    const moved = was !== whenWhere(ev);
     CHANNELS.forEach(c => {
       const q = ev.posts[c.id];
-      if (q.status === 'posted') { if (!ev.isNew) q.stale = true; return; }
-      if (!q.edited) q.text = draft(c.id, ev);
+      if (isSent(q)) { if (!ev.isNew && moved) q.stale = true; return; } // the Calendar and the Group get Update calendar and Draft an update
+      if (!q.edited) q.text = freshText(c.id, ev, q);
       if (q.status === 'approved') toReview(q);
     });
     const wasNew = !!ev.isNew; delete ev.isNew; S.editing = false;
@@ -2249,16 +2267,25 @@ function postPill(p) {
   if (p.status === 'posted') return (p.by ? `Posted by ${p.by}` : 'Posted') + (onDay(p.at) ? ` · ${onDay(p.at)}` : '');
   return STATUS[p.status] || STATUS.review;
 }
+const TEST_TIP = 'Test mode is on: this went only to the Sheet owner';
+// "eventId:channel" -> what its button says while the Sheet sends it ("Posting…"), so a redraw can't offer it twice
+const posting = new Map();
+const GOING = ['post', 'update', 'again'];
 /* One channel: review → Approve → (Post, or Copy text, Open the site, Mark as posted) → posted, with Undo for copy channels.
-   Only people with "Approve & post" get the actions; everyone sees where it stands. */
+   The Google Group and the Calendar, once out, say "Changed since posted" when the time or place changes, with
+   Update calendar, or Draft an update for the Group. Only people with "Approve & post" get the actions; everyone sees where it stands. */
 function chRow(ev, ch) {
-  const p = ev.posts[ch.id], id = esc(ch.id), auto = ch.mode === 'auto', ok = can('approve');
-  const site = safeUrl(ch.url), link = p.status === 'posted' ? safeUrl(p.url) : '';
-  const act = (a, icon, label, kind = 'ghost') => `<button class="btn ${kind} sm" type="button" data-act="${a}" data-ch="${id}">${ic(icon)}${label}</button>`;
+  const p = ev.posts[ch.id], id = esc(ch.id), auto = ch.mode === 'auto', ok = can('approve'), out = isSent(p);
+  const site = safeUrl(ch.url), link = p.status === 'posted' ? safeUrl(p.url) : '', going = posting.get(ev.id + ':' + ch.id);
+  const act = (a, icon, label, kind = 'ghost') => going && GOING.includes(a)
+    ? `<button class="btn ${kind} sm" type="button" data-act="${a}" data-ch="${id}" disabled aria-busy="true">${ic('loader')}${esc(going)}</button>`
+    : `<button class="btn ${kind} sm" type="button" data-act="${a}" data-ch="${id}">${ic(icon)}${label}</button>`;
   let acts = '';
   if (p.status === 'review') acts = act('approve', 'check', 'Approve', 'primary'); // shown to everyone, turned off by applyPerms when not allowed
   else if (ok && p.status === 'approved') acts = auto ? act('post', 'send', 'Post', 'primary')
     : act('copy', 'copy', 'Copy text') + (site ? `<a class="btn ghost sm" href="${esc(site)}" target="_blank" rel="noopener">Open ${esc(ch.name)}${ic('out')}</a>` : '') + (p.marking ? '' : act('mark', 'check', 'Mark as posted', 'primary'));
+  else if (ok && out && auto && p.stale) acts = ch.id === 'calendar' ? act('update', 'calendar', 'Update calendar', 'primary') : act('redraft', 'pencil', 'Draft an update', 'primary');
+  else if (ok && auto && p.status === 'test' && remote && !testOn) acts = act('again', 'send', 'Post for real', 'primary'); // test mode is off now
   else if (ok && p.status === 'posted' && !auto) acts = act('undo', 'rotate-ccw', 'Undo');
   const mk = `mk-${esc(ev.id)}-${id}`;
   const mark = ok && p.status === 'approved' && p.marking ? `<form class="omark" data-mark="${id}" novalidate>
@@ -2266,10 +2293,10 @@ function chRow(ev, ch) {
       <p class="err" id="${mk}-err" role="alert" hidden></p>
       <div class="omark-b"><button class="btn primary sm" type="submit">${ic('check')}Save</button>${act('unmark', 'x', 'Cancel')}</div></form>` : '';
   return `<li class="orow ${esc(p.status)}" data-row="${id}"><span class="logo" style="background:${esc(ch.color)}">${esc(ch.abbr)}</span>
-    <div class="ohead"><button class="oname" type="button" data-act="toggle" data-ch="${id}" aria-expanded="${!!p.open}">${esc(ch.name)}<span class="hint">${p.status !== 'posted' ? 'Read draft · ' : ''}${auto ? 'posts automatically' : 'copy and paste'}</span></button>
-      <span class="ostat"><span class="pill ${esc(p.status)}">${esc(postPill(p))}</span>${link ? `<a href="${esc(link)}" target="_blank" rel="noopener">View post${ic('out')}</a>` : ''}${!ok && p.status === 'review' ? `<span class="hint">${esc(whoApproves())}</span>` : ''}</span></div>
+    <div class="ohead"><button class="oname" type="button" data-act="toggle" data-ch="${id}" aria-expanded="${!!p.open}">${esc(ch.name)}<span class="hint">${out ? '' : 'Read draft · '}${auto ? 'posts automatically' : 'copy and paste'}</span></button>
+      <span class="ostat"><span class="pill ${esc(p.status)}"${p.status === 'test' ? ` title="${esc(TEST_TIP)}"` : ''}>${esc(postPill(p))}${p.status === 'test' ? `<span class="vh"> (${esc(TEST_TIP)})</span>` : ''}</span>${out && auto && p.stale ? `<span class="warnchip">${ic('alert-triangle')}Changed since posted</span>` : ''}${link ? `<a href="${esc(link)}" target="_blank" rel="noopener">View post${ic('out')}</a>` : ''}${!ok && p.status === 'review' ? `<span class="hint">${esc(whoApproves())}</span>` : ''}</span></div>
     ${acts ? `<div class="oacts${ok && p.status === 'approved' && !auto ? ' wide' : ''}">${acts}</div>` : ''}
-    ${p.open ? `<div class="obody"><textarea id="ta-${esc(ev.id)}-${id}" data-ta="${id}" aria-label="${esc(ch.name)} text" ${p.status === 'posted' ? 'readonly' : ''}>${esc(p.text)}</textarea>${site && p.status === 'review' ? `<a class="hint" href="${esc(site)}" target="_blank" rel="noopener">Open ${esc(ch.name)}${ic('out')}</a>` : ''}</div>` : ''}
+    ${p.open ? `<div class="obody"><textarea id="ta-${esc(ev.id)}-${id}" data-ta="${id}" aria-label="${esc(ch.name)} text" ${out ? 'readonly' : ''}>${esc(p.text)}</textarea>${site && p.status === 'review' ? `<a class="hint" href="${esc(site)}" target="_blank" rel="noopener">Open ${esc(ch.name)}${ic('out')}</a>` : ''}</div>` : ''}
     ${mark}</li>`;
 }
 function bindTasks(ev) {
@@ -2309,21 +2336,44 @@ function bindDetail(ev) {
   });
   $$('[data-act]', $('#detail')).forEach(b => b.addEventListener('click', async () => {
     const id = b.dataset.ch, p = ev.posts[id], ch = CH[id];
-    let focus = ''; // what gets keyboard focus in this row once it's redrawn
+    let focus = '', said = ''; // what gets keyboard focus in this row once it's redrawn, and what the Sheet said about a post
     switch (b.dataset.act) {
       case 'toggle': p.open = !p.open; focus = '.oname'; break;
       case 'add': p.status = 'review'; p.open = true; p.text = draft(id, ev); ev.log.push([nowStamp(), `${ME} added ${ch.name}`]); break;
       case 'approve':
         if (!can('approve') || p.status !== 'review') return;
         approvePost(p); ev.log.push([nowStamp(), `${ME} approved ${ch.name}`]); toast(`${ch.name} approved`, 'check'); focus = '.oacts button'; break;
-      // the Google Group and the Calendar: the server sends it
-      case 'post':
-        if (!can('approve') || p.status !== 'approved' || ch.mode !== 'auto') return;
-        if (remote) { b.disabled = true; try { toast(await remote.post(ev, id), 'check'); } catch (er) { b.disabled = false; toast(er.message); return; } ev.log.push([nowStamp(), `${ME} posted to ${ch.name}`]); }
+      // the Google Group and the Calendar: the Sheet saves the event as it is here, sends it, and records it.
+      // Update calendar changes the entry already there; Post for real sends a test again once test mode is off.
+      case 'post': case 'update': case 'again': {
+        const a = b.dataset.act, key = ev.id + ':' + id;
+        if (!can('approve') || ch.mode !== 'auto' || posting.has(key)) return;
+        if (a === 'post' ? p.status !== 'approved' : a === 'update' ? !(id === 'calendar' && isSent(p) && p.stale) : p.status !== 'test') return;
+        const text = a === 'update' && !p.edited ? draft(id, ev) : p.text; // the Calendar entry's text says the new time and place too
+        if (remote) {
+          posting.set(key, a === 'update' ? 'Updating…' : 'Posting…');
+          b.disabled = true; b.setAttribute('aria-busy', 'true'); b.innerHTML = ic('loader') + esc(posting.get(key));
+          let msg;
+          try { msg = await remote.post(ev, id, { force: a !== 'post', text }); }
+          catch (er) { posting.delete(key); render(); if (S.sel === ev.id) refocus(id, `[data-act=${a}]`); toast(er.message, 'alert-triangle'); return; }
+          posting.delete(key); said = msg;
+          if (S.sel !== ev.id) { render(); toast(said, 'check'); return; } // another event is open now
+        }
 /*PROTO*/
-        else { ev.log.push([nowStamp(), `${ME} posted to ${ch.name} (simulated)`]); toast(`Posted to ${ch.name} (simulated)`); }
+        else {
+          ev.log.push([nowStamp(), `${ME} ${a === 'update' ? 'updated' : 'posted to'} ${ch.name} (simulated)`]);
+          toast(`${a === 'update' ? 'Updated' : 'Posted to'} ${ch.name} (simulated)`);
+          Object.assign(p, { status: 'posted', by: ME, at: new Date().toISOString(), url: '', text, stale: false, open: false });
+        }
 /*/PROTO*/
-        Object.assign(p, { status: 'posted', by: ME, at: new Date().toISOString(), url: '', open: false }); focus = '.oname'; break;
+        focus = '.oname'; break;
+      }
+      // Draft an update: the Group has the old details, so a new email goes through review and approval again
+      case 'redraft':
+        if (!can('approve') || id !== 'ggroup' || !isSent(p) || !p.stale) return;
+        { const redo = p.at || '-'; toReview(p); Object.assign(p, { text: updDraft(ev), edited: false, redo, open: true }); }
+        ev.log.push([nowStamp(), `${ME} drafted an update for ${ch.name}`]);
+        toast('Update drafted. Approve it to send it to the Group.', 'check'); focus = '.oacts button'; break;
       // copy and paste channels: copying is not posting, so it stays approved until someone marks it as posted
       case 'copy':
         try { await navigator.clipboard.writeText(p.text); }
@@ -2336,10 +2386,11 @@ function bindDetail(ev) {
       case 'unmark': p.marking = false; focus = '[data-act=mark]'; break;
       case 'undo':
         if (!can('approve') || p.status !== 'posted' || ch.mode === 'auto') return;
-        Object.assign(p, { status: 'approved', by: '', at: '', url: '' }); ev.log.push([nowStamp(), `${ME} un-marked ${ch.name}`]);
+        Object.assign(p, { status: 'approved', by: '', at: '', url: '', stale: false }); ev.log.push([nowStamp(), `${ME} un-marked ${ch.name}`]);
         toast(`${ch.name} is back to approved, not posted`, 'check'); focus = '[data-act=mark]'; break;
     }
     render(); refocus(id, focus);
+    if (said) toast(said, 'check'); // after the redraw, so a waiting "Saved" can't cover it
   }));
   // Mark as posted: an optional https link to the post, then posted by me, now
   $$('form[data-mark]', $('#detail')).forEach(f => f.addEventListener('submit', e => {
@@ -2350,7 +2401,7 @@ function bindDetail(ev) {
       err.textContent = 'Use the full link, starting with https://, or leave it blank.'; err.hidden = false;
       inp.setAttribute('aria-invalid', 'true'); inp.focus(); return;
     }
-    Object.assign(p, { status: 'posted', by: ME, at: new Date().toISOString(), url, marking: false, open: false });
+    Object.assign(p, { status: 'posted', by: ME, at: new Date().toISOString(), url, stale: false, marking: false, open: false });
     ev.log.push([nowStamp(), `${ME} marked ${ch.name} as posted`]);
     toast(`${ch.name} marked as posted`, 'check');
     render(); refocus(id, '[data-act=undo]');
@@ -2468,14 +2519,16 @@ function openDrawer(ev) {
     const data = { title: v('f-title'), date: v('f-date'), start: v('f-start'), end: v('f-end'), place: v('f-place'), address: v('f-address'), about: v('f-about'), bring: v('f-bring'), host: $('#f-host').value, photo: ($('input[name=photo]:checked') || {}).value || 'none', tags: $$('input[name=tag]:checked').map(i => i.value) };
     const ls = v('f-ls'), le = v('f-le');
     if (edit) {
+      const was = whenWhere(ev);
       Object.assign(ev, data);
+      const moved = was !== whenWhere(ev);
       if (ev.plan) { ev.plan.leadStart = ls; ev.plan.leadEnd = le; readPlanFields(ev.plan); }
       CHANNELS.forEach(c => {
         const p = ev.posts[c.id], on = chs.includes(c.id);
-        if (!on) { if (p.status !== 'posted') p.status = 'off'; return; }
+        if (!on) { if (!isSent(p)) p.status = 'off'; return; }
         if (p.status === 'off') { p.status = 'review'; p.text = draft(c.id, ev); p.edited = false; return; }
-        if (p.status === 'posted') { p.stale = true; return; }
-        if (!p.edited) p.text = draft(c.id, ev);
+        if (isSent(p)) { if (moved) p.stale = true; return; }
+        if (!p.edited) p.text = freshText(c.id, ev, p);
         if (p.status === 'approved') toReview(p);
       });
       ev.log.push([nowStamp(), `${ME} edited the details`]);

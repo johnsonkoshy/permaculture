@@ -99,6 +99,8 @@ function makeGas({ page, now, url = 'http://localhost:8766/', activeUser = 'owne
       if (fmt === 'yyyy-MM-dd') return `${p.year}-${p.month}-${p.day}`;
       if (fmt === 'H') return String(Number(p.hour));
       if (fmt === 'EEEE, MMMM d') return `${p.weekday}, ${new Intl.DateTimeFormat('en-US', { timeZone: TZ, month: 'long' }).format(d)} ${Number(p.day)}`;
+      if (fmt === 'MMM d') return `${new Intl.DateTimeFormat('en-US', { timeZone: TZ, month: 'short' }).format(d)} ${Number(p.day)}`;
+      if (fmt === 'h:mm a') return `${Number(p.hour) % 12 || 12}:${p.minute} ${Number(p.hour) < 12 ? 'AM' : 'PM'}`;
       throw new Error('formatDate fmt not mocked: ' + fmt);
     },
     parseDate(s, tz, fmt) {
@@ -117,6 +119,22 @@ function makeGas({ page, now, url = 'http://localhost:8766/', activeUser = 'owne
     put: (k, v, secs = 600) => { cache[k] = { v: String(v), until: clockNow() + secs * 1000 }; },
     remove: k => { delete cache[k]; },
   };
+  /* Calendar: g.calendar holds the events now on each calendar ({ id, cal, title, start, end, location, description });
+     createEvent adds one, its setters change it in place, and deleteEvent takes it off. getEventById finds one by id on that calendar. */
+  let calSeq = 0;
+  const calEvent = rec => ({
+    getId: () => rec.id,
+    setTime: (start, end) => { rec.start = start; rec.end = end; },
+    setTitle: t => { rec.title = t; },
+    setLocation: l => { rec.location = l; },
+    setDescription: d => { rec.description = d; },
+    deleteEvent: () => { const i = calendar.indexOf(rec); if (i >= 0) calendar.splice(i, 1); },
+  });
+  const calendarOf = (cal, name) => ({
+    getName: () => name,
+    createEvent: (title, start, end, o = {}) => { const rec = { id: `ev${++calSeq}@google.com`, cal, title, start, end, ...o }; calendar.push(rec); return calEvent(rec); },
+    getEventById: id => { const rec = calendar.find(r => r.id === id && r.cal === cal); return rec ? calEvent(rec) : null; },
+  });
   const logs = []; // console.log from Code.js (the Execution log in the script editor)
   const ctx = {
     console: { ...console, log: (...a) => logs.push(a.join(' ')) }, JSON, Math, Number, String, Object, Array, Set, Map, Error, RegExp, isNaN, Intl,
@@ -138,8 +156,8 @@ function makeGas({ page, now, url = 'http://localhost:8766/', activeUser = 'owne
       getRemainingDailyQuota: () => mailbox.quota,
     },
     CalendarApp: {
-      getDefaultCalendar: () => ({ getName: () => 'Owner calendar', createEvent: (title, start, end, o) => calendar.push({ cal: 'default', title, start, end, ...o }) }),
-      getCalendarById: id => ({ getName: () => 'Guild calendar', createEvent: (title, start, end, o) => calendar.push({ cal: id, title, start, end, ...o }) }),
+      getDefaultCalendar: () => calendarOf('default', 'Owner calendar'),
+      getCalendarById: id => calendarOf(id, 'Guild calendar'),
     },
     ScriptApp: {
       getService: () => ({ getUrl: () => url }),
