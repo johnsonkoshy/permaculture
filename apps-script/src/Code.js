@@ -6,7 +6,7 @@
    moved or added by hand is fine. Add a new column only at the END of a list: ensure_ adds it to the Sheet. */
 const TABS = {
   Events: ['id', 'label', 'title', 'date', 'start', 'end', 'place', 'address', 'host', 'co-hosts', 'description', 'bring', 'tags', 'notes', 'timeline', "data (don't edit)", 'status', 'rsvp link'],
-  Bringing: ['event id', 'what', 'who', 'status', 'task id', 'last time'],
+  Bringing: ['event id', 'what', 'who', 'status', 'task id', 'last time', 'type'],
   Posts: ['event id', 'channel', 'status', 'posted by', 'text', 'edited', 'approved by', 'approved at', 'posted at', 'post url', 'calendar id', 'stale'],
   Team: ['name', 'role', 'email or phone', 'reminders by', 'create events', 'edit events', 'post', 'assign tasks', 'manage team'],
   Volunteers: ['signed up', 'name', 'contact', 'wants to help with', 'note', 'id', 'email', 'phone', 'best way', 'free', 'heard from', 'email list', 'event'],
@@ -1017,7 +1017,7 @@ function saveEvent_(p) {
   row[ST] = status; row[RSVP] = rsvp;
   if (i >= 0) put_('Events', i + 2, [row]);
   else append_('Events', [row]);
-  replaceFor_('Bringing', id, (p.tasks || []).map(t => [id, t.what, t.who || '', t.status || '', t.id || '', t.last || '']));
+  replaceFor_('Bringing', id, (p.tasks || []).map(t => [id, t.what, t.who || '', t.status || '', t.id || '', t.last || '', taskType_(t.type)]));
   if (unaware) return;
   const postRows = rows_('Posts'), was = {}; // this event's Posts rows in the Sheet now, by channel
   postRows.forEach(r => { if (r[0] === id) was[r[1]] = r; });
@@ -1050,6 +1050,8 @@ function postRow_(id, x, was) {
   return row;
 }
 function short_(v, n) { return String(v == null ? '' : v).trim().slice(0, n); }
+/* A task's type, as the page names it (food, tools, setup, other...): plain lowercase words only. */
+function taskType_(v) { return String(v == null ? '' : v).trim().toLowerCase().replace(/[^a-z-]/g, '').slice(0, 20); }
 /* A link to a post on Partiful, Instagram and so on: kept only when it's a plain https:// link. */
 function postUrl_(v) {
   const s = String(v == null ? '' : v).trim();
@@ -1096,7 +1098,7 @@ function readAll_() {
     rows_(name).forEach(r => { (m[r[0]] = m[r[0]] || []).push(f(r)); });
     return m;
   };
-  const tasks = byEv('Bringing', r => ({ what: r[1], who: r[2], status: r[3], id: r[4], last: r[5] }));
+  const tasks = byEv('Bringing', r => ({ what: r[1], who: r[2], status: r[3], id: r[4], last: r[5], type: r[6] }));
   const posts = byEv('Posts', r => ({ channel: r[1], status: r[2], by: r[3], text: r[4], edited: !!r[5], approvedBy: r[6], approvedAt: r[7], at: r[8], url: r[9], stale: !!r[11] }));
   const log = byEv('Activity', r => [r[1], r[2]]);
   const problems = []; // rows an organizer needs to fix in the Sheet

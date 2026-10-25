@@ -291,7 +291,7 @@ test('the starter data is honest: drafts, open tasks, blank contacts, no sign-up
   await waitFor(() => p.$('#detail #dp-plan'), 2000, 'Workday #7 to open');
   const rows = p.$$('#detail .who-tbl tbody tr');
   assert.ok(rows.length >= 4, 'the copied tasks plus the parking sign');
-  assert.ok(rows.every(r => /Needs someone/.test(r.textContent)), 'every task needs someone');
+  assert.ok(rows.every(r => r.querySelector('[data-twho]').value === '' && statusText(r) === 'Needs someone'), 'every task needs someone');
   const hints = p.$$('#detail .who-tbl .last').map(x => x.textContent);
   assert.ok(hints.includes('Last time: Phil') && hints.includes('Last time: Karen'), hints.join(', '));
   p.$('#detail [data-dtab="outreach"]').click();
@@ -1099,6 +1099,9 @@ test('values typed into the Sheet never become page markup: photos, links, names
     cell('Events', 2, 'host', 'Jessie<img src=x id=pwn-host>');
     cell('Posts', 2, 'status', 'review"><img src=x id=pwn-status>');
     cell('Bringing', 2, 'task id', 't1"><img src=x id=pwn-task>');
+    cell('Bringing', 2, 'status', 'asked"><img src=x id=pwn-tstat>');
+    cell('Bringing', 2, 'type', '"><img src=x id=pwn-ttype>');
+    cell('Bringing', 2, 'who', 'Jessie<img src=x id=pwn-who>');
     cell('Team', 3, 'name', 'Phil<img src=x id=pwn-team>');
     g.sheets.get('Volunteers').set(2, 1, '2026-10-20');
     ['<img src=x id=pwn-vol>', '<img src=x id=pwn-contact>@x', '<img src=x id=pwn-help>', '<img src=x id=pwn-note>'].forEach((v, i) => g.sheets.get('Volunteers').set(2, i + 2, v));
@@ -1123,6 +1126,8 @@ test('values typed into the Sheet never become page markup: photos, links, names
   assert.equal(p.$('#dp-out .obody a').href, 'https://partiful.com/');
   const del = p.$('#detail [data-tdel]');
   assert.match(del.dataset.tdel, /^t\d+$/, 'a task id the Sheet would refuse gets a new one');
+  assert.equal(p.$('#detail [data-twho]').value, 'Jessie<img src=x id=pwn-who>', 'a name typed into the Bringing tab shows as typed');
+  assert.equal(p.$('#detail [data-tstat]').value, 'asked', "a status the app doesn't know reads as asked");
   p.$('#m-x').click();
   p.$('.tabs a[data-tab=team]').click();
   assert.match(p.$('#vol-tbl').textContent, /<img src=x id=pwn-vol>/, 'the sign-up shows as typed');
@@ -4102,6 +4107,293 @@ test('the prototype artifact cancels and deletes without a server', async t => {
   // signed out, the landing has no Workday #7
   p.$('#signout').click();
   assert.ok(p.shown('#p-landing') && !p.$$('#nextup a.nxcard').some(a => a.dataset.ev === 'w7'));
+  assert.deepEqual(p.api.calls, [], 'the artifact calls no server');
+  p.noErrors();
+});
+
+/* ---------- who's bringing what, asking people, and the team's contacts ---------- */
+const PLATES = 'Bring plates, cups, napkins, utensils', SNACKS = 'Snacks and water station';
+// the event's Bringing rows, by header
+const bringRows = (p, ev) => { const [head, ...rows] = p.g.tab('Bringing'); return rows.filter(r => r[0] === ev).map(r => Object.fromEntries(head.map((h, i) => [h, r[i]]))); };
+const bringRow = (p, ev, id) => bringRows(p, ev).find(r => r['task id'] === id);
+const taskId = (p, ev, what) => (bringRows(p, ev).find(r => r.what === what) || {})['task id'];
+const taskTr = (p, id) => p.$(`#tasks-body tr[data-task="${id}"]`);
+const optTexts = (el, sel) => [...el.querySelector(sel).options].map(o => o.textContent);
+const statusText = tr => { const s = tr.querySelector('[data-tstat]'); return s.options[s.selectedIndex].textContent; };
+const groupsOf = sel => [...sel.querySelectorAll('optgroup')].map(g => [g.label, [...g.children].map(o => o.textContent)]);
+const teamRow = (p, name) => { const [head, ...rows] = p.g.tab('Team'), r = rows.find(x => x[0] === name); return r && Object.fromEntries(head.map((h, i) => [h, r[i]])); };
+const teamTr = (p, name) => p.$$('#team-tbl tbody tr').find(r => r.querySelector('b').textContent === name);
+// mailto: and sms: links can't open in jsdom: keep where each would go instead
+function noLeave(p) {
+  const went = [];
+  p.w.addEventListener('click', e => { const a = e.target.closest && e.target.closest('a[href^="mailto:"], a[href^="sms:"]'); if (a) { e.preventDefault(); went.push(a.getAttribute('href')); } }, true);
+  return went;
+}
+const bodyOf = href => decodeURIComponent(href.match(/[?&]body=([^&]*)/)[1]);
+const key = (p, el, k) => el.dispatchEvent(new p.w.KeyboardEvent('keydown', { key: k, bubbles: true, cancelable: true }));
+async function openW7(p) {
+  p.$('#tiles [data-open="w7"]').click();
+  await waitFor(() => p.$('#detail #tasks-body tr[data-task]'), 2000, 'Workday #7 to open');
+}
+
+test("Who's bringing what: pick someone, set where it stands, and it's in the Bringing tab after a reload; Can't make it says to find someone", async t => {
+  const p = await openPage(t);
+  await signIn(p, 'Jessie');
+  await openW7(p);
+  const id = taskId(p, 'w7', PLATES), row = () => taskTr(p, id);
+  assert.equal(bringRow(p, 'w7', id).type, 'food', "the task's type is in the Bringing tab");
+  assert.equal(p.$('#dt-plan .n').textContent, '4 open');
+  // nobody on it yet: it needs someone, or it's done. Phil did it last time.
+  assert.deepEqual(optTexts(row(), '[data-tstat]'), ['Needs someone', 'Done']);
+  assert.equal(row().querySelector('.last').textContent, 'Last time: Phil');
+  assert.equal(row().querySelector('[data-again]').textContent, 'Ask Phil again');
+  assert.deepEqual(groupsOf(row().querySelector('[data-twho]')), [['Team', TEAM_NAMES]], 'no sign-ups yet, so only the team');
+  assert.ok(!row().querySelector('.rline'), 'no reminders for nobody');
+
+  p.set(`[data-twho="${id}"]`, 'Phil');
+  assert.equal(p.d.activeElement, row().querySelector('[data-twho]'), 'focus stays on Who');
+  assert.equal(statusText(row()), 'Not asked yet');
+  assert.deepEqual(optTexts(row(), '[data-tstat]'), ['Not asked yet', 'Asked', 'Confirmed', "Can't make it", 'Done']);
+  assert.ok(!row().querySelector('[data-ask]'), 'no Ask link while Phil has no contact');
+  assert.equal(row().querySelector('.rline').textContent, 'Add a contact on the Team page');
+  assert.equal(p.$('#dt-plan .n').textContent, '3 open');
+  p.set(`[data-tstat="${id}"]`, 'confirmed');
+  assert.equal(p.d.activeElement, row().querySelector('[data-tstat]'), 'focus stays on the status');
+  await waitFor(() => bringRow(p, 'w7', id).status === 'confirmed' && p.idle(), 3000, 'Confirmed in the Bringing tab');
+  assert.deepEqual([bringRow(p, 'w7', id).who, bringRow(p, 'w7', id)['last time'], bringRow(p, 'w7', id).type], ['Phil', 'Phil', 'food']);
+  assert.deepEqual(activity(p, 'w7').slice(-2), [`Jessie gave "${PLATES}" to Phil`, `Jessie set "${PLATES}" to Confirmed`]);
+
+  // a reload: still Confirmed
+  const q = await openPage(t, null, p.g);
+  await signIn(q, 'Jessie');
+  await openW7(q);
+  const qrow = () => taskTr(q, id);
+  assert.deepEqual([qrow().querySelector('[data-twho]').value, qrow().querySelector('[data-tstat]').value], ['Phil', 'confirmed']);
+  // Phil can't make it after all: the row says to find someone, and it counts as open again
+  q.set(`[data-tstat="${id}"]`, 'cant');
+  assert.ok(qrow().classList.contains('cant'));
+  assert.equal(qrow().querySelector('.find').textContent, 'Find someone');
+  assert.ok(!qrow().querySelector('.rline'), "no reminders for someone who can't make it");
+  assert.equal(q.$('#dt-plan .n').textContent, '4 open');
+  await waitFor(() => bringRow(q, 'w7', id).status === 'cant' && q.idle(), 3000, "Can't make it in the Bringing tab");
+
+  // Ask Karen again (she did the snacks last time): she's on it, and asked
+  const sid = taskId(q, 'w7', SNACKS);
+  taskTr(q, sid).querySelector('[data-again]').click();
+  await waitFor(() => taskTr(q, sid).querySelector('[data-twho]').value === 'Karen', 2000, 'Karen on the snacks');
+  assert.equal(statusText(taskTr(q, sid)), 'Asked');
+  await waitFor(() => bringRow(q, 'w7', sid).status === 'asked' && bringRow(q, 'w7', sid).who === 'Karen' && q.idle(), 3000, 'asked in the Bringing tab');
+  assert.ok(activity(q, 'w7').includes(`Jessie asked Karen again about "${SNACKS}"`));
+
+  // the words: tap them to change them; Enter keeps, Escape puts them back (and leaves the pop-up open)
+  qrow().querySelector('[data-twhat]').click();
+  let inp = q.$(`#tasks-body [data-twin="${id}"]`);
+  assert.equal(q.d.activeElement, inp, 'the box has focus');
+  assert.equal(inp.value, PLATES);
+  inp.value = 'Plates and cups';
+  key(q, inp, 'Enter');
+  assert.equal(qrow().querySelector('[data-twhat]').textContent, 'Edit Plates and cups');
+  assert.equal(q.d.activeElement, qrow().querySelector('[data-twhat]'), 'focus back on the words');
+  qrow().querySelector('[data-twhat]').click();
+  inp = q.$(`#tasks-body [data-twin="${id}"]`);
+  inp.value = 'Something else';
+  key(q, inp, 'Escape');
+  assert.ok(!q.$('#modal').hidden, 'Escape in the box leaves the pop-up open');
+  assert.equal(qrow().querySelector('[data-twhat]').textContent, 'Edit Plates and cups');
+  // leaving the box keeps the words too, and focus stays where it went
+  qrow().querySelector('[data-twhat]').click();
+  inp = q.$(`#tasks-body [data-twin="${id}"]`);
+  inp.value = 'Plates, cups and napkins';
+  q.$('#nt-text').focus();
+  assert.equal(qrow().querySelector('[data-twhat]').textContent, 'Edit Plates, cups and napkins');
+  assert.equal(q.d.activeElement, q.$('#nt-text'));
+  await waitFor(() => bringRow(q, 'w7', id).what === 'Plates, cups and napkins' && q.idle(), 3000, 'the new words in the Bringing tab');
+  assert.ok(activity(q, 'w7').includes(`Jessie changed "${PLATES}" to "Plates and cups"`));
+  checkIcons(q, "who's bringing what");
+  p.noErrors(); q.noErrors();
+});
+
+test('Team: tap a row to add how to reach someone; it persists, and the Ask link texts a phone or emails an address, written for them', async t => {
+  const p = await openPage(t);
+  await signIn(p, 'Jessie');
+  p.$('.tabs a[data-tab=team]').click();
+  assert.equal(p.$$('.roles > div')[2].textContent, 'VolunteerNo sign-in. Gets reminders by email. If they only have a phone, the host gets a list to text.');
+  // tap Phil's row
+  teamTr(p, 'Phil').cells[2].click();
+  const inp = await waitFor(() => p.$('#pe-contact'), 2000, "Phil's contact box");
+  assert.equal(p.d.activeElement, inp);
+  p.set('#pe-contact', 'phil@example.org');
+  assert.equal(p.$('#pe-via').value, 'Email', 'an email address gets email');
+  p.$('#pe-form button[type=submit]').click();
+  assert.equal(p.d.activeElement, teamTr(p, 'Phil').querySelector('[data-pedit]'), 'focus back on his contact');
+  await waitFor(() => p.api.toasts.includes('Saved how to reach Phil'), 3000, 'the saved toast');
+  assert.deepEqual([teamRow(p, 'Phil')['email or phone'], teamRow(p, 'Phil')['reminders by']], ['phil@example.org', 'Email']);
+  // Karen, by keyboard: her contact is a button. A phone number with Email picked is turned back.
+  teamTr(p, 'Karen').querySelector('[data-pedit]').click();
+  p.set('#pe-contact', '(510) 555-0144');
+  assert.equal(p.$('#pe-via').value, 'Text', 'a phone number texts');
+  p.set('#pe-via', 'Email');
+  p.$('#pe-form button[type=submit]').click();
+  assert.ok(p.shown('#pe-err'));
+  assert.equal(p.$('#pe-err').textContent, 'That is a phone number. Pick Text, or type an email address.');
+  p.set('#pe-via', 'Text');
+  p.$('#pe-form button[type=submit]').click();
+  await waitFor(() => (teamRow(p, 'Karen') || {})['email or phone'] === '(510) 555-0144' && p.idle(), 3000, "Karen's phone in the Team tab");
+  assert.equal(teamRow(p, 'Karen')['reminders by'], 'Text');
+  // Escape leaves Meena as she was
+  teamTr(p, 'Meena').querySelector('[data-pedit]').click();
+  p.set('#pe-contact', 'meena@example.org');
+  key(p, p.$('#pe-contact'), 'Escape');
+  assert.ok(!p.$('#pe-form'));
+  assert.equal(teamTr(p, 'Meena').querySelector('.warnchip').textContent, 'No contact yet');
+  checkIcons(p, 'team');
+
+  // a reload: the contacts are still there
+  const q = await openPage(t, null, p.g);
+  await signIn(q, 'Jessie');
+  q.$('.tabs a[data-tab=team]').click();
+  assert.match(teamTr(q, 'Phil').textContent, /phil@example\.org/);
+  assert.match(teamTr(q, 'Karen').textContent, /\(510\) 555-0144/);
+  q.$('.tabs a[data-tab=events]').click();
+  await openW7(q);
+  const went = noLeave(q);
+  const pid = taskId(q, 'w7', PLATES), sid = taskId(q, 'w7', SNACKS);
+  q.set(`[data-twho="${pid}"]`, 'Phil');
+  q.set(`[data-twho="${sid}"]`, 'Karen');
+  const pa = taskTr(q, pid).querySelector('[data-ask]'), sa = taskTr(q, sid).querySelector('[data-ask]');
+  assert.match(pa.getAttribute('href'), /^mailto:phil@example\.org\?subject=/);
+  assert.equal(decodeURIComponent(pa.getAttribute('href').match(/subject=([^&]*)/)[1]), `${PLATES} for Workday #7 (Sun 10/25)`);
+  assert.equal(bodyOf(pa.getAttribute('href')), `Hi Phil, it's Jessie from the East Bay Permaculture Guild. Could you bring plates, cups, napkins, utensils to Workday #7 on Sun 10/25 at 10 AM? Reply yes or no. Thank you!`);
+  assert.equal(pa.getAttribute('aria-label'), `Ask Phil about ${PLATES} by email`);
+  assert.equal(taskTr(q, pid).querySelector('.rline').textContent, 'Reminders by email: Sat from 6 PM and Sun morning');
+  assert.match(sa.getAttribute('href'), /^sms:5105550144\?&body=/);
+  assert.equal(bodyOf(sa.getAttribute('href')), "Hi Karen, it's Jessie from the East Bay Permaculture Guild. Could you help with snacks and water station at Workday #7 on Sun 10/25 at 10 AM? Reply yes or no. Thank you!");
+  assert.equal(taskTr(q, sid).querySelector('.rline').textContent, 'No email: the host gets a list to text');
+  // opening Ask: Phil hadn't been asked yet, so now he has. No email goes from the server.
+  pa.click();
+  assert.deepEqual(went, [pa.getAttribute('href')]);
+  await waitFor(() => statusText(taskTr(q, pid)) === 'Asked', 2000, 'Asked');
+  assert.equal(q.d.activeElement, taskTr(q, pid).querySelector('[data-ask]'), 'focus stays on Ask');
+  await waitFor(() => bringRow(q, 'w7', pid).status === 'asked' && q.idle(), 3000, 'asked in the Bringing tab');
+  const lines = activity(q, 'w7').filter(l => /asked Phil/.test(l));
+  taskTr(q, pid).querySelector('[data-ask]').click(); // again: already asked
+  await sleep(50);
+  await waitFor(q.idle, 2000, 'saves to finish');
+  assert.deepEqual(activity(q, 'w7').filter(l => /asked Phil/.test(l)), lines, 'asked once');
+  assert.deepEqual(lines, [`Jessie asked Phil about "${PLATES}"`]);
+  assert.deepEqual(q.g.mail, [], 'the page sends no email for Ask');
+  // a task marked done has nothing to ask
+  q.set(`[data-tstat="${sid}"]`, 'done');
+  assert.ok(!taskTr(q, sid).querySelector('[data-ask]') && !taskTr(q, sid).querySelector('.rline'));
+  p.noErrors(); q.noErrors();
+});
+
+test("a sign-up from the home page is in the Who list under New volunteers; picking her puts her on the Team tab as a volunteer", async t => {
+  const p = await openPage(t, null, await seededSheet(t));
+  settled(p);
+  p.set('#vj-name', 'Maya');
+  p.set('#vj-email', 'maya@example.org');
+  p.set('#vj-phone', '(510) 555-0199');
+  p.$('input[name=vj-best][value=Text]').click();
+  p.$('#vj-picks input[name=vj-help]').click();
+  p.$('#vj-send').click();
+  await waitFor(() => p.shown('#joined'), 3000, 'the thank-you');
+  await signIn(p, 'Jessie');
+  await openW7(p);
+  assert.deepEqual(groupsOf(p.$('#nt-who')), [['Team', TEAM_NAMES], ['New volunteers', ['Maya']]]);
+  assert.equal(p.$('#nt-who').options[0].textContent, 'Needs someone');
+  const maya = [...p.$('#nt-who').options].find(o => o.textContent === 'Maya').value;
+  p.set('#nt-text', 'Plates');
+  p.set('#nt-who', maya);
+  p.$('#nt-add').click();
+  await waitFor(() => teamRow(p, 'Maya') && p.idle(), 3000, 'Maya on the Team tab');
+  assert.deepEqual(['role', 'email or phone', 'reminders by'].map(h => teamRow(p, 'Maya')[h]), ['Volunteer', '(510) 555-0199', 'Text'], 'a volunteer, reached the way she said is best');
+  await waitFor(() => p.api.toasts.includes('Added Maya to the team'), 2000, 'the toast');
+  const id = taskId(p, 'w7', 'Plates');
+  assert.deepEqual(['who', 'status', 'type'].map(h => bringRow(p, 'w7', id)[h]), ['Maya', 'open', 'other']);
+  const row = taskTr(p, id);
+  assert.equal(statusText(row), 'Not asked yet');
+  const href = row.querySelector('[data-ask]').getAttribute('href');
+  assert.match(href, /^sms:5105550199\?&body=/);
+  assert.equal(bodyOf(href), "Hi Maya, it's Jessie from the East Bay Permaculture Guild. Could you bring plates to Workday #7 on Sun 10/25 at 10 AM? Reply yes or no. Thank you!");
+  assert.equal(row.querySelector('.rline').textContent, 'No email: the host gets a list to text');
+  assert.deepEqual(activity(p, 'w7').slice(-2), ['Jessie added Maya to the team', 'Jessie gave "Plates" to Maya']);
+  // she's on the team now, so not a new volunteer any more
+  assert.deepEqual(groupsOf(row.querySelector('[data-twho]')), [['Team', [...TEAM_NAMES, 'Maya']]]);
+  p.$('#m-x').click();
+  p.$('.tabs a[data-tab=team]').click();
+  assert.equal(teamTr(p, 'Maya').querySelector('[data-role]').value, 'vol');
+  assert.match(teamTr(p, 'Maya').textContent, /\(510\) 555-0199/);
+  p.noErrors();
+});
+
+// the 10 seconds to Undo a removal, made 2.5 so a test can see the Sheet without the person, then undo it
+const shortUndo = w => { const st = w.setTimeout; w.setTimeout = (f, ms, ...a) => st.call(w, f, ms === 10000 ? 2500 : ms, ...a); };
+test('Team: Remove asks first, then Undo puts the person back, in the Sheet too; once the time is up it stays done', async t => {
+  const p = await openPage(t, shortUndo);
+  await signIn(p, 'Jessie');
+  p.$('.tabs a[data-tab=team]').click();
+  const names = () => p.$$('#team-tbl tbody tr b').map(b => b.textContent);
+  const sheetNames = () => p.g.tab('Team').slice(1).map(r => r[0]);
+  teamTr(p, 'Karen').querySelector('[data-rm]').click();
+  assert.equal(p.$('#prm-q').textContent, 'Remove Karen?');
+  assert.equal(p.d.activeElement, p.$('#team-tbl [data-rmno]'), 'focus on Cancel');
+  p.$('#team-tbl [data-rmno]').click();
+  assert.ok(!p.$('#prm-q'));
+  assert.equal(p.d.activeElement, teamTr(p, 'Karen').querySelector('[data-rm]'), 'focus back on Remove');
+  teamTr(p, 'Karen').querySelector('[data-rm]').click();
+  p.$('#team-tbl [data-rmyes]').click();
+  assert.ok(!teamTr(p, 'Karen'), 'gone from the table');
+  assert.ok(!p.$('#undobar').hidden);
+  assert.equal(p.$('#undo-msg').textContent, 'Removed Karen from the team.');
+  assert.equal(p.d.activeElement, p.$('#undo-btn'), 'Undo has keyboard focus');
+  checkIcons(p, 'the Undo bar');
+  await waitFor(() => !sheetNames().includes('Karen') && p.idle(), 3000, 'the Team tab without Karen');
+  p.$('#undo-btn').click();
+  assert.deepEqual(names(), TEAM_NAMES, 'back where she was');
+  assert.ok(p.$('#undobar').hidden);
+  await waitFor(() => p.api.toasts.includes('Karen is back on the team.'), 2000, 'the toast');
+  await waitFor(() => sheetNames().join() === TEAM_NAMES.join() && p.idle(), 3000, 'the Team tab with Karen again');
+  // this time the 10 seconds run out
+  teamTr(p, 'Meena').querySelector('[data-rm]').click();
+  p.$('#team-tbl [data-rmyes]').click();
+  await waitFor(() => p.$('#undobar').hidden, 4000, 'the Undo bar to go');
+  assert.equal(p.d.activeElement, p.$('#ap-name'), 'focus moves on from the Undo bar');
+  await waitFor(() => !sheetNames().includes('Meena') && p.idle(), 3000, 'the Team tab without Meena');
+  assert.ok(!names().includes('Meena'));
+  // without "Manage team": no editing contacts and no Remove
+  p.$('#signout').click();
+  await signIn(p, 'Kalynn');
+  p.$('.tabs a[data-tab=team]').click();
+  assert.ok(!p.$('#team-tbl [data-pedit]') && !p.$('#team-tbl [data-prow]') && !p.$('#team-tbl [data-rm]'));
+  p.noErrors();
+});
+
+test('the prototype artifact: tasks take a status and a new volunteer from the home page, and the team can be edited, with no server', async t => {
+  const p = loadPage(t, ARTIFACT, 'http://localhost/artifact');
+  await waitFor(() => p.shown('#p-landing'), 2000, 'the artifact landing page');
+  settled(p);
+  p.set('#vj-name', 'Maya');
+  p.set('#vj-email', 'maya@example.org');
+  p.$('#vj-picks input[name=vj-help]').click();
+  p.$('#vj-send').click();
+  await waitFor(() => p.shown('#joined'), 3000, 'the thank-you');
+  p.$('#signin-top').click();
+  p.$('#si-google').click();
+  p.$('#tiles [data-open="w7"]').click();
+  const row = p.$('#tasks-body tr[data-task]'), id = row.dataset.task;
+  const maya = [...row.querySelector('[data-twho]').options].find(o => o.textContent === 'Maya').value;
+  p.set(`[data-twho="${id}"]`, maya);
+  assert.equal(p.$(`#tasks-body tr[data-task="${id}"] [data-ask]`).getAttribute('href').slice(0, 24), 'mailto:maya@example.org?');
+  p.set(`[data-tstat="${id}"]`, 'confirmed');
+  assert.equal(p.$(`#tasks-body tr[data-task="${id}"] [data-tstat]`).value, 'confirmed');
+  p.$('#m-x').click();
+  p.$('.tabs a[data-tab=team]').click();
+  assert.ok(teamTr(p, 'Maya'), 'Maya is on the team');
+  teamTr(p, 'Rob').querySelector('[data-pedit]').click();
+  p.set('#pe-contact', 'rob@example.org');
+  p.$('#pe-form button[type=submit]').click();
+  assert.match(teamTr(p, 'Rob').textContent, /rob@example\.org/);
   assert.deepEqual(p.api.calls, [], 'the artifact calls no server');
   p.noErrors();
 });

@@ -78,7 +78,7 @@ if (window.EBPG_GAS) {
       cols: { label: ev.label || '', title: ev.title, date: ev.date, start: ev.start, end: ev.end, place: ev.place, address: ev.address || '', host: hostOf(pl), cohosts: cohostsOf(pl).join(', '),
         about: ev.about || '', bring: ev.bring || '', tags: ev.tags.join(', '), notes: (pl.notes || []).join('\n'), timeline: PT.timeline(pl),
         status: ev.status || '', rsvp: ev.rsvp || '' }, // a blank status leaves the Sheet's as it is
-      tasks: (tasks || []).map(t => ({ id: t.id, what: t.text, who: t.who || '', status: t.status || '', last: t.last || '' })),
+      tasks: (tasks || []).map(t => ({ id: t.id, what: t.text, who: t.who || '', status: t.status || '', last: t.last || '', type: taskType(t.type) })),
       posts: CHANNELS.filter(c => posts[c.id] && posts[c.id].status !== 'off').map(c => {
         const q = posts[c.id];
         // stale: the title, date, time or place changed since it went out. redo: Draft an update names the post it replaces
@@ -113,8 +113,9 @@ if (window.EBPG_GAS) {
     if (c.notes !== (pl.notes || []).join('\n')) pl.notes = lns(c.notes);
     if (c.timeline !== PT.timeline(pl)) pl.timeline = parseTimeline(c.timeline);
     ev.host = hostOf(pl) || ev.host || '';
-    // a task id typed by hand that the Sheet wouldn't take back gets a new one
-    ev.tasks = r.tasks.map(t => Object.assign(mkTask('other', t.what, t.who, t.status || (t.who ? 'asked' : 'open')), ID_OK.test(t.id || '') ? { id: t.id } : {}, t.last ? { last: t.last } : {}));
+    // a task id typed by hand that the Sheet wouldn't take back gets a new one; a type it doesn't know is 'other', and a
+    // status typed by hand ('Confirmed', "Can't make it") reads as the app's own (blank: asked once someone's on it)
+    ev.tasks = r.tasks.map(t => Object.assign(mkTask(t.type, t.what, t.who, taskStatus(t.status, t.who)), ID_OK.test(t.id || '') ? { id: t.id } : {}, t.last ? { last: t.last } : {}));
     ev.posts = {};
     CHANNELS.forEach(ch => {
       const p = r.posts[ch.id], st = p && STATUS[p.status] ? p.status : 'review';
@@ -424,7 +425,8 @@ if (window.EBPG_GAS) {
       evs = news = true;
     }
     const rawTeam = JSON.stringify(st.team || []);
-    if (st.team?.length && rawTeam !== base.team && !held('team')) {
+    // (not while someone's contact is being changed on the Team page: that waits for the next read)
+    if (st.team?.length && rawTeam !== base.team && !held('team') && !S.pedit) {
       const before = snapTeam(), ours = mine.delete('team');
       TEAM.splice(0, TEAM.length, ...st.team);
       base.team = rawTeam; saved.team = snapTeam();
@@ -445,6 +447,8 @@ if (window.EBPG_GAS) {
     }
     if (team) { renderAs(); renderTeam(); }
     if (vl) renderVols();
+    // the open event's Who lists, Ask links and reminder lines go by the team and the sign-ups
+    if ((team || vl) && open && !openRedo && !S.editing && !typing()) renderDetail();
     status();
     return news;
   }

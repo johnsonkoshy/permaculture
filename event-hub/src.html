@@ -467,32 +467,12 @@ legend { font-size: 13px; font-weight: 700; color: var(--ink-2); margin-bottom: 
 .fold .cnt { font: 400 13px/1 var(--body); color: var(--ink-3); }
 .fold .ic { color: var(--fern); }
 
-/* tasks */
-.tasks { display: grid; gap: 6px; }
-.task { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--raised); }
-.task.open { border-style: dashed; background: transparent; }
-.task.cant { border-color: var(--flag); }
-@media (max-width: 620px) { .task { grid-template-columns: 34px minmax(0, 1fr); } .task .ta { grid-column: 1 / -1; justify-content: flex-start; } }
-.tico { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; font-size: 16px; background: var(--fern-soft); }
-.task b { font-size: 15px; display: block; }
-.task .sub { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-top: 3px; font-size: 12px; color: var(--ink-3); }
-.ta { display: flex; gap: 6px; align-items: center; justify-content: flex-end; flex-wrap: wrap; }
+/* task statuses (a past event's tasks show theirs as a pill) */
 .pill.asked { background: var(--lemon-soft); color: var(--lemon-ink); }
 .pill.confirmed { background: var(--water-soft); color: var(--water); }
 .pill.done { background: var(--fern-soft); color: var(--fern); }
 .pill.cant { background: var(--flag-soft); color: var(--flag); }
 .pill.open { background: transparent; color: var(--ink-3); border: 1px dashed var(--line-2); }
-.rem { font: 400 11px/1 var(--mono); padding: 4px 6px; border-radius: 4px; background: var(--paper); border: 1px solid var(--line); color: var(--ink-2); white-space: nowrap; }
-.rem.sent { color: var(--ink-3); text-decoration: line-through; text-decoration-color: var(--line-2); }
-.task-body { grid-column: 1 / -1; display: grid; gap: 8px; padding-top: 6px; border-top: 1px solid var(--line); }
-.bub { max-width: 520px; padding: 9px 12px; border-radius: 14px 14px 14px 4px; background: var(--paper); border: 1px solid var(--line); font-size: 14px; line-height: 1.45; }
-.addtask { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) minmax(0, 1fr) auto; gap: 8px; align-items: end; padding: 12px; border-radius: 12px; background: var(--paper); border: 1px solid var(--line); }
-@media (max-width: 760px) { .addtask { grid-template-columns: 1fr 1fr; } }
-.addtask .fld select, .addtask .fld input { padding: 7px 9px; font-size: 14px; }
-.addtask .rems { grid-column: 1 / -1; display: flex; gap: 6px 14px; flex-wrap: wrap; font-size: 13px; align-items: center; color: var(--ink-2); }
-.addtask .rems label { display: inline-flex; gap: 5px; align-items: center; }
-.addtask .rems input { accent-color: var(--fern); }
-.tsum { font-size: 13px; color: var(--ink-2); }
 /* team + permissions */
 /*PROTO*/
 .whosel { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--ink-3); }
@@ -509,6 +489,15 @@ legend { font-size: 13px; font-weight: 700; color: var(--ink-2); margin-bottom: 
 .team td .ic { width: 14px; height: 14px; vertical-align: -2px; margin-right: 5px; color: var(--ink-3); }
 .team th .thi { display: inline-flex; flex-direction: column; align-items: center; gap: 4px; }
 .team th .ic { width: 15px; height: 15px; }
+.team .pcon { position: relative; display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; border: 0; background: transparent; padding: 3px 0; margin: 0; cursor: pointer; text-align: left; font: inherit; color: inherit; }
+.team .pcon > .ic { margin: 0; opacity: .7; }
+.team .pcon:hover .hint { color: var(--fern); text-decoration: underline; text-underline-offset: 3px; }
+.team tr.tap { cursor: pointer; }
+.team tr.tap:hover td { background: var(--fern-soft); }
+.team .pedit { display: grid; gap: 8px; margin-top: 8px; min-width: 220px; max-width: 280px; }
+.team .pedit .fld input, .team .pedit .fld select { padding: 7px 9px; font-size: 14px; }
+.team .pedit .err { font-size: 13px; white-space: normal; }
+.team .prm { display: inline-flex; align-items: center; gap: 8px; font-weight: 700; font-size: 13px; }
 .warnchip { display: inline-block; margin-top: 2px; padding: 2px 8px; border-radius: 999px; background: var(--flag-soft); color: var(--flag); font-size: 12px; font-weight: 700; line-height: 1.4; white-space: nowrap; }
 .team td.vol-empty { white-space: normal; padding: 16px 14px; }
 /* the Volunteer list: how to reach them, and their note, one line each */
@@ -665,15 +654,46 @@ legend { font-size: 13px; font-weight: 700; color: var(--ink-2); margin-bottom: 
 
 .who-tbl { width: 100%; border-collapse: collapse; font-size: 15px; min-width: 0; }
 .who-tbl th { text-align: left; font: 700 13px/1.3 var(--body); color: var(--ink-2); padding: 8px 10px; border-bottom: 2px solid var(--line-2); }
-.who-tbl td { padding: 9px 10px; border-bottom: 1px solid var(--line); vertical-align: middle; }
-.who-tbl td:nth-child(2) { width: 34%; font-weight: 700; }
+.who-tbl td { padding: 9px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.who-tbl .tw { font-weight: 700; overflow-wrap: anywhere; }
+.who-tbl .tp { width: 32%; }
+.who-tbl .ts { width: 24%; }
 .who-tbl .rm { width: 1%; white-space: nowrap; text-align: right; }
 .who-tbl .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 .who-tbl .needs { color: var(--flag); font-weight: 700; display: inline-flex; align-items: center; gap: 5px; }
 .who-tbl .needs .ic { width: 14px; height: 14px; }
-.who-tbl .last { display: block; font-size: 12px; font-weight: 400; color: var(--ink-3); }
-.who-tbl tfoot td { border-bottom: 0; padding-top: 10px; }
-.who-tbl input, .who-tbl select { width: 100%; border: 1px solid var(--line-2); border-radius: 8px; padding: 7px 9px; background: var(--surface); font-size: 14px; }
+.who-tbl .twhat { position: relative; display: inline-block; max-width: 100%; border: 0; background: transparent; padding: 7px 0; margin: 0; font: inherit; font-weight: 700; color: var(--ink); text-align: left; cursor: text; overflow-wrap: anywhere; }
+.who-tbl .twhat .ic { width: 13px; height: 13px; margin-left: 6px; vertical-align: -1px; color: var(--ink-3); }
+.who-tbl .twhat:hover { text-decoration: underline dashed var(--line-2); text-underline-offset: 4px; }
+.who-tbl .twhat:hover .ic { color: var(--fern); }
+.who-tbl .twhat[disabled] { cursor: default; text-decoration: none; }
+.who-tbl .twhat[disabled] .ic { display: none; }
+.who-tbl .find { display: flex; align-items: center; gap: 5px; margin-top: 4px; color: var(--flag); font-size: 12px; font-weight: 700; }
+.who-tbl .find .ic { width: 13px; height: 13px; flex: none; }
+.who-tbl tr.cant > td { background: var(--flag-soft); }
+.who-tbl tr.cant select[data-tstat] { border-color: var(--flag); color: var(--flag); font-weight: 700; }
+.who-tbl tr.nobody select[data-twho] { border-style: dashed; }
+.who-tbl select.st-confirmed, .who-tbl select.st-done { border-color: var(--fern); }
+.who-tbl .tsub { display: flex; flex-wrap: wrap; align-items: center; gap: 0 10px; margin-top: 4px; }
+.who-tbl .last { font-size: 12px; font-weight: 400; color: var(--ink-3); }
+.who-tbl .tsub .tog { padding: 4px 0; font-size: 12px; color: var(--fern); }
+.who-tbl .rline { display: flex; align-items: flex-start; gap: 5px; margin-top: 5px; font-size: 12px; line-height: 1.35; font-weight: 400; color: var(--ink-3); }
+.who-tbl .rline.warn { color: var(--flag); }
+.who-tbl .rline .ic { width: 13px; height: 13px; flex: none; margin-top: 1px; }
+.who-tbl .tsc { display: flex; align-items: center; gap: 4px 10px; flex-wrap: wrap; }
+.who-tbl .tsc select { flex: 1 1 120px; width: auto; min-width: 0; }
+.who-tbl .ask { display: inline-flex; align-items: center; gap: 5px; min-height: 32px; font-size: 13px; font-weight: 700; color: var(--fern); white-space: nowrap; text-decoration: none; }
+.who-tbl .ask:hover { text-decoration: underline; text-underline-offset: 3px; }
+.who-tbl .ask .ic, .who-tbl .tsub .ic { width: 14px; height: 14px; }
+.who-tbl tfoot td { border-bottom: 0; padding-top: 10px; vertical-align: middle; }
+.who-tbl input, .who-tbl select { width: 100%; border: 1px solid var(--line-2); border-radius: 8px; padding: 7px 9px; background: var(--surface); font-size: 14px; color: var(--ink); }
+.who-tbl .twin { font-weight: 700; }
+/* on a phone each task is a card: what (and Remove) on top, then who, then where it stands */
+@media (max-width: 600px) { .who-tbl thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); } }
+@media (max-width: 600px) { .who-tbl tr { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--line); } .who-tbl td { display: block; width: auto !important; padding: 3px 0; border-bottom: 0; } }
+@media (max-width: 600px) { .who-tbl tbody tr.cant { background: var(--flag-soft); margin: 0 -10px; padding-inline: 10px; border-radius: 8px; } .who-tbl tr.cant > td { background: transparent; } }
+@media (max-width: 600px) { .who-tbl .tw { grid-column: 1; } .who-tbl .rm { grid-column: 2; grid-row: 1; } .who-tbl .tp, .who-tbl .ts { grid-column: 1 / -1; } }
+@media (max-width: 600px) { .who-tbl tfoot tr { border-bottom: 0; } .who-tbl tfoot .ts { display: none; } .who-tbl tfoot .tp { grid-row: 2; } }
 
 .osum { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 15px; color: var(--ink-2); }
 .osum b { color: var(--ink); }
@@ -1176,7 +1196,8 @@ td code, .code code { font: 400 13px/1.5 var(--mono); }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 /* phones: small buttons and inline action links are at least 44px tall, so they're easy to tap */
 @media (max-width: 600px) {
-  .btn.sm, .tog, .x, .obody a.hint, a.hint.nolink, .ostat a, .dh .meta a, .doc-kv a, .savest button, .chk, .pe-dir { min-height: 44px; }
+  .btn.sm, .tog, .x, .obody a.hint, a.hint.nolink, .ostat a, .dh .meta a, .doc-kv a, .savest button, .chk, .pe-dir, .who-tbl .ask, .who-tbl .twhat, .who-tbl select, .who-tbl input, .team .pcon { min-height: 44px; }
+  .who-tbl .tsub .tog { display: inline-flex; }
   .dh .meta a, .doc-kv a { display: inline-flex; align-items: center; }
   .x { min-width: 44px; }
 }
@@ -1425,7 +1446,7 @@ td code, .code code { font: 400 13px/1.5 var(--mono); }
     <div class="roles">
       <div><b><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-crown"/></svg>Lead organizer</b><span>Everything, including the team.</span></div>
       <div><b><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-user-check"/></svg>Co-organizer</b><span>Signs in. Can do what you tick.</span></div>
-      <div><b><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-heart"/></svg>Volunteer</b><span>No sign-in. Gets task reminders by text or email.</span></div>
+      <div><b><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-heart"/></svg>Volunteer</b><span>No sign-in. Gets reminders by email. If they only have a phone, the host gets a list to text.</span></div>
     </div>
     <div id="team-note"></div>
     <div class="tbl"><table class="team" id="team-tbl"></table></div>
@@ -1967,30 +1988,16 @@ function cantNote(p) {
   return `You can't ${orList(missing.map(k => CANT[k]))}. Ask ${l && l.name !== p.name ? l.name.split(' ')[0] : 'the lead organizer'} if you need to.`;
 }
 
-/* tasks */
-const TASK_TYPES = [
-  ['food', '🥗', 'Bring food', 'Bring appetizers for 20'], ['water', '💧', 'Watering', 'Water the new bed the day before'],
-  ['tools', '🛠', 'Bring tools', 'Bring shovels from the shed'], ['setup', '🪑', 'Set up', 'Set up tables and chairs'],
-  ['cleanup', '🧹', 'Clean up', 'Clean up and lock the shed'], ['greet', '👋', 'Greet newcomers', 'Greet newcomers at the gate'],
-  ['photos', '📷', 'Photos', 'Take photos for Instagram'], ['signin', '📋', 'Sign-in table', 'Run the sign-in table'],
-  ['lead', '🎤', 'Lead a session', 'Lead the discussion'], ['notes', '📝', 'Take notes', 'Take notes at the debrief'], ['other', '🌱', 'Other', ''],
-];
-const TT = Object.fromEntries(TASK_TYPES.map(t => [t[0], t]));
-const REMS = [['assigned', 'When assigned'], ['2d', '2 days before'], ['1d', 'Day before'], ['morning', 'Morning of'], ['after', 'Day after']];
-const defaultRems = type => type === 'water' ? ['assigned', '1d'] : ['assigned', '2d', 'morning'];
-const TSTATUS = { open: 'Needs someone', asked: 'Asked', confirmed: 'Confirmed', done: 'Done', cant: "Can't make it" };
-function remWhen(ev, t, k) {
-  const off = { '2d': [-2, '6 PM'], '1d': [-1, '6 PM'], morning: [0, '8 AM'], after: [1, '9 AM'] }[k];
-  if (k === 'assigned') return { date: t.assignedOn || TODAY, label: 'Sent ' + D(t.assignedOn || TODAY).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }), sent: true };
-  const d = D(ev.date); d.setDate(d.getDate() + off[0]);
-  const iso = d.toISOString().slice(0, 10);
-  return { date: iso, label: shortDate(iso) + ' · ' + off[1], sent: iso < TODAY };
-}
-function remText(ev, t) {
-  const who = (t.who || '').split(' ')[0];
-  const when = t.type === 'water' ? `before ${ev.title} on ${shortDate(ev.date)}` : `at ${ev.title}, ${shortDate(ev.date)} ${t12s(ev.start)}, ${ev.place}`;
-  return `Hi ${who}, it's the East Bay Permaculture Guild. Reminder: you're on "${t.text}" ${when}. Reply YES to confirm, or NO if you can't make it and we'll find someone. Thank you! 🌱`;
-}
+/* tasks: what kind each one is (the Bringing tab's type column) and where it stands (its status column).
+   open: nobody yet, or someone who hasn't been asked yet. A task counts as open (needs someone) while nobody is on it,
+   or when the person on it can't make it. */
+const TASK_TYPES = ['food', 'water', 'tools', 'setup', 'cleanup', 'greet', 'photos', 'signin', 'lead', 'notes', 'other'];
+const taskType = v => TASK_TYPES.includes(v) ? v : 'other';
+const TSTATUS = { open: 'Needs someone', asked: 'Asked', confirmed: 'Confirmed', cant: "Can't make it", done: 'Done' };
+const needsSomeone = t => !t.who || t.status === 'cant';
+const isStatus = k => Object.keys(TSTATUS).includes(k);
+// a status as the Sheet has it ('Confirmed', "can't make it", or blank) as the app names it
+const taskStatus = (v, who) => { const k = String(v ?? '').trim().toLowerCase().replace(/[\u2018\u2019]/g, "'"); return isStatus(k) ? k : Object.keys(TSTATUS).find(x => TSTATUS[x].toLowerCase() === k) || (who ? 'asked' : 'open'); };
 const TASKS = {
   w2: [['food', 'Cook lunch: basmati rice, saag, veggie korma, turmeric potato and cabbage', 'Phil', 'done'], ['greet', 'Neighborhood outreach', 'Marissa', 'done']],
   w5: [['food', 'Bring plates, cups, napkins, utensils', 'Phil', 'done'], ['tools', 'Ask neighbors for wheelbarrows', 'Ajay', 'done']],
@@ -1998,7 +2005,7 @@ const TASKS = {
   w6: [['food', 'Bring plates, cups, napkins, utensils', 'Phil', 'done'], ['setup', 'Snacks and water station', 'Karen', 'done'], ['signin', 'Nametags and sign-in sheet', 'Meena', 'done']],
 };
 let taskSeq = 0;
-const mkTask = (type, text, who, status, rems) => ({ id: 't' + (++taskSeq), type, text, who, status, rems: rems || defaultRems(type), assignedOn: who ? TODAY : '', open: false });
+const mkTask = (type, text, who, status) => ({ id: 't' + (++taskSeq), type: taskType(type), text, who, status });
 const PHOTOS = [['trellis', 'Garden work'], ['moat', 'Before the dig'], ['pantry', 'Building'], ['none', 'Illustration']];
 const STATUS = { off: 'Not used', review: 'Draft · needs review', approved: 'Approved', posted: 'Posted', test: 'Test sent' };
 // it went out: posted, or (the Google Group and the Calendar, in test mode) sent only to the Sheet owner
@@ -2373,7 +2380,7 @@ function copyPlan(pl) {
   return c;
 }
 // tasks carried into a new event all start open; 'last' remembers who did it last time (the "Last time:" hint)
-const copyTasks = src => (src.tasks || []).map(t => Object.assign(mkTask(t.type, t.text, '', 'open', t.rems && t.rems.slice()), t.who || t.last ? { last: t.who || t.last } : {}));
+const copyTasks = src => (src.tasks || []).map(t => Object.assign(mkTask(t.type, t.text, '', 'open'), t.who || t.last ? { last: t.who || t.last } : {}));
 function seriesIdeas(ev) {
   return EVENTS.filter(e => e.series === ev.series && e.date < ev.date).flatMap(e => e.plan.debrief.filter(d => !d.used).map(d => ({ d, from: e })));
 }
@@ -2404,7 +2411,9 @@ m2.plan.notes = ['Greenhouse is up (9/26–27)', 'Seed library by November', 'St
 m2.tasks.push(mkTask('notes', 'Notetaker', '', 'open'), mkTask('cleanup', 'Clean-up crew', '', 'open'), mkTask('other', 'Timekeeper', '', 'open'));
 
 const nextEvent = () => EVENTS.filter(e => !e.isNew && !isPast(e)).sort((a, b) => a.date.localeCompare(b.date))[0] || EVENTS[0];
-const S = { dtab: (() => { try { return sessionStorage.getItem('ebpg-dtab') || 'plan'; } catch { return 'plan'; } })(), when: 'up', sel: nextEvent()?.id, fold: { mats: false, chs: false, tasks: false, log: true, run: false, areas: false, sups: false, talk: false, ideas: false } };
+// tedit: the task whose words are being changed; pedit: the person on the Team page whose contact is being changed;
+// prm: the person whose Remove is being asked about
+const S = { tedit: null, pedit: null, prm: null, dtab: (() => { try { return sessionStorage.getItem('ebpg-dtab') || 'plan'; } catch { return 'plan'; } })(), when: 'up', sel: nextEvent()?.id, fold: { mats: false, chs: false, tasks: false, log: true, run: false, areas: false, sups: false, talk: false, ideas: false } };
 try { Object.assign(S.fold, JSON.parse(localStorage.getItem('ebpg-fold') || '{}')); } catch {}
 // Upcoming or Past: a cancelled event is under Past, whatever its date
 const visible = () => EVENTS.filter(e => !e.isNew).filter(e => S.when === 'up' ? !isPast(e) : isPast(e)).sort((a, b) => S.when === 'up' ? a.date.localeCompare(b.date) : b.date.localeCompare(a.date));
@@ -2430,7 +2439,7 @@ function applyPerms() {
   if (!d) return;
   gate('#edit-ev, #publish-ev, #cancel-ev, #delete-ev, #dconfirm button:not(#dc-no), #ph-pick, #add-ch, [data-act=rsvp-yes], [data-act=rsvp-no]', 'edit', d);
   gate('#appr-all, [data-act=approve], [data-act=post], [data-act=update], [data-act=again], [data-act=redraft], [data-act=copy], [data-act=mark], [data-act=undo], [data-mark] input, [data-mark] button', 'approve', d);
-  gate('#nt-text, #nt-who, #nt-add, [data-tdel]', 'tasks', d);
+  gate('#nt-text, #nt-who, #nt-add, [data-tdel], [data-twhat], [data-twho], [data-tstat], [data-again], [data-ask]', 'tasks', d);
   gate('#plan-next', 'create', d);
   gate('#addrow input, #addrow button, [data-rmrow], [data-chk], [data-additem] input, [data-additem] button, #addarea input, #addarea button, #addsup input, #addsup button, [data-sup], [data-idea], #adddeb input, #adddeb button', 'edit', d);
   $$('[data-ta]', d).forEach(ta => { if (!can('approve')) ta.readOnly = true; });
@@ -2459,17 +2468,42 @@ function renderHelp() {
     : l.name === ME ? "You're the lead organizer, so you can add people to the team and change what each person can do. Organizers will ask you for the organizer code."
     : `<b>${esc(l.name)}</b> is the lead organizer. Ask ${esc(l.name.split(' ')[0])} to add someone to the team, change what someone can do, or share the organizer code.`;
 }
+/* The Team table. Someone with "Manage team" taps a person's row (or their contact) to change how to reach them and
+   how their reminders go; Remove asks first, then gives 10 seconds to Undo. */
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+// what's wrong with a contact typed on the Team page, or '' (blank is fine: the person shows "No contact yet")
+function contactProblem(c, via) {
+  if (!c) return '';
+  if (c.includes('@')) return !EMAIL_RE.test(c) ? "That email address doesn't look right." : via === 'Text' ? 'That is an email address. Pick Email, or type a phone number to text.' : '';
+  if (/^\+?[\d\s().-]+$/.test(c) && c.replace(/\D/g, '').length >= 7) return via === 'Email' ? 'That is a phone number. Pick Text, or type an email address.' : '';
+  return 'Type an email address or a phone number.';
+}
+const viaFor = c => c.includes('@') ? 'Email' : 'Text';
+function peditHTML(t) {
+  const via = t.via || viaFor(String(t.contact || ''));
+  return `<form class="pedit" id="pe-form" novalidate aria-label="How to reach ${esc(t.name)}">
+    <label class="fld" for="pe-contact">Email or phone<input id="pe-contact" value="${esc(t.contact || '')}" placeholder="Phone or email" autocomplete="off"></label>
+    <label class="fld" for="pe-via">Reminders by<select id="pe-via">${['Email', 'Text'].map(v => `<option${v === via ? ' selected' : ''}>${v}</option>`).join('')}</select></label>
+    <p class="err" id="pe-err" role="alert" hidden></p>
+    <div class="omark-b"><button class="btn primary sm" type="submit">${ic('check')}Save</button><button class="btn ghost sm" type="button" id="pe-no">${ic('x')}Cancel</button></div></form>`;
+}
 function renderTeam() {
   const edit = can('team');
+  if (!edit) S.pedit = S.prm = null;
+  if (S.pedit && !person(S.pedit)) S.pedit = null;
+  if (S.prm && !person(S.prm)) S.prm = null;
   $('#team-note').innerHTML = edit ? '' : `<div class="perm-note" style="margin-bottom:12px">${ic('lock')}<span>${esc(cantNote(person(ME) || TEAM[0]))}</span></div>`;
   renderHelp();
   $('#team-tbl').innerHTML = `<thead><tr><th>Person</th><th>Role</th><th>Reminders</th>${PERMS.map(([k, l]) => `<th class="c"><span class="thi">${ic(PERM_ICON[k])}${esc(l)}</span></th>`).join('')}<th></th></tr></thead><tbody>${TEAM.map((t, i) => {
-    const lock = !edit || t.role === 'lead';
-    return `<tr><td><span class="nm">${avatar(t.name)}<span><b>${esc(t.name)}</b><br>${t.contact ? `<span class="hint">${ic(String(t.contact).includes('@') ? 'mail' : 'phone')}${esc(t.contact)}</span>` : '<span class="warnchip">No contact yet</span>'}</span></span></td>
+    const lock = !edit || t.role === 'lead', open = edit && S.pedit === t.name, asking = edit && S.prm === t.name && t.role !== 'lead';
+    const reach = t.contact ? `<span class="hint">${ic(String(t.contact).includes('@') ? 'mail' : 'phone')}${esc(t.contact)}</span>` : '<span class="warnchip">No contact yet</span>';
+    const contact = open ? peditHTML(t) : edit ? `<button class="pcon" type="button" data-pedit="${i}"><span class="vh">Change how to reach ${esc(t.name)}: </span>${reach}${ic('pencil')}</button>` : reach;
+    return `<tr${edit && !open ? ` class="tap" data-prow="${i}"` : ''}><td><span class="nm">${avatar(t.name)}<span><b>${esc(t.name)}</b><br>${contact}</span></span></td>
     <td>${t.role === 'lead' ? esc(ROLE.lead) : `<select data-role="${i}" ${edit ? '' : 'disabled'} aria-label="Role for ${esc(t.name)}"><option value="co" ${t.role === 'co' ? 'selected' : ''}>Co-organizer</option><option value="vol" ${t.role === 'vol' ? 'selected' : ''}>Volunteer</option></select>`}</td>
     <td>${t.via ? ic(t.via === 'Email' ? 'mail' : 'message-circle') + esc(t.via) : '<span class="hint">—</span>'}</td>
     ${PERMS.map(([k, l]) => `<td class="c">${t.role === 'vol' ? '<span class="hint">—</span>' : `<input type="checkbox" data-perm="${i}" data-k="${k}" ${t.perms[k] ? 'checked' : ''} ${lock ? 'disabled' : ''} aria-label="${esc(t.name)}: ${esc(l)}">`}</td>`).join('')}
-    <td>${t.role === 'lead' || !edit ? '' : `<button class="tog" type="button" data-rm="${i}" aria-label="Remove ${esc(t.name)}">${ic('user-minus')}Remove</button>`}</td></tr>`;
+    <td>${t.role === 'lead' || !edit ? '' : asking ? `<span class="prm" role="group" aria-labelledby="prm-q"><span id="prm-q">Remove ${esc(t.name)}?</span><button class="btn warn sm" type="button" data-rmyes="${i}">${ic('user-minus')}Remove</button><button class="btn ghost sm" type="button" data-rmno="${i}">${ic('x')}Cancel</button></span>`
+      : `<button class="tog" type="button" data-rm="${i}" aria-label="Remove ${esc(t.name)}">${ic('user-minus')}Remove</button>`}</td></tr>`;
   }).join('')}</tbody>`;
   $$('[data-perm]').forEach(c => c.addEventListener('change', () => { TEAM[c.dataset.perm].perms[c.dataset.k] = c.checked; whenSaved(() => toast('Permissions saved', 'check')); render(); }));
   $$('[data-role]').forEach(sl => sl.addEventListener('change', () => {
@@ -2477,9 +2511,71 @@ function renderTeam() {
     t.perms = sl.value === 'co' ? { create: true, edit: true, approve: false, tasks: true, team: false } : allPerms(false);
     whenSaved(() => toast(`${t.name} is now a ${ROLE[t.role].toLowerCase()}`)); renderAs(); renderTeam(); render();
   }));
-  $$('[data-rm]').forEach(b => b.addEventListener('click', () => { const t = TEAM.splice(b.dataset.rm, 1)[0]; whenSaved(() => toast(`${t.name} removed`)); renderAs(); renderTeam(); render(); }));
+  const focusIn = (attr, name) => $$(`#team-tbl [${attr}]`).find(b => TEAM[b.getAttribute(attr)]?.name === name)?.focus();
+  // tap a row, or the contact under the name, to change how to reach them
+  const openEdit = name => { S.pedit = name; S.prm = null; renderTeam(); $('#pe-contact')?.focus(); };
+  $$('[data-pedit]').forEach(b => b.addEventListener('click', () => openEdit(TEAM[b.dataset.pedit].name)));
+  $$('[data-prow]').forEach(tr => tr.addEventListener('click', e => { if (!e.target.closest('button, a, input, select, label, form')) openEdit(TEAM[tr.dataset.prow].name); }));
+  const f = $('#pe-form');
+  if (f) {
+    const name = S.pedit, done = () => { S.pedit = null; renderTeam(); focusIn('data-pedit', name); };
+    // the way reminders go follows what's typed: an email address gets email, a phone number texts
+    $('#pe-contact').addEventListener('input', e => { const v = e.target.value; if (v.includes('@')) $('#pe-via').value = 'Email'; else if (/\d/.test(v)) $('#pe-via').value = 'Text'; });
+    $('#pe-no').addEventListener('click', done);
+    f.addEventListener('keydown', e => { if (e.key === 'Escape') { e.preventDefault(); done(); } });
+    f.addEventListener('submit', e => {
+      e.preventDefault();
+      const t = person(name);
+      if (!t || !can('team')) return done();
+      const contact = $('#pe-contact').value.trim().replace(/\s+/g, ' ').slice(0, 100), via = contact ? $('#pe-via').value : '', bad = contactProblem(contact, via), err = $('#pe-err');
+      if (bad) { err.textContent = bad; err.hidden = false; $('#pe-contact').focus(); return; }
+      const changed = t.contact !== contact || (t.via || '') !== via;
+      t.contact = contact; t.via = via;
+      done();
+      if (!changed) return;
+      render(); // the tasks' Ask links and reminder lines go by the contact
+      whenSaved(() => toast(contact ? `Saved how to reach ${t.name}` : `${t.name} has no contact now`, 'check'));
+    });
+  }
+  // Remove asks first, in the row
+  $$('[data-rm]').forEach(b => b.addEventListener('click', () => { S.prm = TEAM[b.dataset.rm].name; S.pedit = null; renderTeam(); $('#team-tbl [data-rmno]')?.focus(); }));
+  const keep = () => { const n = S.prm; S.prm = null; renderTeam(); focusIn('data-rm', n); };
+  $$('[data-rmno]').forEach(b => b.addEventListener('click', keep));
+  $('#team-tbl .prm')?.addEventListener('keydown', e => { if (e.key === 'Escape') { e.preventDefault(); keep(); } });
+  $$('[data-rmyes]').forEach(b => b.addEventListener('click', () => removePerson(TEAM[b.dataset.rmyes].name)));
   $$('#addp input, #addp select, #addp button').forEach(el => el.disabled = !edit);
   sync();
+}
+/* Remove: the person goes from the team (and the Sheet) at once, with 10 seconds to Undo, which puts them back where they were. */
+const TEAM_UNDO = { t: null, i: 0, timer: 0, tok: 0 };
+function removePerson(name) {
+  const i = TEAM.findIndex(t => t.name === name);
+  if (i < 0 || !can('team') || TEAM[i].role === 'lead') return;
+  commitDeletes(); dropTeamUndo(); // one Undo at a time: a draft deleted a moment ago goes now
+  const t = TEAM.splice(i, 1)[0];
+  S.prm = null;
+  renderAs(); renderTeam(); render();
+  Object.assign(TEAM_UNDO, { t, i, timer: setTimeout(dropTeamUndo, UNDO_MS) });
+  TEAM_UNDO.tok = undoBar(`Removed ${t.name} from the team.`, undoRemove, 'user-minus', () => {
+    const a = $('#ap-name'), h = $('#p-team h1');
+    if (a && !a.disabled) a.focus(); else { h.tabIndex = -1; h.focus(); }
+  });
+}
+function dropTeamUndo() {
+  const u = TEAM_UNDO;
+  if (!u.t) return;
+  clearTimeout(u.timer); u.t = null;
+  hideUndo(false, u.tok);
+}
+function undoRemove() {
+  const u = TEAM_UNDO, t = u.t;
+  if (!t) return;
+  clearTimeout(u.timer); u.t = null;
+  hideUndo(true, u.tok);
+  if (!person(t.name)) TEAM.splice(Math.min(u.i, TEAM.length), 0, t);
+  renderAs(); renderTeam(); render();
+  ($$('#team-tbl [data-rm], #team-tbl [data-pedit]').find(b => TEAM[b.dataset.rm ?? b.dataset.pedit]?.name === t.name) || $('#ap-name'))?.focus();
+  toast(`${t.name} is back on the team.`, 'check');
 }
 $('#addp').addEventListener('submit', e => {
   e.preventDefault();
@@ -2531,7 +2627,7 @@ function renderTiles() {
   $$('[data-when]').forEach(b => b.setAttribute('aria-pressed', b.dataset.when === S.when));
   const list = visible();
   $('#tiles').innerHTML = list.length ? list.map(e => {
-    const d = D(e.date), c = counts(e), open = (e.tasks || []).filter(t => !t.who || t.status === 'cant').length;
+    const d = D(e.date), c = counts(e), open = (e.tasks || []).filter(needsSomeone).length;
     return `<article class="tile ${isPast(e) ? 'past' : ''} ${unsaved(e.id) ? 'unsaved' : ''}" tabindex="0" role="button" data-open="${esc(e.id)}" aria-label="${esc(tileLabel(e))}">
       <span class="nsave" aria-hidden="true"><i></i>Not saved</span>
       ${EV_STATUS[e.status] && !onSite(e) ? `<span class="tstat ev-${esc(e.status)}" aria-hidden="true">${ic(e.status === 'draft' ? 'lock' : 'x')}${esc(EV_STATUS[e.status])}</span>` : ''}
@@ -2551,7 +2647,7 @@ const DETAIL = Object.assign(document.createElement('div'), { id: 'detail', clas
 // while the event pop-up is open, the page behind it can't be reached by Tab, a click or a screen reader
 const pageBehind = on => ['main', 'header.top'].forEach(sel => $(sel)?.toggleAttribute('inert', on));
 function openEvent(id, mode) {
-  S.sel = id; S.mode = mode; S.confirm = null;
+  S.sel = id; S.mode = mode; S.confirm = null; S.tedit = null;
   const ev = EVENTS.find(e => e.id === id);
   if (mode === 'page') {
     $('#modal').hidden = true; document.body.style.overflow = ''; pageBehind(false);
@@ -2613,7 +2709,7 @@ function renderDetail() {
   if (S.editing) S.dtab = 'plan';
   if (S.mode === 'modal') $('#m-title').textContent = ev.isNew ? 'New event' : ev.label || 'Event';
   const c = counts(ev), past = ev.date < TODAY, chs = chList(ev);
-  const open = (ev.tasks || []).filter(t => !t.who || t.status === 'cant').length;
+  const open = (ev.tasks || []).filter(needsSomeone).length;
   // Cancel event or Delete draft asked about under the header (gone once it no longer applies, e.g. after a read of the Sheet)
   const ask = !S.editing && S.confirm && S.confirm.id === ev.id && (S.confirm.kind === 'cancel' ? cancellable(ev) || cancelling.has(ev.id) : deletable(ev)) ? S.confirm.kind : '';
   $('#detail').innerHTML = `
@@ -2892,15 +2988,106 @@ function bindPlan(ev) {
   $$('[data-idea]').forEach(b => b.addEventListener('click', () => { const { d } = ideas[+b.dataset.idea]; d.used = true; pl.areas[0].items.push({ text: d.text, done: false }); save(`planned "${d.text}" from a past debrief`); toast('Added to garden tasks', 'check'); }));
   $('#adddeb')?.addEventListener('submit', e => { e.preventDefault(); const x = $('#ad-x').value.trim(); if (!x) return; pl.debrief.push({ text: x, used: false }); save(`added debrief idea "${x}"`); });
 }
+/* ---------- who's bringing what ----------
+   Each task: what (tap it to change the words), who (the team, or someone who signed up on the home page, who then
+   joins the team as a volunteer), where it stands, and an Ask link that opens a text or an email to that person,
+   already written. Under each person: how the hourly reminders reach them (hourly() in Code.js). An upcoming event's
+   tasks can be changed by people with "Assign tasks"; a past or cancelled one's are its record. */
+const firstName = n => String(n ?? '').trim().split(/\s+/)[0] || '';
+// people who signed up on the home page and aren't on the team yet (one per name, since the team goes by names)
+function newVols() {
+  const seen = new Set(TEAM.map(t => String(t.name).trim().toLowerCase()));
+  return VOLS.filter(v => { const k = String(v.name ?? '').trim().toLowerCase(); if (!k || seen.has(k)) return false; seen.add(k); return true; });
+}
+const volKey = v => 'vol:' + (v.id || String(v.name).trim());
+// how to reach a sign-up: the way they said is best, else their email, else their phone
+const volContact = v => {
+  const c = String(v.contact ?? '').trim(), email = String(v.email || (c.includes('@') ? c : '')).trim(), phone = String(v.phone || (c.includes('@') ? '' : c)).trim();
+  return v.best === 'Text' && phone ? phone : email || phone;
+};
+// the Who picker: nobody, the team, then the new volunteers. Someone not on the team any more stays picked.
+function whoOptions(cur, blank = 'Nobody yet') {
+  const o = (v, l, on) => `<option value="${esc(v)}"${on ? ' selected' : ''}>${esc(l)}</option>`, vols = newVols();
+  return o('', blank, !cur) + (cur && !person(cur) ? o(cur, cur, true) : '')
+    + (TEAM.length ? `<optgroup label="Team">${TEAM.map(t => o(t.name, t.name, t.name === cur)).join('')}</optgroup>` : '')
+    + (vols.length ? `<optgroup label="New volunteers">${vols.map(v => o(volKey(v), String(v.name).trim(), false)).join('')}</optgroup>` : '');
+}
+/* How the Ask link reaches someone on the team: an email address, or a phone number to text. Neither: no link. */
+function reachOf(name) {
+  const c = String(person(name)?.contact ?? '').trim(), digits = c.replace(/\D/g, '');
+  if (/^[^\s@?&#]+@[^\s@?&#]+$/.test(c)) return { kind: 'email', to: c };
+  if (/^\+?[\d\s().-]+$/.test(c) && digits.length >= 7) return { kind: 'text', to: (c.startsWith('+') ? '+' : '') + digits };
+  return null;
+}
+const lowerFirst = s => /^[A-Z][a-z]/.test(s) ? s[0].toLowerCase() + s.slice(1) : s;
+const DOING = /^(bring|make|cook|bake|set|clean|take|run|lead|greet|ask|water|pick|buy|print|carry|help|host|share|drive|pack|collect|check|call|post|teach|prepare|prep|fix|build|haul|staff|watch|grab|get|deliver|load|sweep|weed|plant|mulch|harvest|lock|unlock|open|close|lend|order|photograph|film|record|write|send|invite|book|rent|return|hand|keep|mind|welcome|cover|coordinate|organize|facilitate|introduce|play|show|demo|give|tidy|wash|stack|empty|fill|refill|hang|put|label|sort|cut|dig|turn|spread)\b/i;
+const ROLE_WORD = /(taker|keeper|greeter|photographer|facilitator|leader|host|coordinator|organizer|helper|driver|runner|cook|chef|captain|moderator|presenter|speaker|teacher|tracker|guide)s?$/i;
+const CREW = /\b(crew|team|squad)$/i;
+// "Hi Phil, it's Jessie from the East Bay Permaculture Guild. Could you bring plates and cups to Workday #7 on Sun 10/25 at 10 AM? ..."
+function askText(ev, t, who = t.who) {
+  const what = String(t.text ?? '').trim().replace(/[.!?]+$/, ''), w = lowerFirst(what);
+  const at = `${ev.label || ev.title} on ${shortDate(ev.date)} at ${t12(ev.start).replace(':00', '')}`;
+  const ask = /^bring\b/i.test(what) ? `${w} to ${at}`
+    : DOING.test(what) ? `${w} ${/\bfor\b/i.test(what) ? 'at' : 'for'} ${at}`
+    : CREW.test(what) ? `join the ${w} at ${at}`
+    : ROLE_WORD.test(what) && !/\s(and|&)\s/i.test(what) ? `be our ${w} at ${at}`
+    : ['setup', 'cleanup', 'greet', 'photos', 'lead', 'notes', 'water'].includes(t.type) ? `help with ${w} at ${at}`
+    : `bring ${w} to ${at}`;
+  return `Hi ${firstName(who)}, it's ${firstName(ME)} from the East Bay Permaculture Guild. Could you ${ask}? Reply yes or no. Thank you!`;
+}
+// a mailto: or sms: link with that message written in ('' when there's no way to reach them)
+function askHref(ev, t, who = t.who) {
+  const r = reachOf(who);
+  if (!r) return '';
+  const body = encodeURIComponent(askText(ev, t, who));
+  return r.kind === 'email' ? `mailto:${r.to}?subject=${encodeURIComponent(`${t.text} for ${ev.label || ev.title} (${shortDate(ev.date)})`)}&body=${body}` : `sms:${r.to}?&body=${body}`;
+}
+/* When the hourly run reminds this person, as hourly() in Code.js does it: by email the evening before (from 6 PM)
+   and the morning of; someone with only a phone goes on a list for the host to text. Done and can't-make-it rows
+   get no reminders. */
+function remindLine(ev, t) {
+  if (!t.who || t.status === 'done' || t.status === 'cant') return '';
+  const c = String(person(t.who)?.contact ?? '').trim(), d = D(ev.date), eve = D(ev.date);
+  eve.setDate(d.getDate() - 1);
+  const day = x => x.toLocaleDateString('en-US', { weekday: 'short' });
+  const [icon, cls, words] = c.includes('@') ? ['mail', '', `Reminders by email: ${day(eve)} from 6 PM and ${day(d)} morning`]
+    : c ? ['message-circle', '', 'No email: the host gets a list to text'] : ['alert-triangle', ' warn', 'Add a contact on the Team page'];
+  return `<span class="rline${cls}">${ic(icon)}<span>${esc(words)}</span></span>`;
+}
+const statusOf = t => isStatus(t.status) ? t.status : 'open';
+// "Needs someone" while nobody's on it; once someone is, "Not asked yet" until they're asked
+const statusName = (t, k = statusOf(t)) => k === 'open' && t.who ? 'Not asked yet' : TSTATUS[k];
+function taskRow(ev, t, live) {
+  const id = esc(t.id), what = esc(t.text), st = statusOf(t), cant = !!t.who && st === 'cant';
+  const whatCell = live && S.tedit === t.id ? `<input class="twin" id="tw-${id}" data-twin="${id}" value="${what}" maxlength="200" autocomplete="off" aria-label="What">`
+    : live ? `<button class="twhat" type="button" data-twhat="${id}"><span class="vh">Edit </span>${what}${ic('pencil')}</button>` : what;
+  // who did it last time, and a one-tap Ask again while it needs someone
+  const again = live && t.last && t.last !== t.who && needsSomeone(t) && person(t.last) ? (() => {
+    const href = askHref(ev, t, t.last), label = `Ask ${esc(firstName(t.last))} again`;
+    return href ? `<a class="tog" data-again="${id}" href="${esc(href)}">${ic(reachOf(t.last).kind === 'email' ? 'mail' : 'message-circle')}${label}</a>` : `<button class="tog" type="button" data-again="${id}">${ic('rotate-ccw')}${label}</button>`;
+  })() : '';
+  const last = t.last && t.last !== t.who ? `<span class="last">Last time: ${esc(t.last)}</span>` : '';
+  const whoCell = live ? `<select data-twho="${id}" aria-label="Who for ${what}">${whoOptions(t.who)}</select>`
+    : t.who ? esc(t.who) : `<span class="needs">${ic('user-plus')}Needs someone</span>`;
+  // nobody on it yet: it needs someone, or it's done; someone on it: every status
+  const ks = Object.keys(TSTATUS).filter(k => t.who || k === 'open' || k === 'done' || k === st);
+  const href = live && t.who && st !== 'done' ? askHref(ev, t) : '', how = href && reachOf(t.who).kind;
+  const ask = href ? `<a class="ask" data-ask="${id}" href="${esc(href)}" aria-label="Ask ${esc(firstName(t.who))} about ${what} by ${how === 'email' ? 'email' : 'text'}">${ic(how === 'email' ? 'mail' : 'message-circle')}Ask</a>` : '';
+  const statCell = live ? `<div class="tsc"><select class="st-${st}" data-tstat="${id}" aria-label="Status of ${what}">${ks.map(k => `<option value="${k}"${k === st ? ' selected' : ''}>${esc(statusName(t, k))}</option>`).join('')}</select>${ask}</div>`
+    : `<span class="pill ${st}">${esc(statusName(t))}</span>`;
+  return `<tr class="trow${cant ? ' cant' : ''}${t.who ? '' : ' nobody'}" data-task="${id}">
+    <td class="tw">${whatCell}${cant && live ? `<span class="find">${ic('alert-triangle')}Find someone</span>` : ''}</td>
+    <td class="tp">${whoCell}${last || again ? `<span class="tsub">${last}${again}</span>` : ''}${live ? remindLine(ev, t) : ''}</td>
+    <td class="ts">${statCell}</td>
+    ${live ? `<td class="rm"><button class="x" type="button" data-tdel="${id}" aria-label="Remove ${what}">${ic('x')}</button></td>` : ''}</tr>`;
+}
 function tasksHTML(ev) {
-  const ts = ev.tasks || [];
-  const up = ev.date >= TODAY;
-  const people = TEAM.map(t => `<option value="${esc(t.name)}">${esc(t.name)}</option>`).join('');
+  const ts = ev.tasks || [], live = !isPast(ev);
   return `<div class="chs"><div class="chs-h">${fold('tasks', "Who's bringing what", ts.length + ' items', 'package')}</div>
   <div id="tasks-body" ${hid('tasks')}><table class="who-tbl">
-    <thead><tr><th>What</th><th>Who</th>${up ? '<th class="sr">Remove</th>' : ''}</tr></thead>
-    <tbody>${ts.map(t => `<tr><td>${esc(t.text)}</td><td>${t.who ? esc(t.who) : `<span class="needs">${ic('user-plus')}Needs someone</span>`}${t.last && t.last !== t.who ? `<span class="last">Last time: ${esc(t.last)}</span>` : ''}</td>${up ? `<td class="rm"><button class="x" type="button" data-tdel="${esc(t.id)}" aria-label="Remove ${esc(t.text)}">${ic('x')}</button></td>` : ''}</tr>`).join('') || `<tr><td colspan="${up ? 3 : 2}" class="hint">Nothing yet.</td></tr>`}</tbody>
-    ${up ? `<tfoot><tr><td><input id="nt-text" placeholder="e.g. Plates, cups, napkins" aria-label="What"></td><td><select id="nt-who" aria-label="Who"><option value="">Needs someone</option>${people}</select></td><td class="rm"><button class="btn ghost sm" type="button" id="nt-add">${ic('plus')}Add</button></td></tr></tfoot>` : ''}
+    <thead><tr><th>What</th><th>Who</th><th>Status</th>${live ? '<th class="sr">Remove</th>' : ''}</tr></thead>
+    <tbody>${ts.map(t => taskRow(ev, t, live)).join('') || `<tr class="none"><td colspan="${live ? 4 : 3}" class="hint">Nothing yet.</td></tr>`}</tbody>
+    ${live ? `<tfoot><tr><td class="tw"><input id="nt-text" placeholder="e.g. Plates, cups, napkins" maxlength="200" aria-label="What"></td><td class="tp"><select id="nt-who" aria-label="Who">${whoOptions('', 'Needs someone')}</select></td><td class="ts"></td><td class="rm"><button class="btn ghost sm" type="button" id="nt-add">${ic('plus')}Add</button></td></tr></tfoot>` : ''}
   </table></div></div>`;
 }
 // who can approve, for the hint people without "Approve & post" see
@@ -3037,16 +3224,95 @@ function chRow(ev, ch) {
     ${mark}${ask}</li>`;
 }
 function bindTasks(ev) {
-  $$('[data-tdel]', $('#detail')).forEach(b => b.addEventListener('click', () => {
-    const t = ev.tasks.find(x => x.id === b.dataset.tdel);
-    ev.tasks = ev.tasks.filter(x => x !== t); ev.log.push([nowStamp(), `${ME} removed "${t.text}"`]); renderDetail();
-  }));
+  const box = $('#tasks-body', $('#detail'));
+  if (!box) return;
+  const find = id => ev.tasks.find(x => x.id === id);
+  const log = line => ev.log.push([nowStamp(), `${ME} ${line}`]);
+  const later = f => setTimeout(f, 0); // after a link's click, so the message still opens
+  // redraw, and put focus back on the same control of the same task (attr: its data attribute)
+  const redraw = (attr, id) => { render(); if (attr) $$(`[${attr}]`, $('#detail')).find(el => el.getAttribute(attr) === id)?.focus(); };
+  const clean = v => String(v).trim().replace(/\s+/g, ' ').slice(0, 200);
+  // a new volunteer picked from the Who list joins the team (saved like any team change), reached the way they said is best
+  const join = key => {
+    const v = newVols().find(x => volKey(x) === key);
+    if (!v) return '';
+    const name = String(v.name).trim(), contact = volContact(v);
+    TEAM.push({ name, role: 'vol', contact, via: contact ? (contact.includes('@') ? 'Email' : 'Text') : '', perms: allPerms(false) });
+    log(`added ${name} to the team`);
+    whenSaved(() => toast(`Added ${name} to the team`, 'check'));
+    renderAs(); renderTeam();
+    return name;
+  };
+  box.addEventListener('change', e => {
+    const el = e.target;
+    if (!can('tasks')) return;
+    if (el.matches('[data-twho]')) {
+      const t = find(el.dataset.twho);
+      if (!t) return;
+      const who = el.value.startsWith('vol:') ? join(el.value) : el.value;
+      if ((el.value && !who) || who === (t.who || '')) return redraw('data-twho', t.id);
+      const was = t.who;
+      t.who = who; t.status = 'open'; // someone new: not asked yet
+      log(who ? `gave "${t.text}" to ${who}` : `took ${was} off "${t.text}"`);
+      redraw('data-twho', t.id);
+    } else if (el.matches('[data-tstat]')) {
+      const t = find(el.dataset.tstat);
+      if (!t || !isStatus(el.value) || el.value === t.status) return;
+      t.status = el.value;
+      log(`set "${t.text}" to ${statusName(t)}`);
+      redraw('data-tstat', t.id);
+    }
+  });
+  box.addEventListener('click', e => {
+    const b = e.target.closest('[data-twhat], [data-tdel], [data-again], [data-ask]');
+    if (!b || b.disabled || !can('tasks')) return;
+    const t = find(b.dataset.twhat || b.dataset.tdel || b.dataset.again || b.dataset.ask);
+    if (!t) return;
+    if (b.dataset.twhat) {
+      S.tedit = t.id; renderDetail();
+      const i = $('[data-twin]', $('#detail')); i?.focus(); i?.select();
+    } else if (b.dataset.tdel) {
+      ev.tasks = ev.tasks.filter(x => x !== t); log(`removed "${t.text}"`);
+      render(); $('#nt-text')?.focus();
+    } else if (b.dataset.again) {
+      // the same person as last time: on it, and asked (the link opens the message to them)
+      t.who = t.last; t.status = 'asked'; log(`asked ${t.last} again about "${t.text}"`);
+      later(() => redraw('data-twho', t.id));
+    } else if (t.status === 'open' || t.status === 'cant') {
+      // Ask opens the message; a task nobody had asked about yet is asked now
+      t.status = 'asked'; log(`asked ${t.who} about "${t.text}"`);
+      later(() => redraw('data-ask', t.id));
+    }
+  });
+  // the words of a task, changed in place: Enter or leaving the box keeps them, Escape puts them back
+  const KEYS = ['data-twho', 'data-tstat', 'data-tdel', 'data-ask', 'data-again'];
+  const rename = (i, keep, to) => {
+    if (i.dataset.done) return;
+    i.dataset.done = '1';
+    const t = find(i.dataset.twin), v = clean(i.value), row = i.closest('tr');
+    S.tedit = null;
+    if (t && keep && v && v !== t.text) { log(`changed "${t.text}" to "${v}"`); t.text = v; }
+    if (to === 'key' || !t || !row) return redraw('data-twhat', t && t.id);
+    // focus went to another control in this row: redraw once it's there, and keep it there
+    if (to && row.contains(to)) { const k = KEYS.find(a => to.hasAttribute(a)); return later(() => redraw(k, k && to.getAttribute(k))); }
+    // or somewhere else: redraw only this row, so whatever was clicked is still there
+    row.outerHTML = taskRow(ev, t, true);
+    sync();
+  };
+  box.addEventListener('keydown', e => {
+    const i = e.target.closest('[data-twin]');
+    if (!i) return;
+    if (e.key === 'Enter') { e.preventDefault(); rename(i, true, 'key'); }
+    else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); rename(i, false, 'key'); }
+  });
+  box.addEventListener('focusout', e => { const i = e.target.closest('[data-twin]'); if (i) rename(i, true, e.relatedTarget); });
   const add = () => {
-    const text = $('#nt-text').value.trim(); if (!text) { $('#nt-text').focus(); return; }
-    const who = $('#nt-who').value;
-    const t = mkTask('other', text, who, who ? 'asked' : 'open'); t.assignedOn = TODAY;
-    ev.tasks.push(t); ev.log.push([nowStamp(), who ? `${ME} gave "${text}" to ${who}` : `${ME} added "${text}"`]);
-    renderDetail(); $('#nt-text')?.focus();
+    const text = clean($('#nt-text').value);
+    if (!text) { $('#nt-text').focus(); return; }
+    const pick = $('#nt-who').value, who = pick.startsWith('vol:') ? join(pick) : pick;
+    ev.tasks.push(mkTask('other', text, who, 'open'));
+    log(who ? `gave "${text}" to ${who}` : `added "${text}"`);
+    render(); $('#nt-text')?.focus();
   };
   $('#nt-add')?.addEventListener('click', add);
   $('#nt-text')?.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); add(); } });
@@ -3284,18 +3550,20 @@ function deleteDraft(ev) {
   commitDeletes();
   const i = EVENTS.indexOf(ev);
   if (i < 0) return;
+  dropTeamUndo();
   EVENTS.splice(i, 1);
-  DELETING.set(ev.id, { ev, i, timer: setTimeout(() => commitDelete(ev.id), UNDO_MS) });
+  const d = { ev, i, timer: setTimeout(() => commitDelete(ev.id), UNDO_MS), tok: 0 };
+  DELETING.set(ev.id, d);
   if (S.sel === ev.id) { leaveEvent(); S.sel = nextEvent()?.id; }
   render(); renderMaterials();
-  undoBar(`Deleted ${ev.label || ev.title || 'the draft'}.`, () => undoDelete(ev.id));
+  d.tok = undoBar(`Deleted ${ev.label || ev.title || 'the draft'}.`, () => undoDelete(ev.id));
 }
 function undoDelete(id) {
   const d = DELETING.get(id);
   if (!d || d.going) return;
   clearTimeout(d.timer); DELETING.delete(id);
   EVENTS.splice(Math.min(d.i, EVENTS.length), 0, d.ev);
-  hideUndo(true);
+  hideUndo(true, d.tok);
   S.when = isPast(d.ev) ? 'past' : 'up';
   render(); renderMaterials();
   ($$('#tiles [data-open]').find(t => t.dataset.open === id) || $('#new-ev'))?.focus();
@@ -3306,7 +3574,7 @@ function commitDelete(id, now) {
   const d = DELETING.get(id);
   if (!d || d.going) return;
   clearTimeout(d.timer); d.going = true;
-  hideUndo();
+  hideUndo(false, d.tok);
   if (!remote) { DELETING.delete(id); return; } // the artifact keeps nothing anywhere else
   remote.del(d.ev, now).then(() => { DELETING.delete(id); }, er => {
     // still in the Sheet: back on the page, so nobody thinks it's gone
@@ -3317,19 +3585,26 @@ function commitDelete(id, now) {
   });
 }
 const commitDeletes = now => [...DELETING.keys()].forEach(id => commitDelete(id, now));
-/* the Undo bar, where toasts show. Its button gets keyboard focus, since what had it (the event's pop-up) is gone. */
-function undoBar(msg, onUndo) {
+/* the Undo bar, where toasts show. Its button gets keyboard focus, since what had it (the event's pop-up, the Remove
+   button) is gone. back: where focus goes if the time runs out while it's still on Undo. Returns this Undo's token. */
+let undoTok = 0, undoBack = null;
+function undoBar(msg, onUndo, icon = 'trash', back = null) {
   const bar = $('#undobar');
-  bar.innerHTML = `${ic('trash')}<span id="undo-msg">${esc(msg)}</span><button class="btn sm" type="button" id="undo-btn" aria-describedby="undo-msg">${ic('rotate-ccw')}Undo</button>`;
+  bar.innerHTML = `${ic(icon)}<span id="undo-msg">${esc(msg)}</span><button class="btn sm" type="button" id="undo-btn" aria-describedby="undo-msg">${ic('rotate-ccw')}Undo</button>`;
   bar.hidden = false;
   $('#undo-btn').addEventListener('click', onUndo);
   $('#undo-btn').focus();
+  undoBack = back;
+  return ++undoTok;
 }
-// undone: focus goes where undoDelete puts it; timed out with focus still on Undo: to New event
-function hideUndo(undone) {
-  const bar = $('#undobar'), had = bar.contains(document.activeElement);
-  bar.hidden = true; bar.innerHTML = '';
+/* tok: the Undo this is about (another one may have the bar by now). undone: focus goes where the undo puts it;
+   timed out with focus still on Undo: where its bar said, else to New event */
+function hideUndo(undone, tok) {
+  if (tok && tok !== undoTok) return;
+  const bar = $('#undobar'), had = bar.contains(document.activeElement), back = undoBack;
+  bar.hidden = true; bar.innerHTML = ''; undoBack = null;
   if (!had || undone) return;
+  if (back) return back();
   const h1 = $('#p-events h1');
   if (!$('#new-ev').disabled) $('#new-ev').focus(); else { h1.tabIndex = -1; h1.focus(); }
 }
@@ -3991,6 +4266,7 @@ function finishSignIn(name) {
 }
 function signOut() {
   if (!leaveOk()) return;
+  dropTeamUndo(); S.pedit = S.prm = null;
   if (!$('#modal').hidden) closeEvent();
   AUTH.clear(); document.body.classList.add('out'); renderLanding(); showTab('landing'); history.replaceState(null, '', homeHref()); window.scrollTo({ top: 0 });
 }

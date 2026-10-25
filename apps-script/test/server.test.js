@@ -431,11 +431,12 @@ test('a Sheet filled before SEEDED existed is marked filled on the next load', (
 
 test('an update that adds a column labels it in an older Sheet', () => {
   const g = seeded();
-  g.sheets.get('Bringing').set(1, 6, ''); // a Bringing tab made before 'last time' existed
+  g.sheets.get('Bringing').set(1, 6, ''); // a Bringing tab made before 'last time' and 'type' existed
+  g.sheets.get('Bringing').set(1, 7, '');
   const s = g.sheets.get('Settings'), row = g.tab('Settings').findIndex(r => r[0] === 'SEEDED') + 1;
   s.cells[row - 1] = ['', '', ''];
   g.ctx.doGet({});
-  assert.deepEqual(g.tab('Bringing')[0], ['event id', 'what', 'who', 'status', 'task id', 'last time']);
+  assert.deepEqual(g.tab('Bringing')[0], ['event id', 'what', 'who', 'status', 'task id', 'last time', 'type']);
   assert.equal(g.tab('Bringing')[1][1], 'Plates and cups', 'data not moved');
 });
 
@@ -448,7 +449,7 @@ test("copied tasks keep who did them last time; blank contacts aren't given a re
     vols: [], gardens: [],
   });
   const st = g.ctx.signIn(CODE);
-  assert.deepEqual(JSON.parse(JSON.stringify(st.events[0].tasks[0])), { what: 'Plates and cups', who: '', status: 'open', id: 't1', last: 'Phil' });
+  assert.deepEqual(JSON.parse(JSON.stringify(st.events[0].tasks[0])), { what: 'Plates and cups', who: '', status: 'open', id: 't1', last: 'Phil', type: '' });
   assert.equal(g.tab('Bringing')[1][5], 'Phil', "in the Sheet's 'last time' column");
   assert.ok(st.team.every(t => t.contact === '' && t.via === ''));
 });
@@ -459,6 +460,57 @@ test('reminders: nothing goes out for an open, unassigned task', () => {
   g.ctx.seed(CODE, { events: [ev({ tasks: [{ id: 't1', what: 'Make a parking sign', who: '', status: 'open', last: '' }, { id: 't2', what: 'Plates and cups', who: '', status: 'open', last: 'Phil' }] })], team, vols: [], gardens: [] });
   assert.equal(g.ctx.hourly(), 0);
   assert.equal(g.mail.length, 0);
+});
+
+test("a task's type and who did it last time round-trip through saveEvent and signIn, in the Sheet's own columns", () => {
+  const g = seeded();
+  g.ctx.saveEvent(CODE, ev({ tasks: [
+    { id: 't1', what: 'Plates and cups', who: 'Phil', status: 'confirmed', last: 'Karen', type: 'food' },
+    { id: 't2', what: 'Shovels', who: '', status: 'open', last: '', type: 'tools' },
+    { id: 't3', what: 'Parking sign', who: 'Karen', status: 'cant', last: 'Phil', type: '=HYPERLINK("x") <b>' },
+  ] }));
+  const [head, ...rows] = g.tab('Bringing'), col = h => head.indexOf(h);
+  assert.deepEqual(rows.map(r => [r[col('what')], r[col('status')], r[col('last time')], r[col('type')]]), [
+    ['Plates and cups', 'confirmed', 'Karen', 'food'], ['Shovels', 'open', '', 'tools'], ['Parking sign', 'cant', 'Phil', 'hyperlinkxb']]);
+  const tasks = JSON.parse(JSON.stringify(g.ctx.signIn(CODE).events[0].tasks));
+  assert.deepEqual(tasks.map(t => [t.id, t.who, t.status, t.last, t.type]), [['t1', 'Phil', 'confirmed', 'Karen', 'food'], ['t2', '', 'open', '', 'tools'], ['t3', 'Karen', 'cant', 'Phil', 'hyperlinkxb']]);
+  // a page from before the type column sends none: the cell stays blank, and the page reads it as 'other'
+  g.ctx.saveEvent(CODE, ev({ tasks: [{ id: 't1', what: 'Plates and cups', who: 'Phil', status: 'asked' }] }));
+  assert.deepEqual(JSON.parse(JSON.stringify(g.ctx.signIn(CODE).events[0].tasks)), [{ what: 'Plates and cups', who: 'Phil', status: 'asked', id: 't1', last: '', type: '' }]);
+});
+
+test("reminders skip a task that's done, one whose person can't make it, and one with nobody on it", () => {
+  const g = gas({ now: '2026-10-24T19:30:00-07:00' }); // Sat 7:30 PM, the event is Sun
+  g.ctx.doGet({});
+  const both = [...team.slice(0, 2), { name: 'Karen', role: 'vol', contact: 'karen@example.org', via: 'Email', perms: {} }];
+  g.ctx.seed(CODE, { events: [ev({ tasks: [
+    { id: 't1', what: 'Plates and cups', who: 'Phil', status: 'done' },
+    { id: 't2', what: 'Snacks', who: 'Karen', status: 'cant' },
+    { id: 't3', what: 'Parking sign', who: '', status: 'open', last: 'Phil' },
+    { id: 't4', what: 'Shovels', who: '', status: '' },
+  ] })], team: both, vols: [], gardens: [] });
+  assert.equal(g.ctx.hourly(), 0);
+  assert.deepEqual(g.mail, []);
+  // once Karen can make it after all, she gets hers
+  g.ctx.saveEvent(CODE, ev({ tasks: [{ id: 't2', what: 'Snacks', who: 'Karen', status: 'confirmed' }] }));
+  assert.equal(g.ctx.hourly(), 1);
+  assert.deepEqual(g.mail.map(m => m.subject), ['[TEST to karen@example.org] Reminder: Snacks for OPC Garden Work Party']);
+});
+
+test('a volunteer added to the team from the Who picker (saveTeam) gets their reminder by email; a phone-only one goes on the text list', () => {
+  const g = seeded({ now: '2026-10-24T19:30:00-07:00' }); // Sat 7:30 PM, the event is Sun
+  const maya = { name: 'Maya', role: 'vol', contact: 'maya@example.org', via: 'Email', perms: { create: false, edit: false, approve: false, tasks: false, team: false } };
+  const sam = { name: 'Sam', role: 'vol', contact: '(510) 555-0144', via: 'Text', perms: {} };
+  g.ctx.saveTeam(CODE, [...team, maya, sam]);
+  const row = g.tab('Team').find(r => r[0] === 'Maya');
+  assert.deepEqual(row.slice(0, 4), ['Maya', 'Volunteer', 'maya@example.org', 'Email'], 'on the Team tab as a volunteer');
+  g.ctx.saveEvent(CODE, ev({ tasks: [{ id: 't1', what: 'Plates', who: 'Maya', status: 'open', type: 'other' }, { id: 't2', what: 'Shovels', who: 'Sam', status: 'asked', type: 'tools' }] }));
+  assert.equal(g.ctx.hourly(), 2);
+  const to = s => g.mail.find(m => s.test(m.subject));
+  assert.ok(to(/\[TEST to maya@example\.org\] Reminder: Plates for OPC Garden Work Party/), g.mail.map(m => m.subject).join(' | '));
+  assert.match(to(/Reminder: Plates/).body, /^Hi Maya,/);
+  assert.match(to(/Text these people/).body, /Sam \(\(510\) 555-0144\): Shovels/);
+  assert.equal(g.ctx.signIn(CODE).team.find(t => t.name === 'Maya').role, 'vol');
 });
 
 /* ---------- live page: the Help page's Sheet link and the friendly error bar ---------- */
@@ -532,20 +584,20 @@ test('a column added by hand to Settings or Gardens: settings and map points sti
 test('ensure_ adds a new TABS column after the last used one, without moving any data', () => {
   const g = seeded();
   const sh = g.sheets.get('Bringing');
-  sh.set(1, 7, 'my notes'); sh.set(2, 7, 'call Phil first');
-  const before = g.tab('Bringing').map(r => r.slice(0, 7));
+  sh.set(1, 8, 'my notes'); sh.set(2, 8, 'call Phil first');
+  const before = g.tab('Bringing').map(r => r.slice(0, 8));
   vm.runInContext("TABS.Bringing.push('helpers')", g.ctx); // what a later update does
   g.ctx.doGet({});
   const t = g.tab('Bringing');
-  assert.deepEqual(t[0], ['event id', 'what', 'who', 'status', 'task id', 'last time', 'my notes', 'helpers']);
-  assert.deepEqual(t.map(r => r.slice(0, 7)), before, 'nothing moved');
-  assert.equal(sh.formatAt(2, 8), '@', 'the new column is plain text');
-  assert.equal(sh.formatAt(1000, 8), '@');
+  assert.deepEqual(t[0], ['event id', 'what', 'who', 'status', 'task id', 'last time', 'type', 'my notes', 'helpers']);
+  assert.deepEqual(t.map(r => r.slice(0, 8)), before, 'nothing moved');
+  assert.equal(sh.formatAt(2, 9), '@', 'the new column is plain text');
+  assert.equal(sh.formatAt(1000, 9), '@');
   g.ctx.doGet({});
-  assert.equal(g.tab('Bringing')[0].length, 8, 'added once');
+  assert.equal(g.tab('Bringing')[0].length, 9, 'added once');
   assert.equal(g.ctx.signIn(CODE).events[0].tasks.length, 3, 'still read');
   g.ctx.saveEvent(CODE, ev());
-  assert.equal(g.tab('Bringing')[1][6], 'call Phil first', 'a save leaves the hand-added column alone');
+  assert.equal(g.tab('Bringing')[1][7], 'call Phil first', 'a save leaves the hand-added column alone');
 });
 
 test('saving one event rewrites only its rows, writes before it clears, and clears only what is left over', () => {
