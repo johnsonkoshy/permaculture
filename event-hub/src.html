@@ -697,6 +697,28 @@ a.hint.nolink:hover { color: var(--fern); }
 .addch .hint { display: inline-flex; align-items: center; gap: 4px; }
 .addch .hint .ic { width: 14px; height: 14px; }
 .addch select { border: 1px solid var(--line-2); border-radius: 999px; padding: 6px 10px; background: var(--raised); font-size: 13px; }
+/* the Posting Helper: what Open & fill did, under its row, and the install steps for a browser without it */
+.ofill { grid-column: 2 / -1; margin: 0; display: flex; gap: 8px; align-items: flex-start; font-size: 13px; line-height: 1.45; color: var(--ink-2); }
+.ofill .ic { flex: none; width: 15px; height: 15px; margin-top: 1px; color: var(--fern); }
+.ofill.bad .ic { color: var(--flag); }
+@media (max-width: 560px) { .ofill { grid-column: 1 / -1; } }
+.ohelp { display: grid; gap: 10px; justify-items: start; }
+.ohelp-t { border: 0; background: transparent; padding: 0; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--ink-3); text-decoration: underline; text-underline-offset: 2px; text-align: left; }
+.ohelp-t:hover { color: var(--fern); }
+.ohelp-t .ic { width: 14px; height: 14px; flex: none; }
+.ohelp-b { justify-self: stretch; padding: 14px 16px; border: 1px solid var(--line-2); border-radius: 12px; background: var(--surface); }
+.helper { display: grid; gap: 8px; min-width: 0; }
+.helper h3 { margin: 0; font: 700 15px/1.3 var(--body); color: var(--ink); display: flex; align-items: center; gap: 8px; }
+.helper h3 .ic { width: 16px; height: 16px; color: var(--fern); flex: none; }
+.helper p { margin: 0; color: var(--ink-2); font-size: 14px; }
+.helper ol { margin: 0; padding-left: 22px; display: grid; gap: 6px; color: var(--ink-2); font-size: 14px; }
+.helper ol .btn { margin: 2px 0; }
+.helper b { color: var(--ink); }
+.helper code { font: 600 13px/1.4 var(--mono); color: var(--ink); background: var(--paper); border: 1px solid var(--line); border-radius: 4px; padding: 1px 5px; overflow-wrap: anywhere; }
+.helper .hint { font-size: 13px; }
+.helper p.on { display: flex; gap: 6px; align-items: flex-start; color: var(--ink); font-weight: 700; }
+.helper p.on .ic { color: var(--fern); margin-top: 2px; }
+@media (max-width: 600px) { .ohelp-t { min-height: 44px; } }
 
 .plainareas { display: grid; gap: 8px; }
 .plainareas .bul { margin-top: 2px; }
@@ -1174,6 +1196,8 @@ td code, .code code { font: 400 13px/1.5 var(--mono); }
   <symbol id="i-smartphone" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="20" x="5" y="2" rx="2"/><path d="M12 18h.01"/></g></symbol>
   <symbol id="i-quote" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 3a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2 1 1 0 0 1 1 1v1a2 2 0 0 1-2 2 1 1 0 0 0-1 1v2a1 1 0 0 0 1 1 6 6 0 0 0 6-6V5a2 2 0 0 0-2-2z"/><path d="M5 3a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2 1 1 0 0 1 1 1v1a2 2 0 0 1-2 2 1 1 0 0 0-1 1v2a1 1 0 0 0 1 1 6 6 0 0 0 6-6V5a2 2 0 0 0-2-2z"/></g></symbol>
   <symbol id="i-signpost" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 13v8"/><path d="M12 3v3"/><path d="M18 6a2 2 0 0 1 1.387.56l2.307 2.22a1 1 0 0 1 0 1.44l-2.307 2.22A2 2 0 0 1 18 13H6a2 2 0 0 1-1.387-.56l-2.306-2.22a1 1 0 0 1 0-1.44l2.306-2.22A2 2 0 0 1 6 6z"/></g></symbol>
+  <symbol id="i-wand" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.64 3.64-1.28-1.28a1.21 1.21 0 0 0-1.72 0L2.36 18.64a1.21 1.21 0 0 0 0 1.72l1.28 1.28a1.2 1.2 0 0 0 1.72 0L21.64 5.36a1.2 1.2 0 0 0 0-1.72"/><path d="m14 7 3 3"/><path d="M5 6v4"/><path d="M19 14v4"/><path d="M10 2v2"/><path d="M7 8H3"/><path d="M21 16h-4"/><path d="M11 3H9"/></g></symbol>
+  <symbol id="i-puzzle" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15.39 4.39a1 1 0 0 0 1.68-.474 2.5 2.5 0 1 1 3.014 3.015 1 1 0 0 0-.474 1.68l1.683 1.682a2.414 2.414 0 0 1 0 3.414L19.61 15.39a1 1 0 0 1-1.68-.474 2.5 2.5 0 1 0-3.014 3.015 1 1 0 0 1 .474 1.68l-1.683 1.682a2.414 2.414 0 0 1-3.414 0L8.61 19.61a1 1 0 0 0-1.68.474 2.5 2.5 0 1 1-3.014-3.015 1 1 0 0 0 .474-1.68l-1.683-1.682a2.414 2.414 0 0 1 0-3.414L4.39 8.61a1 1 0 0 1 1.68.474 2.5 2.5 0 1 0 3.014-3.015 1 1 0 0 1-.474-1.68l1.683-1.682a2.414 2.414 0 0 1 3.414 0z"/></g></symbol>
 </defs></svg>
 
 <header class="top">
@@ -1735,7 +1759,11 @@ await supabase.from('volunteers').insert({
       </section>
       <section aria-labelledby="hp-out">
         <h2 id="hp-out">Approving and posting</h2>
-        <p>Every post starts as a draft. Someone with <b>Approve &amp; post</b> on the Team page reads it, fixes anything, and clicks <b>Approve</b>. Changing the text afterwards sends it back for another look. Once it's approved, the Google Group email and the Calendar have a <b>Post</b> button. It saves the event first, so they always get the latest time and place, and pressing it twice never sends it twice. In test mode it says <b>Test sent</b>: only the Sheet owner got it. If the title, date, time or place changes after that, the row says <b>Changed since posted</b>. <b>Update calendar</b> fixes the Calendar entry, and <b>Draft an update</b> writes a new Google Group email that goes through approval again. For Partiful, Instagram and the other sites, click <b>Copy text</b>, paste it there, then <b>Mark as posted</b> and add the link to the post if you have it. <b>Undo</b> puts it back if it was marked by mistake. The Posts tab of the Sheet keeps who approved and posted each one, when, and the link.</p>
+        <p>Every post starts as a draft. Someone with <b>Approve &amp; post</b> on the Team page reads it, fixes anything, and clicks <b>Approve</b>. Changing the text afterwards sends it back for another look. Once it's approved, the Google Group email and the Calendar have a <b>Post</b> button. It saves the event first, so they always get the latest time and place, and pressing it twice never sends it twice. In test mode it says <b>Test sent</b>: only the Sheet owner got it. If the title, date, time or place changes after that, the row says <b>Changed since posted</b>. <b>Update calendar</b> fixes the Calendar entry, and <b>Draft an update</b> writes a new Google Group email that goes through approval again. For Partiful, Instagram and the other sites, click <b>Copy text</b>, paste it there, then <b>Mark as posted</b> and add the link to the post if you have it. With the Posting Helper in Chrome, <b>Open &amp; fill</b> types it in for you. Instagram has <b>Download image</b> and <b>Copy caption</b>, and the chats have <b>Share to WhatsApp</b>. <b>Undo</b> puts it back if it was marked by mistake. The Posts tab of the Sheet keeps who approved and posted each one, when, and the link.</p>
+      </section>
+      <section aria-labelledby="hp-helper">
+        <h2 id="hp-helper">Filling in Partiful and the other sites</h2>
+        <div id="help-helper"></div>
       </section>
       <section aria-labelledby="hp-edit">
         <h2 id="hp-edit">Fixing things in the Sheet</h2>
@@ -2291,6 +2319,7 @@ function renderHelp() {
   $('#help-sheet').innerHTML = safeUrl(sheetUrl)
     ? `<a class="btn ghost sm" href="${esc(safeUrl(sheetUrl))}" target="_blank" rel="noopener">Open the Guild Sheet${ic('out')}</a>`
     : '<p class="hint">Ask the Sheet owner for the link.</p>';
+  $('#help-helper').innerHTML = `<div class="helper">${helperHTML(true)}</div>`;
   $('#help-lead').innerHTML = !l ? 'No lead organizer is set yet. Add one on the Team tab of the Sheet.'
     : l.name === ME ? "You're the lead organizer, so you can add people to the team and change what each person can do. Organizers will ask you for the organizer code."
     : `<b>${esc(l.name)}</b> is the lead organizer. Ask ${esc(l.name.split(' ')[0])} to add someone to the team, change what someone can do, or share the organizer code.`;
@@ -2456,6 +2485,7 @@ function renderDetail() {
     <div class="dpanel" id="dp-out" role="tabpanel" aria-labelledby="dt-out" ${S.dtab === 'outreach' ? '' : 'hidden'}>
       <div class="osum"><span>${c.off === chs.length ? 'No outreach recorded for this event.' : c.review + c.approved ? `${ic('send')}<b>${drafts(c.review)}</b> · ${c.approved} approved, ready to post · ${outCount(c)}` : c.test ? `${ic('check')}Everything has gone out · ${outCount(c)} (${c.test === 1 ? 'the test went' : 'the tests went'} only to the Sheet owner)` : `${ic('check')}Everything is posted · ${outCount(c)}`}</span>${c.review >= 2 ? `<button class="btn ghost sm" type="button" id="appr-all">${ic('check')}Approve all drafts</button>` : ''}</div>
       ${c.off < chs.length ? `<ul class="olist">${chs.filter(ch => ev.posts[ch.id].status !== 'off').map(ch => chRow(ev, ch)).join('')}</ul>` : ''}
+      ${helperSpot(ev, chs)}
       ${c.off && !past ? `<label class="addch"><span class="hint">${ic('plus')}Also post to</span><select id="add-ch" aria-label="Add a channel"><option value="">Choose a channel</option>${chs.filter(ch => ev.posts[ch.id].status === 'off').map(ch => `<option value="${esc(ch.id)}">${esc(ch.name)}</option>`).join('')}</select></label>` : ''}
       <div class="chs"><div class="chs-h">${fold('log', 'Activity', ev.log.length, 'history')}</div><ul class="log" id="log-body" ${hid('log')}>${ev.log.slice().reverse().map(([t, w]) => `<li><span>${esc(t)}</span><span>${esc(w)}</span></li>`).join('')}</ul></div>
     </div>`;
@@ -2470,6 +2500,10 @@ function renderDetail() {
   applyPerms();
   sync();
 }
+// without the Posting Helper in this browser: under a list with a site it could fill, a link to how to get it
+const helperSpot = (ev, chs) => poster() || !can('approve') || !chs.some(ch => FILL[ch.id] && ev.posts[ch.id].status !== 'off' && !isSent(ev.posts[ch.id])) ? ''
+  : `<div class="ohelp"><button class="ohelp-t" type="button" id="helper-tog" aria-expanded="${!!S.helper}" aria-controls="helper-body">${ic('wand')}Fill forms automatically with the Posting Helper</button>
+    <div class="ohelp-b helper" id="helper-body" role="region" aria-labelledby="helper-h"${S.helper ? '' : ' hidden'}>${helperHTML(false)}</div></div>`;
 const fold = (k, label, cnt, icon) => `<button class="fold" type="button" data-fold="${k}" aria-expanded="${!S.fold[k]}" aria-controls="${k}-body">${icon ? ic(icon) : ''}${label}${cnt !== undefined ? `<span class="cnt">${cnt}</span>` : ''}</button>`;
 const hid = k => S.fold[k] ? 'hidden' : '';
 const ord = n => n + (n % 10 === 1 && n !== 11 ? 'st' : n % 10 === 2 && n !== 12 ? 'nd' : n % 10 === 3 && n !== 13 ? 'rd' : 'th');
@@ -2640,6 +2674,66 @@ const NO_LINK = 'Add the link on the Channels tab'; // where "Open <name>" would
 // "eventId:channel" -> what its button says while the Sheet sends it ("Posting…"), so a redraw can't offer it twice
 const posting = new Map();
 const GOING = ['post', 'update', 'again'];
+
+/* The Posting Helper, the Guild's Chrome extension (chrome-extension/ in the code). Where it's installed it marks the page
+   before this script runs (data-ebpg-poster on <html>, its version), and Open & fill hands it the event with
+   window.postMessage({ source: 'ebpg-hub', type: 'fill', channel, draft }). It opens the site in a new tab, fills in the
+   form and answers { source: 'ebpg-poster', type: 'opened' or 'error', channel, ... }. It never publishes: the organizer
+   does, then marks the post as posted here, so the approve / mark-as-posted trail stays the record. */
+const poster = () => document.documentElement.dataset.ebpgPoster || '';
+// the copy-and-paste channels it can fill: its name for the site, and the site's name as people know it
+const FILL = { partiful: ['partiful', 'Partiful'], luma: ['luma', 'Luma'], meetup: ['meetup', 'Meetup'], facebook: ['facebook', 'Facebook'], chats: ['hylo', 'Hylo'] };
+// the flyer it puts in the site's image box: Letter-shaped like the printed one, smaller so it travels quickly
+const FILL_IMG = { w: 1020, h: 1320 };
+// "eventId:channel" -> what Open & fill says while it works, and what the helper said last (for this approval)
+const filling = new Map(), fillNote = new Map();
+// the install zip, from the Netlify site (build.py puts it next to the page); other pages link to the site's copy
+const HELPER_ZIP = 'https://ebpg-event-hub.netlify.app/ebpg-posting-helper.zip';
+const helperZip = () => /^https?:$/.test(location.protocol) && /^(ebpg-event-hub\.netlify\.app|localhost|127\.0\.0\.1)$/.test(location.hostname) ? location.origin + '/ebpg-posting-helper.zip' : HELPER_ZIP;
+// what the helper fills in: the event, with the channel's own approved text as the description and post
+const fillDraft = (ev, p, imageDataUrl) => ({ title: ev.title, date: ev.date, start: ev.start, end: ev.end, place: ev.place, address: ev.address || '',
+  description: p.text, text: p.text, eventUrl: onSite(ev) ? pubLink(ev.id) : '', imageDataUrl: imageDataUrl || '' });
+// channel -> the Open & fill waiting for the helper's answer
+const posterWait = new Map();
+function askPoster(channel, d) {
+  return new Promise(done => {
+    const t = setTimeout(() => finish({ type: 'error', message: "The Posting Helper didn't answer. Reload this page and try again." }), 15000);
+    const finish = r => { clearTimeout(t); posterWait.delete(channel); done(r); };
+    posterWait.set(channel, finish);
+    try { window.postMessage({ source: 'ebpg-hub', type: 'fill', channel, draft: d }, location.origin); }
+    catch (e) { console.warn('Open & fill: the message could not be sent', e); finish({ type: 'error', message: 'The Posting Helper could not be reached. Reload this page and try again.' }); }
+  });
+}
+// the helper's answer: only from this page's own window, and only what it says it sends
+window.addEventListener('message', e => {
+  const d = e.data;
+  if (e.source !== window || e.origin !== location.origin || !d || typeof d !== 'object' || d.source !== 'ebpg-poster') return;
+  const finish = typeof d.channel === 'string' && posterWait.get(d.channel);
+  if (!finish || (d.type !== 'opened' && d.type !== 'error')) return;
+  const say = v => typeof v === 'string' ? v.trim().slice(0, 400) : '';
+  finish({ type: d.type, imageDropped: !!d.imageDropped, note: say(d.note), message: say(d.message) });
+});
+// the helper marks the page once, before this script runs; if it ever comes later, the buttons follow
+new MutationObserver(() => { if ($('#detail')) renderDetail(); renderHelp(); }).observe(document.documentElement, { attributes: true, attributeFilter: ['data-ebpg-poster'] });
+// the install steps, in the Outreach list (with its own heading) and on the Help page
+// "a, b and c"
+const andList = a => a.length > 1 ? a.slice(0, -1).join(', ') + ' and ' + a[a.length - 1] : a[0] || '';
+function helperHTML(inHelp) {
+  const v = poster(), used = CHANNELS.filter(c => c.used && FILL[c.id]);
+  // only the sites the Guild uses (the Channels tab), by the names people know them by
+  const sites = andList(used.map(c => c.id === 'chats' ? 'the Hylo chats' : FILL[c.id][1])) || 'the sites the Guild posts to';
+  const groups = andList(used.filter(c => ['meetup', 'facebook', 'chats'].includes(c.id)).map(c => FILL[c.id][1]));
+  const what = `<p>The Posting Helper is a small Chrome extension made for the Guild. It adds <b>Open &amp; fill</b> next to ${esc(sites)}: it opens the site in a new tab and types in the event's title, date, time, place, description and flyer. You check everything and click Publish yourself. It never publishes anything.</p>`;
+  const links = `<p class="hint">${groups ? `For ${esc(groups)}, paste the Guild's group ${groups.includes(' and ') ? 'links' : 'link'} once on the helper's Options page: right-click its icon in Chrome's toolbar, then Options. ` : ''}It works on ebpg-event-hub.netlify.app in Chrome 116 or newer, on a computer.</p>`;
+  const head = inHelp ? '' : `<h3 id="helper-h">${ic('puzzle')}Posting Helper for Chrome</h3>`;
+  if (v) return head + what + `<p class="on">${ic('check')}It's installed in this browser (version ${esc(v)}).</p>` + links;
+  return head + what + `<ol>
+    <li><a class="btn ghost sm" href="${esc(helperZip())}" download="ebpg-posting-helper.zip">${ic('download')}Download the Posting Helper</a><br>It's a .zip file. Double-click it to unzip it.</li>
+    <li>In Chrome, type <code>chrome://extensions</code> in the address bar.</li>
+    <li>Turn on <b>Developer mode</b> (top right).</li>
+    <li>Click <b>Load unpacked</b> and pick the unzipped folder, the one with <code>manifest.json</code> in it.</li>
+    <li>Reload this page. <b>Open &amp; fill</b> shows up next to each site once a post is approved.</li></ol>` + links;
+}
 /* One channel: review → Approve → (Post, or Copy text, Open the site, Mark as posted) → posted, with Undo for copy channels.
    The Google Group and the Calendar, once out, say "Changed since posted" when the time or place changes, with
    Update calendar, or Draft an update for the Group. Only people with "Approve & post" get the actions; everyone sees where it stands. */
@@ -2648,16 +2742,28 @@ function chRow(ev, ch) {
   const site = safeUrl(ch.url), link = p.status === 'posted' ? safeUrl(p.url) : '', going = posting.get(ev.id + ':' + ch.id);
   // no link for this channel on the Channels tab yet: say where it goes (a link to the Sheet, for organizers who have it)
   const noSite = safeUrl(sheetUrl) ? `<a class="hint nolink" href="${esc(safeUrl(sheetUrl))}" target="_blank" rel="noopener">${ic('link')}${NO_LINK}${ic('out')}</a>` : `<span class="hint nolink">${ic('link')}${NO_LINK}</span>`;
-  const act = (a, icon, label, kind = 'ghost') => going && GOING.includes(a)
-    ? `<button class="btn ${kind} sm" type="button" data-act="${a}" data-ch="${id}" disabled aria-busy="true">${ic('loader')}${esc(going)}</button>`
+  const key = ev.id + ':' + ch.id, wait = a => a === 'fill' ? filling.get(key) : GOING.includes(a) ? going : '';
+  const act = (a, icon, label, kind = 'ghost') => wait(a)
+    ? `<button class="btn ${kind} sm" type="button" data-act="${a}" data-ch="${id}" disabled aria-busy="true">${ic('loader')}${esc(wait(a))}</button>`
     : `<button class="btn ${kind} sm" type="button" data-act="${a}" data-ch="${id}">${ic(icon)}${label}</button>`;
+  // with the Posting Helper, Open & fill opens the site and fills it in, so there's no separate Open <name>.
+  // Instagram gets its square image and the caption; the chats can go straight to WhatsApp.
+  const fill = !!FILL[ch.id] && !!poster(), ig = ch.id === 'instagram';
   let acts = '';
   if (p.status === 'review') acts = act('approve', 'check', 'Approve', 'primary'); // shown to everyone, turned off by applyPerms when not allowed
   else if (ok && p.status === 'approved') acts = auto ? act('post', 'send', 'Post', 'primary')
-    : act('copy', 'copy', 'Copy text') + (site ? `<a class="btn ghost sm" href="${esc(site)}" target="_blank" rel="noopener">Open ${esc(ch.name)}${ic('out')}</a>` : '') + (p.marking ? '' : act('mark', 'check', 'Mark as posted', 'primary')) + (site ? '' : noSite);
+    : (fill ? act('fill', 'wand', ch.id === 'chats' ? 'Open Hylo &amp; fill' : 'Open &amp; fill') : '')
+      + (ig ? `<button class="btn ghost sm" type="button" data-dl="ig" data-ev="${esc(ev.id)}" title="PNG, ${OUTS.ig.w} × ${OUTS.ig.h} pixels">${ic('download')}Download image</button>` : '')
+      + act('copy', 'copy', ig ? 'Copy caption' : 'Copy text')
+      + (site && !fill ? `<a class="btn ghost sm" href="${esc(site)}" target="_blank" rel="noopener">Open ${esc(ch.name)}${ic('out')}</a>` : '')
+      + (ch.id === 'chats' ? `<a class="btn ghost sm" href="${esc('https://wa.me/?text=' + encodeURIComponent(p.text))}" target="_blank" rel="noopener">${ic('message-circle')}Share to WhatsApp${ic('out')}</a>` : '')
+      + (p.marking ? '' : act('mark', 'check', 'Mark as posted', 'primary')) + (site || fill ? '' : noSite);
   else if (ok && out && auto && p.stale) acts = ch.id === 'calendar' ? act('update', 'calendar', 'Update calendar', 'primary') : act('redraft', 'pencil', 'Draft an update', 'primary');
   else if (ok && auto && p.status === 'test' && remote && !testOn) acts = act('again', 'send', 'Post for real', 'primary'); // test mode is off now
   else if (ok && p.status === 'posted' && !auto) acts = act('undo', 'rotate-ccw', 'Undo');
+  // what the helper said about this approval's Open & fill
+  const fn = ok && p.status === 'approved' && !auto ? fillNote.get(key) : null;
+  const said = fn && fn.at === p.approvedAt ? `<p class="ofill${fn.ok ? '' : ' bad'}">${ic(fn.ok ? 'wand' : 'alert-triangle')}<span>${esc(fn.text)}</span></p>` : '';
   const mk = `mk-${esc(ev.id)}-${id}`;
   const mark = ok && p.status === 'approved' && p.marking ? `<form class="omark" data-mark="${id}" novalidate>
       <label class="fld" for="${mk}">Link to the post (optional, https)<input id="${mk}" type="url" inputmode="url" autocomplete="off" spellcheck="false" placeholder="https://" aria-describedby="${mk}-err"></label>
@@ -2667,9 +2773,9 @@ function chRow(ev, ch) {
       <p id="${mk}-ask">${ic('link')}<span>Use this as the event's RSVP link?<span class="hint">${esc(safeUrl(p.url))}</span></span></p>
       <div class="omark-b">${act('rsvp-yes', 'check', 'Yes', 'primary')}${act('rsvp-no', 'x', 'No')}</div></div>` : '';
   return `<li class="orow ${esc(p.status)}" data-row="${id}"><span class="logo" style="background:${esc(ch.color)}">${esc(ch.abbr)}</span>
-    <div class="ohead"><button class="oname" type="button" data-act="toggle" data-ch="${id}" aria-expanded="${!!p.open}">${esc(ch.name)}<span class="hint">${out ? '' : 'Read draft · '}${auto ? 'posts automatically' : 'copy and paste'}</span></button>
+    <div class="ohead"><button class="oname" type="button" data-act="toggle" data-ch="${id}" aria-expanded="${!!p.open}">${esc(ch.name)}<span class="hint">${out ? '' : 'Read draft · '}${auto ? 'posts automatically' : fill ? 'the Posting Helper fills it in' : 'copy and paste'}</span></button>
       <span class="ostat"><span class="pill ${esc(p.status)}"${p.status === 'test' ? ` title="${esc(TEST_TIP)}"` : ''}>${esc(postPill(p))}${p.status === 'test' ? `<span class="vh"> (${esc(TEST_TIP)})</span>` : ''}</span>${out && auto && p.stale ? `<span class="warnchip">${ic('alert-triangle')}Changed since posted</span>` : ''}${link ? `<a href="${esc(link)}" target="_blank" rel="noopener">View post${ic('out')}</a>` : ''}${!ok && p.status === 'review' ? `<span class="hint">${esc(whoApproves())}</span>` : ''}</span></div>
-    ${acts ? `<div class="oacts${ok && p.status === 'approved' && !auto ? ' wide' : ''}">${acts}</div>` : ''}
+    ${acts ? `<div class="oacts${ok && p.status === 'approved' && !auto ? ' wide' : ''}">${acts}</div>` : ''}${said}
     ${p.open ? `<div class="obody"><textarea id="ta-${esc(ev.id)}-${id}" data-ta="${id}" aria-label="${esc(ch.name)} text" ${out ? 'readonly' : ''}>${esc(p.text)}</textarea>${p.status !== 'review' ? '' : site ? `<a class="hint" href="${esc(site)}" target="_blank" rel="noopener">Open ${esc(ch.name)}${ic('out')}</a>` : auto ? '' : noSite}</div>` : ''}
     ${mark}${ask}</li>`;
 }
@@ -2710,6 +2816,7 @@ function bindDetail(ev) {
     renderDetail();
   }));
   $('#ph-pick')?.addEventListener('change', x => { ev.photo = x.target.value; render(); renderMaterials(); });
+  $('#helper-tog')?.addEventListener('click', () => { S.helper = !S.helper; renderDetail(); $('#helper-tog')?.focus(); });
   // after a redraw, keyboard focus goes back to the same channel: to `sel` in its row, else its name
   const refocus = (id, sel) => { const row = $(`#detail .orow[data-row="${id}"]`); (row && ((sel && row.querySelector(sel)) || row.querySelector('.oname')))?.focus(); };
   $('#appr-all')?.addEventListener('click', () => {
@@ -2721,7 +2828,7 @@ function bindDetail(ev) {
   });
   $$('[data-act]', $('#detail')).forEach(b => b.addEventListener('click', async () => {
     const id = b.dataset.ch, p = ev.posts[id], ch = CH[id];
-    let focus = '', said = ''; // what gets keyboard focus in this row once it's redrawn, and what the Sheet said about a post
+    let focus = '', said = '', warn = ''; // what gets keyboard focus in this row once it's redrawn, and what the Sheet (or the Posting Helper) said
     switch (b.dataset.act) {
       case 'toggle': p.open = !p.open; focus = '.oname'; break;
       case 'add': p.status = 'review'; p.open = true; p.text = draft(id, ev); ev.log.push([nowStamp(), `${ME} added ${ch.name}`]); break;
@@ -2767,6 +2874,34 @@ function bindDetail(ev) {
         if (p.status !== 'approved') return; // marked or changed while the copy went through
         { const line = `${ME} copied the ${ch.name} text`; if ((ev.log.at(-1) || [])[1] !== line) ev.log.push([nowStamp(), line]); } // copying twice is one line
         focus = '[data-act=copy]'; break;
+      // the Posting Helper opens the site in a new tab and fills in its form, with the flyer if it's ready within 8 seconds.
+      // Opening is not posting either: it stays approved until someone marks it as posted.
+      case 'fill': {
+        const f = FILL[id], key = ev.id + ':' + id;
+        if (!f || !can('approve') || p.status !== 'approved' || !poster() || filling.has(key)) return;
+        if (filling.size) { toast('Still opening the last one. Try again in a moment.'); return; }
+        const busy = t => {
+          filling.set(key, t);
+          const x = $(`#detail .orow[data-row="${id}"] [data-act=fill]`);
+          if (x) { x.disabled = true; x.setAttribute('aria-busy', 'true'); x.innerHTML = ic('loader') + esc(t); }
+        };
+        busy('Preparing…');
+        let image = '';
+        try { image = await inTime(artPng(artOf('flyer', ev), FILL_IMG), 8000); }
+        catch (er) { console.warn('Open & fill: the flyer was not ready, so the helper gets the event without it', er); }
+        busy('Opening…');
+        const r = await askPoster(f[0], fillDraft(ev, p, image));
+        filling.delete(key);
+        const opened = r.type === 'opened';
+        const text = opened ? `Opened ${f[1]}. Review the form and publish there, then come back and mark it posted.`
+            + (r.imageDropped && r.note ? ' ' + r.note : image ? '' : " The flyer wasn't ready, so add it there yourself.")
+          : r.message || `The Posting Helper could not open ${f[1]}. Reload this page and try again.`;
+        fillNote.set(key, { ok: opened, text, at: p.approvedAt });
+        if (opened) { const line = `${ME} opened ${f[1]} with the Posting Helper`; if ((ev.log.at(-1) || [])[1] !== line) ev.log.push([nowStamp(), line]); }
+        if (S.sel !== ev.id) { render(); toast(text, opened ? 'check' : 'alert-triangle'); return; } // another event is open now
+        if (opened) said = text; else warn = text;
+        focus = '[data-act=fill]'; break;
+      }
       case 'mark': p.marking = true; focus = 'input'; break;
       case 'unmark': p.marking = false; focus = '[data-act=mark]'; break;
       case 'undo':
@@ -2788,6 +2923,7 @@ function bindDetail(ev) {
     }
     render(); refocus(id, focus);
     if (said) toast(said, 'check'); // after the redraw, so a waiting "Saved" can't cover it
+    if (warn) toast(warn, 'alert-triangle');
   }));
   // Mark as posted: an optional https link to the post, then posted by me, now
   $$('form[data-mark]', $('#detail')).forEach(f => f.addEventListener('submit', e => {
@@ -3030,12 +3166,9 @@ function saveBlob(blob, name) {
 }
 // Safari (and every browser on an iPhone) draws the fonts and photos into the image only on the second try
 const WEBKIT = /AppleWebKit/.test(navigator.userAgent) && /Safari\/[0-9]/.test(navigator.userAgent) && !/Chrome\/|Chromium\/|Edg\/[0-9]|Android/.test(navigator.userAgent);
-async function downloadArt(b) {
-  const k = b.dataset.dl, o = OUTS[k], art = b.closest('.mat, .hfig')?.querySelector('.art');
-  if (!o || !art || b.getAttribute('aria-busy') === 'true') return;
-  const label = b.innerHTML, file = outName(k, b.dataset.ev) + '.png';
-  b.setAttribute('aria-busy', 'true'); b.setAttribute('aria-disabled', 'true');
-  b.innerHTML = ic('loader') + 'Preparing…' + (b.querySelector('.vh')?.outerHTML || '');
+/* Draws a copy of a piece off screen at w × h pixels and gives back a PNG (a data: URL). Download uses it, and so does
+   Open & fill, for the flyer it hands the Posting Helper. */
+async function artPng(art, o) {
   const stage = document.createElement('div'), node = art.cloneNode(true);
   stage.className = 'xstage'; stage.setAttribute('aria-hidden', 'true'); stage.style.width = o.w + 'px';
   node.style.width = o.w + 'px'; node.style.height = o.h + 'px';
@@ -3047,15 +3180,31 @@ async function downloadArt(b) {
     await Promise.all([...node.querySelectorAll('img')].map(i => i.decode ? i.decode().catch(() => {}) : null));
     const opts = { width: o.w, height: o.h, pixelRatio: 1, fontEmbedCSS: await fontCSS() };
     const draw = async op => { if (WEBKIT) await lib.toPng(node, op); return lib.toPng(node, op); };
-    let png;
-    try { png = await draw(opts); } catch (e) { console.warn('Download: drawing with the fonts failed, so trying without them', e); png = await draw({ ...opts, fontEmbedCSS: undefined, skipFonts: true }); }
-    saveBlob(dataBlob(png), file);
+    try { return await draw(opts); } catch (e) { console.warn('Drawing with the fonts failed, so trying without them', e); return await draw({ ...opts, fontEmbedCSS: undefined, skipFonts: true }); }
+  } finally {
+    stage.remove();
+  }
+}
+// an event's piece (flyer, ig, story, mail) made from the event, for a button that isn't under one (the Outreach list)
+function artOf(k, ev) {
+  const m = MATS.find(x => x[0] === k), box = document.createElement('div');
+  box.innerHTML = m && ev ? m[3](ev) : '';
+  return box.querySelector('.art');
+}
+async function downloadArt(b) {
+  const k = b.dataset.dl, o = OUTS[k];
+  const art = b.closest('.mat, .hfig')?.querySelector('.art') || (b.dataset.ev && artOf(k, EVENTS.find(e => e.id === b.dataset.ev)));
+  if (!o || !art || b.getAttribute('aria-busy') === 'true') return;
+  const label = b.innerHTML, file = outName(k, b.dataset.ev) + '.png';
+  b.setAttribute('aria-busy', 'true'); b.setAttribute('aria-disabled', 'true');
+  b.innerHTML = ic('loader') + 'Preparing…' + (b.querySelector('.vh')?.outerHTML || '');
+  try {
+    saveBlob(dataBlob(await artPng(art, o)), file);
     toast('Downloaded ' + file, 'download');
   } catch (e) {
     console.warn('Download failed', e);
     toast(o.print ? "Couldn't make the image. Try Print instead." : "Couldn't make the image. Check your connection and try again.", 'alert-triangle');
   } finally {
-    stage.remove();
     b.innerHTML = label; b.removeAttribute('aria-busy'); b.removeAttribute('aria-disabled');
   }
 }

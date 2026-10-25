@@ -100,3 +100,19 @@ head = ('<!doctype html>\n<html lang="en">\n<meta charset="utf-8">\n<meta name="
 shutil.copy(hub / "assets" / "trellis.jpg", site / "og.jpg")
 (site / "_headers").write_text("/*\n  X-Content-Type-Options: nosniff\n  Referrer-Policy: strict-origin-when-cross-origin\n  X-Frame-Options: DENY\n")
 print("built site/:", len(head + page) // 1024, "KB page")
+
+# The Posting Helper (chrome-extension/), served as /ebpg-posting-helper.zip for the install steps in the Outreach list
+# and on the Help page. Its zip script needs only Node and gives the same zip for the same files, so it runs each time
+# to keep the zip current; if it can't, the zip already built is used. The site still builds without it, with a warning.
+ext = here.parent / "chrome-extension"
+zip_src, zip_out = ext / "dist" / "ebpg-posting-helper.zip", site / "ebpg-posting-helper.zip"
+try:
+    subprocess.run(["node", str(ext / "tools" / "build-zip.js")], check=True, capture_output=True, timeout=120)
+except (OSError, subprocess.SubprocessError) as e:
+    print("warning: could not build the Posting Helper zip (" + str(e).splitlines()[0] + ")" + ("; using the one already built" if zip_src.exists() else ""))
+if zip_src.exists():
+    shutil.copy(zip_src, zip_out)
+    print("copied site/ebpg-posting-helper.zip:", zip_out.stat().st_size // 1024, "KB")
+else:
+    zip_out.unlink(missing_ok=True)
+    print("warning: site/ebpg-posting-helper.zip is missing, so the Posting Helper's Download link won't work on the site. Build it with: cd chrome-extension && node tools/build-zip.js")

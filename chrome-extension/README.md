@@ -6,7 +6,7 @@ Partiful, Luma and Meetup have no free way to post from code, so this does the t
 
 ## Install
 
-1. Get the folder: either this `chrome-extension` folder, or `ebpg-posting-helper.zip` unzipped (double-click it).
+1. Get the folder: either this `chrome-extension` folder, or `ebpg-posting-helper.zip` unzipped (double-click it). The Event Hub has the zip at https://ebpg-event-hub.netlify.app/ebpg-posting-helper.zip: in an event's Outreach list, click **Fill forms automatically with the Posting Helper** for the download and these steps.
 2. In Chrome, go to `chrome://extensions`.
 3. Turn on **Developer mode** (top right).
 4. Click **Load unpacked** and pick the folder (the one with `manifest.json` in it).
@@ -158,7 +158,7 @@ They cover the field matching and filling on fixtures of each site (React-style 
 node tools/build-zip.js     # or: npm run zip
 ```
 
-This writes `dist/ebpg-posting-helper.zip` with only `manifest.json`, `README.md`, `src/`, `pages/` and `icons/`. It needs nothing installed beyond Node, and the same files always give the same zip. `dist/` is not committed.
+This writes `dist/ebpg-posting-helper.zip` with only `manifest.json`, `README.md`, `src/`, `pages/` and `icons/`. It needs nothing installed beyond Node, and the same files always give the same zip. `dist/` is not committed. `apps-script/build.py` runs this too and copies the zip into `apps-script/site/`, so the Netlify site serves it at `/ebpg-posting-helper.zip`.
 
 ### Icons
 

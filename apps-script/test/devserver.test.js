@@ -51,4 +51,10 @@ test('dev server: /_ctl slows /_api calls and fails the ones named with an HTML 
   const html = await (await fetch(base + '/site')).text();
   assert.ok(html.includes(`"${base}/_api"`), 'the page calls this server');
   assert.ok(!/_ctl|latency=/.test(html), 'the page knows nothing of the switches');
+
+  // the Posting Helper's install zip, where the Outreach list's Download link points
+  r = await fetch(base + '/ebpg-posting-helper.zip');
+  assert.equal(r.status, 200);
+  assert.equal(r.headers.get('content-type'), 'application/zip');
+  assert.equal(Buffer.from(await r.arrayBuffer()).subarray(0, 4).toString('hex'), '504b0304', 'a zip file');
 });

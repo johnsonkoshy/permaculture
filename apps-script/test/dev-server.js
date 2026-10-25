@@ -1,6 +1,6 @@
 /* Serve the built page with a fake google.script.run that calls Code.js
    running on the mock. Run: node test/dev-server.js, open http://localhost:8766/
-   GET /site serves the Netlify build, calling the mock through POST /_api (doPost).
+   GET /site serves the Netlify build, calling the mock through POST /_api (doPost), and /ebpg-posting-helper.zip its Posting Helper zip.
    GET /_state dumps the mock Sheet and the emails it "sent".
 
    Slow or failing Sheet, for trying the save status and retries (test only; the page knows nothing of it):
@@ -46,6 +46,10 @@ const server = http.createServer((req, res) => {
     return send(200, 'text/html; charset=utf-8', html);
   }
   if (url.pathname === '/og.jpg') return send(200, 'image/jpeg', fs.readFileSync(path.join(__dirname, '..', 'site', 'og.jpg'))); // the share preview image
+  if (url.pathname === '/ebpg-posting-helper.zip') { // the Posting Helper's install zip, as Netlify serves it
+    const zip = path.join(__dirname, '..', 'site', 'ebpg-posting-helper.zip');
+    return fs.existsSync(zip) ? send(200, 'application/zip', fs.readFileSync(zip)) : send(404, 'text/plain', 'not built: run python3 build.py');
+  }
   if (url.pathname === '/_ctl') {
     if (url.searchParams.has('latency')) ctl.latency = latencyOf(url.searchParams.get('latency'));
     if (url.searchParams.has('fail')) ctl.fail = url.searchParams.get('fail');

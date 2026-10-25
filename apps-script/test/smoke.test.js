@@ -429,7 +429,7 @@ test('the Netlify and Google-hosted pages use the same error script', () => {
 /* ---------- icons and the event pop-up ---------- */
 const ICONS = ['x', 'arrow-left', 'arrow-right', 'arrow-down', 'log-in', 'log-out', 'calendar', 'calendar-plus', 'clock', 'map-pin', 'users', 'user-plus', 'user-minus', 'user-check',
   'pencil', 'send', 'link', 'copy', 'share', 'file-text', 'list-ordered', 'package', 'lightbulb', 'alert-triangle', 'heart', 'sprout', 'shovel', 'handshake', 'image',
-  'lock', 'mail', 'phone', 'message-circle', 'history', 'eye', 'rotate-ccw', 'printer', 'help-circle', 'download', 'plus', 'check', 'out'];
+  'lock', 'mail', 'phone', 'message-circle', 'history', 'eye', 'rotate-ccw', 'printer', 'help-circle', 'download', 'plus', 'check', 'out', 'wand', 'puzzle'];
 const GLYPHS = /[↗←×↓✓]/;
 /* every icon on screen points at a symbol in the sprite and is hidden from screen readers */
 function checkIcons(p, where) {
@@ -2952,7 +2952,7 @@ test("the Channels tab: Luma and Meetup stay out of sight, new events start with
   p.$('#dp-out [data-act=approve][data-ch=partiful]').click();
   assert.equal(p.$('#dp-out [data-row=partiful] .oacts a').href, 'https://partiful.com/');
   p.$('#dp-out [data-act=approve][data-ch=instagram]').click();
-  assert.deepEqual(acts(p, 'instagram'), ['Copy text', 'Mark as posted', NO_LINK]);
+  assert.deepEqual(acts(p, 'instagram'), ['Download image', 'Copy caption', 'Mark as posted', NO_LINK]);
   const hint = p.$('#dp-out [data-row=instagram] .oacts a.nolink');
   assert.deepEqual([hint.href, hint.target, hint.rel], ['https://docs.google.com/spreadsheets/d/sheet-1/edit', '_blank', 'noopener']);
   assert.ok(!p.$('#dp-out [data-row=instagram] a[href*="instagram.com"]'), 'not a generic home page');
@@ -3065,4 +3065,228 @@ test("the RSVP question: only when the event has no RSVP link yet, only with a l
   assert.match(q.$('#ta-w7-ggroup').value, /\nRSVP on Partiful: https:\/\/partiful\.com\/e\/already\n/, 'a draft nobody edited has the RSVP link typed into the Sheet');
   await waitFor(q.idle, 2000, 'saves to finish');
   p.noErrors(); q.noErrors();
+});
+
+/* ---------- the Posting Helper (chrome-extension/): Open & fill, and how to get it ---------- */
+// The extension's real content script for the Event Hub (src/hub-bridge.js) runs on the page, with a stand-in for Chrome's
+// storage and service worker, so the page's message has to pass the helper's own checks. jsdom's postMessage gives no
+// source or origin, so it is replaced with one that does what a browser does.
+const { createHubBridge } = require('../../chrome-extension/src/hub-bridge.js');
+const ZIP_SITE = path.join(__dirname, '..', 'site', 'ebpg-posting-helper.zip');
+const ZIP_EXT = path.join(__dirname, '..', '..', 'chrome-extension', 'dist', 'ebpg-posting-helper.zip');
+const OPENED = site => `Opened ${site}. Review the form and publish there, then come back and mark it posted.`;
+function browserPostMessage(w, api) {
+  w.postMessage = (data, target) => {
+    const origin = w.location.origin;
+    if (target !== '*' && target !== origin) return;
+    const copy = w.JSON.parse(w.JSON.stringify(data));
+    w.setTimeout(() => w.dispatchEvent(new w.MessageEvent('message', { data: copy, origin, source: w })), 0);
+  };
+  api.messages = [];
+  w.addEventListener('message', e => api.messages.push(e.data));
+}
+const withHelper = (w, g, api) => {
+  withQRExport(w, g, api);
+  browserPostMessage(w, api);
+  api.saved = []; api.opens = []; api.answer = { ok: true };
+  createHubBridge({
+    win: w, doc: w.document, version: '1.0.0',
+    runtime: { id: 'ebpg-helper', sendMessage: async m => { api.opens.push(m); return api.answer; } },
+    storage: { set: async o => { api.saved.push(o); } },
+  }).start();
+};
+const hubAsks = p => p.api.messages.filter(m => m && m.source === 'ebpg-hub');
+const fillNoteOf = (p, ch) => p.$(`#dp-out [data-row="${ch}"] .ofill`);
+
+test('with the Posting Helper: Open & fill hands it the event, the flyer and the approved text, and the row says to review and mark it posted', async t => {
+  const p = await openPage(t, withHelper);
+  assert.equal(p.d.documentElement.dataset.ebpgPoster, '1.0.0', 'the helper marked the page');
+  await signIn(p, 'Phil');
+  await outreach(p, 'w7');
+  assert.ok(!p.$('#helper-tog'), 'no "get the helper" link once it is installed');
+  assert.ok(!p.$('#dp-out [data-act=fill]'), 'nothing to fill before approval');
+  p.$('#dp-out [data-act=approve][data-ch=partiful]').click();
+  assert.deepEqual(acts(p, 'partiful'), ['Open & fill', 'Copy text', 'Mark as posted'], 'Open & fill is the main action; the helper opens the site itself');
+  const fill = p.$('#dp-out [data-act=fill][data-ch=partiful]');
+  assert.ok(fill.querySelector('svg.ic[aria-hidden="true"] use[href="#i-wand"]'), 'with an icon');
+  assert.equal(p.d.activeElement, fill, 'focus moves to Open & fill');
+  assert.equal(p.$('#dp-out [data-row=partiful] .oname .hint').textContent, 'Read draft · the Posting Helper fills it in');
+  assert.equal(p.$('#dp-out [data-row=instagram] .oname .hint').textContent, 'Read draft · copy and paste');
+  checkIcons(p, 'Open & fill');
+
+  // the flyer is drawn for it; the helper gets the event and Partiful's own text
+  p.w.htmlToImage = p.api.drawer;
+  const text = postText(p, 'w7', 'partiful');
+  fill.click();
+  assert.equal(fill.getAttribute('aria-busy'), 'true');
+  assert.equal(label(fill), 'Preparing…');
+  await waitFor(() => hubAsks(p).length === 1, 3000, 'the message to the helper');
+  const [ask] = hubAsks(p);
+  assert.deepEqual(Object.keys(ask), ['source', 'type', 'channel', 'draft']);
+  assert.deepEqual([ask.type, ask.channel], ['fill', 'partiful']);
+  const d = ask.draft;
+  assert.deepEqual(Object.keys(d), ['title', 'date', 'start', 'end', 'place', 'address', 'description', 'text', 'eventUrl', 'imageDataUrl']);
+  assert.equal(d.title, 'OPC Garden Work Party');
+  assert.equal(d.date, dateOf(p, 'w7'));
+  assert.match(d.start, /^\d\d:\d\d$/); assert.match(d.end, /^\d\d:\d\d$/);
+  assert.deepEqual([d.place, d.address], [evCell(p, 'w7', 'place'), evCell(p, 'w7', 'address')]);
+  assert.equal(d.description, text, 'the description is the channel draft');
+  assert.equal(d.text, text);
+  assert.equal(d.eventUrl, URL_SITE + '?ev=w7', "the event's public page");
+  assert.equal(d.imageDataUrl, PNG_1PX, 'the flyer, as a PNG');
+  const fly = p.api.drawn.at(-1);
+  assert.equal(fly.cls, 'art flyer');
+  assert.deepEqual([fly.opts.width, fly.opts.height], [1020, 1320], 'Letter-shaped, smaller than the printed one');
+  assert.ok(fly.staged && !p.$('.xstage'), 'drawn off screen, and the copy is gone');
+  // the helper's own checks let it through: it saved the event and opened Partiful
+  await waitFor(() => p.api.opens.length === 1, 2000, 'the helper to open the site');
+  assert.deepEqual(p.api.opens[0], { type: 'open', channel: 'partiful' });
+  assert.equal(p.api.saved[0].draft.channel, 'partiful');
+  assert.equal(p.api.saved[0].draft.origin, 'http://localhost:8766');
+  assert.equal(p.api.saved[0].draft.draft.title, 'OPC Garden Work Party');
+  assert.equal(p.api.saved[0].draft.draft.imageDataUrl, PNG_1PX);
+  await waitFor(() => p.api.toasts.includes(OPENED('Partiful')), 2000, 'the opened toast');
+  assert.ok(p.api.messages.some(m => m.source === 'ebpg-poster' && m.type === 'opened' && m.channel === 'partiful'), "the helper's answer");
+  assert.equal(fillNoteOf(p, 'partiful').textContent, OPENED('Partiful'), 'it stays under the row');
+  assert.ok(p.$('#dp-out [data-row=partiful]').classList.contains('approved'), 'opening is not posting');
+  assert.equal(label(p.$('#dp-out [data-act=fill][data-ch=partiful]')), 'Open & fill', 'ready again');
+  assert.equal(p.d.activeElement.dataset.act, 'fill');
+  // the approve / mark-as-posted trail is still the record
+  p.$('#dp-out [data-act=mark][data-ch=partiful]').click();
+  p.$('form[data-mark=partiful] button[type=submit]').click();
+  assert.match(pill(p, 'partiful'), /^Posted by Phil/);
+  assert.ok(!fillNoteOf(p, 'partiful'), 'the note goes once it is posted');
+  await waitFor(() => postRow(p, 'w7', 'partiful')?.status === 'posted', 3000, 'the Posts row');
+  await waitFor(p.idle, 2000, 'saves to finish');
+  assert.deepEqual(activity(p, 'w7').slice(-3), ['Phil approved Partiful', 'Phil opened Partiful with the Posting Helper', 'Phil marked Partiful as posted']);
+
+  // the chats fill Hylo, and share to WhatsApp; a flyer that can't be drawn is left out, and the rest still goes
+  p.$('#dp-out [data-act=approve][data-ch=chats]').click();
+  assert.deepEqual(acts(p, 'chats'), ['Open Hylo & fill', 'Copy text', 'Share to WhatsApp', 'Mark as posted']);
+  const chats = postText(p, 'w7', 'chats');
+  const wa = p.$('#dp-out [data-row=chats] .oacts a[href^="https://wa.me/"]');
+  assert.deepEqual([wa.getAttribute('href'), wa.target, wa.rel], ['https://wa.me/?text=' + encodeURIComponent(chats), '_blank', 'noopener']);
+  p.api.drawFails = 'all';
+  await sleep(1600); // the helper takes one site at a time, a moment apart ("Still opening the last one")
+  p.$('#dp-out [data-act=fill][data-ch=chats]').click();
+  await waitFor(() => hubAsks(p).length === 2, 3000, 'the second message');
+  assert.equal(hubAsks(p)[1].channel, 'hylo');
+  assert.equal(hubAsks(p)[1].draft.imageDataUrl, '', 'no image');
+  assert.equal(hubAsks(p)[1].draft.text, chats);
+  await waitFor(() => fillNoteOf(p, 'chats'), 2000, 'the note');
+  assert.equal(fillNoteOf(p, 'chats').textContent, OPENED('Hylo') + " The flyer wasn't ready, so add it there yourself.");
+  assert.deepEqual(p.api.opens[1], { type: 'open', channel: 'hylo' });
+
+  // the helper can't open a site (no group link in its Options yet): its sentence shows, with a warning
+  p.api.drawFails = '';
+  p.api.answer = { ok: false, error: 'Add the Facebook group link in the helper\u2019s Options first.' };
+  p.set('#add-ch', 'facebook');
+  p.$('#dp-out [data-act=approve][data-ch=facebook]').click();
+  assert.deepEqual(acts(p, 'facebook'), ['Open & fill', 'Copy text', 'Mark as posted']);
+  await sleep(1600);
+  p.$('#dp-out [data-act=fill][data-ch=facebook]').click();
+  await waitFor(() => fillNoteOf(p, 'facebook'), 3000, 'the error note');
+  assert.ok(fillNoteOf(p, 'facebook').classList.contains('bad'));
+  assert.equal(fillNoteOf(p, 'facebook').textContent, 'Add the Facebook group link in the helper\u2019s Options first.');
+  assert.ok(fillNoteOf(p, 'facebook').querySelector('use[href="#i-alert-triangle"]'));
+  assert.equal(p.$('#toast').textContent, 'Add the Facebook group link in the helper\u2019s Options first.');
+  assert.ok(!activity(p, 'w7').includes('Phil opened Facebook with the Posting Helper'), 'nothing opened, nothing logged');
+  // changed text goes back to review, and the old note goes with that approval
+  p.set('#ta-w7-facebook', p.$('#ta-w7-facebook').value + ' Bring gloves!');
+  p.$('#dp-out [data-act=approve][data-ch=facebook]').click();
+  assert.ok(!fillNoteOf(p, 'facebook'), 'a new approval starts with no note');
+
+  // Instagram: its square image and the caption
+  p.$('#dp-out [data-act=approve][data-ch=instagram]').click();
+  assert.deepEqual(acts(p, 'instagram'), ['Download image', 'Copy caption', 'Mark as posted', NO_LINK], 'nothing to fill on Instagram');
+  const n = p.api.downloads.length;
+  p.$('#dp-out [data-row=instagram] button[data-dl=ig]').click();
+  await waitFor(() => p.api.downloads.length === n + 1, 3000, 'the Instagram image');
+  assert.equal(p.api.downloads.at(-1).name, `ebpg-opc-garden-work-party-${dateOf(p, 'w7')}-instagram-post.png`);
+  assert.equal(p.api.drawn.at(-1).cls, 'art ig');
+  assert.deepEqual([p.api.drawn.at(-1).opts.width, p.api.drawn.at(-1).opts.height], [1080, 1080]);
+  p.$('#dp-out [data-act=copy][data-ch=instagram]').click();
+  await waitFor(() => p.api.copied.includes(postText(p, 'w7', 'instagram')), 2000, 'the caption on the clipboard');
+  checkIcons(p, 'the Posting Helper rows');
+  await waitFor(p.idle, 2000, 'saves to finish');
+  p.noErrors();
+});
+
+test('without the Posting Helper: Copy stays, and a link opens the install steps with the zip from the site', async t => {
+  const p = await openPage(t);
+  assert.equal(p.d.documentElement.dataset.ebpgPoster, undefined);
+  await signIn(p, 'Phil');
+  await outreach(p, 'w7');
+  p.$('#dp-out [data-act=approve][data-ch=partiful]').click();
+  assert.deepEqual(acts(p, 'partiful'), ['Copy text', 'Open Partiful', 'Mark as posted']);
+  assert.ok(!p.$('[data-act=fill]'), 'no Open & fill');
+  const tog = p.$('#helper-tog');
+  assert.equal(tog.textContent, 'Fill forms automatically with the Posting Helper');
+  assert.ok(tog.querySelector('svg.ic[aria-hidden="true"] use[href="#i-wand"]'));
+  assert.equal(tog.tagName, 'BUTTON');
+  assert.deepEqual([tog.getAttribute('aria-expanded'), tog.getAttribute('aria-controls')], ['false', 'helper-body']);
+  assert.ok(p.$('#helper-body').hidden, 'closed to start with');
+  tog.click();
+  const open = p.$('#helper-tog'), body = p.$('#helper-body');
+  assert.equal(open.getAttribute('aria-expanded'), 'true');
+  assert.equal(p.d.activeElement, open, 'focus stays on the link');
+  assert.ok(!body.hidden && p.visible(body));
+  assert.equal(body.getAttribute('role'), 'region');
+  assert.equal(p.d.getElementById(body.getAttribute('aria-labelledby')).textContent, 'Posting Helper for Chrome');
+  const zip = body.querySelector('a[download]');
+  assert.equal(zip.getAttribute('href'), 'http://localhost:8766/ebpg-posting-helper.zip', 'the zip next to the page');
+  assert.equal(zip.getAttribute('download'), 'ebpg-posting-helper.zip');
+  assert.equal(zip.textContent, 'Download the Posting Helper');
+  assert.deepEqual([...body.querySelectorAll('ol > li')].map(li => li.textContent.replace(/\s+/g, ' ').trim()), [
+    "Download the Posting HelperIt's a .zip file. Double-click it to unzip it.",
+    'In Chrome, type chrome://extensions in the address bar.',
+    'Turn on Developer mode (top right).',
+    'Click Load unpacked and pick the unzipped folder, the one with manifest.json in it.',
+    'Reload this page. Open & fill shows up next to each site once a post is approved.']);
+  assert.ok(!/prototype|sample|demo|simulated/i.test(body.textContent), 'plain words');
+  checkIcons(p, 'the Posting Helper steps');
+  // it stays open while the list redraws, and the link closes it
+  p.$('#dp-out [data-act=approve][data-ch=chats]').click();
+  assert.ok(!p.$('#helper-body').hidden, 'still open after a redraw');
+  assert.deepEqual(acts(p, 'chats'), ['Copy text', 'Share to WhatsApp', 'Mark as posted', NO_LINK]);
+  p.$('#helper-tog').click();
+  assert.ok(p.$('#helper-body').hidden);
+  // the Help page has the same steps
+  p.$('#m-x').click();
+  p.$('.tabs a[data-tab=help]').click();
+  assert.equal(p.$('#hp-helper').textContent, 'Filling in Partiful and the other sites');
+  assert.equal(p.$('#help-helper a[download]').getAttribute('href'), 'http://localhost:8766/ebpg-posting-helper.zip');
+  assert.ok(!p.$('#help-helper #helper-h'), 'under the section heading');
+  await waitFor(p.idle, 2000, 'saves to finish');
+  p.noErrors();
+  // someone without "Approve & post" has nothing to fill, so no link
+  const q = await openPage(t, null, p.g);
+  await signIn(q, 'Kalynn');
+  await outreach(q, 'w7');
+  assert.ok(!q.$('#helper-tog'));
+  q.noErrors();
+});
+
+test('the site serves the Posting Helper zip that build.py copied from chrome-extension/dist', () => {
+  assert.ok(fs.existsSync(ZIP_SITE), 'site/ebpg-posting-helper.zip (build.py makes it)');
+  const zip = fs.readFileSync(ZIP_SITE);
+  assert.equal(zip.subarray(0, 4).toString('hex'), '504b0304', 'a zip file');
+  assert.ok(zip.includes(Buffer.from('manifest.json')) && zip.includes(Buffer.from('src/hub-bridge.js')), 'with the extension in it');
+  assert.ok(!zip.includes(Buffer.from('node_modules/')) && !zip.includes(Buffer.from('tests/')), 'and only what Chrome needs');
+  if (fs.existsSync(ZIP_EXT)) assert.ok(zip.equals(fs.readFileSync(ZIP_EXT)), 'the same zip the extension builds');
+});
+
+test('the prototype artifact never finds the helper: Copy stays, and the install steps link to the zip on the public site', async t => {
+  const p = loadPage(t, ARTIFACT, 'https://artifact.example/hub');
+  await waitFor(() => p.shown('#p-landing'), 2000, 'the artifact landing page');
+  p.$('#signin-top').click();
+  p.$('#si-google').click();
+  p.$('#tiles [data-open="w7"]').click();
+  p.$('#detail [data-dtab="outreach"]').click();
+  p.$('#dp-out [data-act=approve][data-ch=partiful]').click();
+  assert.deepEqual(acts(p, 'partiful'), ['Copy text', 'Open Partiful', 'Mark as posted']);
+  p.$('#helper-tog').click();
+  assert.equal(p.$('#helper-body a[download]').getAttribute('href'), 'https://ebpg-event-hub.netlify.app/ebpg-posting-helper.zip');
+  assert.deepEqual(p.api.calls, [], 'the artifact calls no server');
+  p.noErrors();
 });

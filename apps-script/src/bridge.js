@@ -395,7 +395,7 @@ if (window.EBPG_GAS) {
     problems = st.problems || [];
     renderProblems();
     // the Channels tab changed: the attention bar, and the open event unless something in it is being typed
-    if (applyChannels(st.channels)) { news = evs = true; if (open && !S.editing && !typing()) openRedo = true; }
+    if (applyChannels(st.channels)) { news = evs = true; renderHelp(); if (open && !S.editing && !typing()) openRedo = true; }
     if (evs) {
       taskSeq = Math.max(taskSeq, ...EVENTS.flatMap(e => e.tasks.map(t => +String(t.id).replace(/\D/g, '') || 0)));
       const ft = document.activeElement?.closest?.('#tiles [data-open]')?.dataset.open;
